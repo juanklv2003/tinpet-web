@@ -77,7 +77,7 @@ app.get('/api/pets/mine', authenticateToken, async (req, res) => {
     }
 
     // Buscar el shelter del usuario
-    const shelter = await prisma.shelters.findUnique({
+    const shelter = await prisma.shelters.findFirst({
       where: { user_id: req.user.sub }
     });
 
@@ -110,7 +110,7 @@ app.post('/api/pets', authenticateToken, async (req, res) => {
     }
 
     // Buscar el shelter del usuario
-    const shelter = await prisma.shelters.findUnique({
+    const shelter = await prisma.shelters.findFirst({
       where: { user_id: req.user.sub }
     });
 
@@ -237,13 +237,13 @@ app.post('/api/auth/login', async (req, res) => {
 
     let name = '';
     if (user.role === 'adopter') {
-      const profile = await prisma.adopters.findUnique({ where: { user_id: user.id } });
+      const profile = await prisma.adopters.findFirst({ where: { user_id: user.id } });
       name = profile?.name || '';
     } else if (user.role === 'shelter') {
-      const profile = await prisma.shelters.findUnique({ where: { user_id: user.id } });
+      const profile = await prisma.shelters.findFirst({ where: { user_id: user.id } });
       name = profile?.name || '';
     } else if (user.role === 'vet') {
-      const profile = await prisma.vet_clinics.findUnique({ where: { user_id: user.id } });
+      const profile = await prisma.vet_clinics.findFirst({ where: { user_id: user.id } });
       name = profile?.name || '';
     }
 
