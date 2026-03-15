@@ -45,7 +45,10 @@ tinpet-web/
 
 ---
 
-## Modelos de Datos (Prisma Schema)
+## Prisma Schema
+
+- Ubicación: `backend/prisma/schema.prisma`
+- **Solo existe aquí** (no usar `prisma/` en raíz)
 
 ### Users
 - `id`: UUID
@@ -130,6 +133,7 @@ npm run db:studio  # Abrir Prisma Studio
 4. **Mantener componentes pequeños** —分离UI de lógica (container/presentational pattern)
 5. **No hardcodear credenciales** — usar variables de entorno (`.env`)
 6. **Tailwind v4** — usar clases de utilidad, NO escribir CSS personalizado a menos que sea necesario
+7. **Todos los botones deben tener `cursor-pointer`** — siempre usar la clase `cursor-pointer` en elementos interactivos
 
 ---
 

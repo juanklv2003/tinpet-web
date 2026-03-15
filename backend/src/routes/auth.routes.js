@@ -1,6 +1,7 @@
 const router   = require('express').Router();
 const bcrypt   = require('bcrypt');
 const jwt      = require('jsonwebtoken');
+const { randomUUID } = require('crypto');
 const prisma   = require('../lib/prisma');
 
 const SALT_ROUNDS = 12;
@@ -27,6 +28,7 @@ router.post('/register', async (req, res) => {
 
     const user = await prisma.users.create({
       data: {
+        id: randomUUID(),
         email: email.trim().toLowerCase(),
         password_hash,
         role,
@@ -35,9 +37,9 @@ router.post('/register', async (req, res) => {
 
     // Insertar en la tabla específica del rol
     const roleInsert = {
-      adopter: () => prisma.adopters.create({ data: { user_id: user.id, name, email: user.email } }),
-      shelter: () => prisma.shelters.create({ data: { user_id: user.id, name, email: user.email } }),
-      vet:     () => prisma.vet_clinics.create({ data: { user_id: user.id, name, email: user.email } }),
+      adopter: () => prisma.adopters.create({ data: { id: randomUUID(), user_id: user.id, name, email: user.email } }),
+      shelter: () => prisma.shelters.create({ data: { id: randomUUID(), user_id: user.id, name, email: user.email } }),
+      vet:     () => prisma.vet_clinics.create({ data: { id: randomUUID(), user_id: user.id, name, email: user.email } }),
     };
     await roleInsert[role]();
 
@@ -66,7 +68,7 @@ router.post('/login', async (req, res) => {
 
     // Obtener nombre del perfil según el rol
     const profileModel = { adopter: 'adopters', shelter: 'shelters', vet: 'vet_clinics' }[user.role];
-    const profileData = await prisma[profileModel].findUnique({ where: { user_id: user.id } });
+    const profileData = await prisma[profileModel].findFirst({ where: { user_id: user.id } });
     const name = profileData?.name ?? '';
 
     const token = jwt.sign(

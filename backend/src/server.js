@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { randomUUID } = require('crypto');
 const { PrismaClient } = require('@prisma/client');
 const { PrismaPg } = require('@prisma/adapter-pg');
 const { Pool } = require('pg');
@@ -167,8 +168,16 @@ app.patch('/api/pets/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Solo los refugios pueden actualizar mascotas' });
     }
 
-    const { ai_profile, status } = req.body;
+    const { ai_profile, status, name, species } = req.body;
     const updateData = {};
+
+    if (typeof name === 'string' && name.trim()) {
+      updateData.name = name.trim();
+    }
+
+    if (typeof species === 'string' && species.trim()) {
+      updateData.species = species.trim();
+    }
 
     if (status) {
       updateData.status = status === 'available' ? 'disponible' : 
@@ -176,9 +185,11 @@ app.patch('/api/pets/:id', authenticateToken, async (req, res) => {
     }
 
     if (ai_profile) {
-      if (ai_profile.breed) updateData.breed = ai_profile.breed;
-      if (ai_profile.photoUrl) updateData.image_url = ai_profile.photoUrl;
-      if (ai_profile.birthDate) updateData.birth_date = new Date(ai_profile.birthDate);
+      if (typeof ai_profile.breed === 'string') updateData.breed = ai_profile.breed || null;
+      if (typeof ai_profile.photoUrl === 'string') updateData.image_url = ai_profile.photoUrl || null;
+      if (typeof ai_profile.birthDate === 'string' && ai_profile.birthDate) {
+        updateData.birth_date = new Date(ai_profile.birthDate);
+      }
     }
 
     const updatedPet = await prisma.pets.update({
@@ -211,9 +222,267 @@ app.delete('/api/pets/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// --- AUTH ---
+// --- SHELTER EMPLOYEES ---
 
-// POST /api/auth/login
+// GET /api/employees - empleados del shelter
+app.get('/api/employees', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'shelter') {
+      return res.status(403).json({ error: 'Solo los refugios pueden gestionar empleados' });
+    }
+
+    const shelter = await prisma.shelters.findFirst({
+      where: { user_id: req.user.sub }
+    });
+
+    if (!shelter) {
+      return res.status(404).json({ error: 'Refugio no encontrado' });
+    }
+
+    const employees = await prisma.shelter_employees.findMany({
+      where: { shelter_id: shelter.id }
+    });
+
+    res.json(employees);
+  } catch (error) {
+    console.error('Error al obtener empleados:', error);
+    res.status(500).json({ error: 'Error al obtener los empleados' });
+  }
+});
+
+// POST /api/employees - crear empleado
+app.post('/api/employees', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'shelter') {
+      return res.status(403).json({ error: 'Solo los refugios pueden gestionar empleados' });
+    }
+
+    const { name, email, phone, birth_date } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: 'El nombre es requerido' });
+    }
+
+    const shelter = await prisma.shelters.findFirst({
+      where: { user_id: req.user.sub }
+    });
+
+    if (!shelter) {
+      return res.status(404).json({ error: 'Refugio no encontrado' });
+    }
+
+    const employee = await prisma.shelter_employees.create({
+      data: {
+        name,
+        email: email || null,
+        phone: phone || null,
+        birth_date: birth_date ? new Date(birth_date) : null,
+        shelter_id: shelter.id
+      }
+    });
+
+    res.status(201).json(employee);
+  } catch (error) {
+    console.error('Error al crear empleado:', error);
+    res.status(500).json({ error: 'Error al crear empleado' });
+  }
+});
+
+// DELETE /api/employees/:id - eliminar empleado
+app.delete('/api/employees/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'shelter') {
+      return res.status(403).json({ error: 'Solo los refugios pueden gestionar empleados' });
+    }
+
+    await prisma.shelter_employees.delete({
+      where: { id: req.params.id }
+    });
+
+    res.json({ message: 'Empleado eliminado' });
+  } catch (error) {
+    console.error('Error al eliminar empleado:', error);
+    res.status(500).json({ error: 'Error al eliminar empleado' });
+  }
+});
+
+// --- MATCHES ---
+
+// GET /api/matches - solicitudes (likes) para mascotas del refugio autenticado
+app.get('/api/matches', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'shelter') {
+      return res.status(403).json({ error: 'Solo los refugios pueden gestionar solicitudes' });
+    }
+
+    const shelter = await prisma.shelters.findFirst({
+      where: { user_id: req.user.sub },
+    });
+
+    if (!shelter) {
+      return res.status(404).json({ error: 'Refugio no encontrado' });
+    }
+
+    const matches = await prisma.matches.findMany({
+      where: {
+        pets: {
+          shelter_id: shelter.id,
+        },
+      },
+      include: {
+        pets: {
+          select: { id: true, name: true },
+        },
+        adopters: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    const payload = matches.map((match) => {
+      const rawType = String(match.interaction_type || '').toLowerCase();
+      const status =
+        rawType === 'accepted' || rawType === 'aceptado'
+          ? 'accepted'
+          : rawType === 'rejected' || rawType === 'rechazado'
+          ? 'rejected'
+          : 'pending';
+
+      return {
+        id: match.id,
+        pet_id: match.pet_id,
+        adopter_id: match.adopter_id,
+        status,
+        created_at: match.created_at,
+        pet_name: match.pets?.name ?? null,
+        user_name: match.adopters?.name ?? null,
+      };
+    });
+
+    res.json(payload);
+  } catch (error) {
+    console.error('Error al obtener solicitudes:', error);
+    res.status(500).json({ error: 'Error al obtener las solicitudes' });
+  }
+});
+
+// PATCH /api/matches/:id - aceptar/rechazar solicitud
+app.patch('/api/matches/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'shelter') {
+      return res.status(403).json({ error: 'Solo los refugios pueden gestionar solicitudes' });
+    }
+
+    const { status } = req.body;
+    if (status !== 'accepted' && status !== 'rejected') {
+      return res.status(400).json({ error: 'Estado no válido. Usa accepted o rejected.' });
+    }
+
+    const shelter = await prisma.shelters.findFirst({
+      where: { user_id: req.user.sub },
+    });
+
+    if (!shelter) {
+      return res.status(404).json({ error: 'Refugio no encontrado' });
+    }
+
+    const currentMatch = await prisma.matches.findUnique({
+      where: { id: req.params.id },
+      include: {
+        pets: {
+          select: { shelter_id: true, id: true, name: true },
+        },
+        adopters: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    if (!currentMatch || currentMatch.pets?.shelter_id !== shelter.id) {
+      return res.status(404).json({ error: 'Solicitud no encontrada o sin permisos' });
+    }
+
+    const updated = await prisma.matches.update({
+      where: { id: req.params.id },
+      data: {
+        interaction_type: status,
+      },
+      include: {
+        pets: {
+          select: { id: true, name: true },
+        },
+        adopters: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    res.json({
+      id: updated.id,
+      pet_id: updated.pet_id,
+      adopter_id: updated.adopter_id,
+      status,
+      created_at: updated.created_at,
+      pet_name: updated.pets?.name ?? null,
+      user_name: updated.adopters?.name ?? null,
+    });
+  } catch (error) {
+    console.error('Error al actualizar solicitud:', error);
+    res.status(500).json({ error: 'Error al actualizar la solicitud' });
+  }
+});
+
+// --- STATS ---
+
+// GET /api/stats - resumen del dashboard del refugio autenticado
+app.get('/api/stats', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'shelter') {
+      return res.status(403).json({ error: 'Solo los refugios pueden ver estadísticas' });
+    }
+
+    const shelter = await prisma.shelters.findFirst({
+      where: { user_id: req.user.sub },
+    });
+
+    if (!shelter) {
+      return res.status(404).json({ error: 'Refugio no encontrado' });
+    }
+
+    const [totalPets, totalLikesReceived, closedAdoptions] = await Promise.all([
+      prisma.pets.count({
+        where: { shelter_id: shelter.id },
+      }),
+      prisma.matches.count({
+        where: {
+          pets: {
+            shelter_id: shelter.id,
+          },
+        },
+      }),
+      prisma.pets.count({
+        where: {
+          shelter_id: shelter.id,
+          status: 'adoptado',
+        },
+      }),
+    ]);
+
+    res.json({
+      totalPets,
+      totalLikesReceived,
+      closedAdoptions,
+    });
+  } catch (error) {
+    console.error('Error al obtener estadísticas:', error);
+    res.status(500).json({ error: 'Error al obtener estadísticas' });
+  }
+});
+
+// --- AUTH ---
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -281,6 +550,7 @@ app.post('/api/auth/register', async (req, res) => {
 
     const user = await prisma.users.create({
       data: {
+        id: randomUUID(),
         email: email.toLowerCase(),
         password_hash: passwordHash,
         role: role.toLowerCase()
@@ -291,6 +561,7 @@ app.post('/api/auth/register', async (req, res) => {
       case 'adopter':
         await prisma.adopters.create({
           data: {
+            id: randomUUID(),
             user_id: user.id,
             name: name,
             email: email.toLowerCase()
@@ -300,6 +571,7 @@ app.post('/api/auth/register', async (req, res) => {
       case 'shelter':
         await prisma.shelters.create({
           data: {
+            id: randomUUID(),
             user_id: user.id,
             name: name,
             email: email.toLowerCase()
@@ -309,6 +581,7 @@ app.post('/api/auth/register', async (req, res) => {
       case 'vet':
         await prisma.vet_clinics.create({
           data: {
+            id: randomUUID(),
             user_id: user.id,
             name: name,
             email: email.toLowerCase()

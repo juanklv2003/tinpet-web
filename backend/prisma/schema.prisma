@@ -8,7 +8,7 @@ datasource db {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model adopters {
-  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String    @id @default(uuid()) @db.Uuid
   user_id     String?   @db.Uuid
   name        String
   email       String?
@@ -24,7 +24,7 @@ model adopters {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model matches {
-  id               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id               String    @id @default(uuid()) @db.Uuid
   adopter_id       String?   @db.Uuid
   pet_id           String?   @db.Uuid
   interaction_type String
@@ -35,7 +35,7 @@ model matches {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model medical_records {
-  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String         @id @default(uuid()) @db.Uuid
   pet_id          String?        @db.Uuid
   vet_employee_id String?        @db.Uuid
   visit_date      DateTime?      @default(dbgenerated("CURRENT_DATE")) @db.Date
@@ -48,7 +48,7 @@ model medical_records {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model pets {
-  id                    String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                    String             @id @default(uuid()) @db.Uuid
   name                  String
   species               String
   breed                 String?
@@ -70,7 +70,7 @@ model pets {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model shelter_employees {
-  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id         String    @id @default(uuid()) @db.Uuid
   shelter_id String?   @db.Uuid
   name       String
   phone      String?
@@ -83,7 +83,7 @@ model shelter_employees {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model shelters {
-  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                String              @id @default(uuid()) @db.Uuid
   user_id           String?             @db.Uuid
   name              String
   email             String?
@@ -98,7 +98,7 @@ model shelters {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model users {
-  id            String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id            String        @id @default(uuid()) @db.Uuid
   email         String        @unique
   password_hash String
   role          String
@@ -110,7 +110,7 @@ model users {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model vet_clinics {
-  id            String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id            String          @id @default(uuid()) @db.Uuid
   user_id       String?         @db.Uuid
   name          String
   email         String?
@@ -123,7 +123,7 @@ model vet_clinics {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model vet_employees {
-  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String            @id @default(uuid()) @db.Uuid
   vet_clinic_id   String?           @db.Uuid
   name            String
   phone           String?
