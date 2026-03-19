@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 
 import { useTheme } from './hooks/useTheme';
 import { useShelterDashboardLogic } from './hooks/useShelterDashboardLogic';
-import { IconPaw, IconChart, IconHeart, IconTeam, IconUser, IconPlus } from './Icons';
+import { IconPaw, IconChart, IconHeart, IconTeam, IconUser, IconPlus, IconChat } from './Icons';
 import { AddPetModal } from './modals/AddPetModal';
 import { PetProfileModal } from './modals/PetProfileModal';
 import { PetsView } from './views/PetsView';
@@ -11,12 +11,13 @@ import { MonitoringView } from './views/MonitoringView';
 import { MatchesView } from './views/MatchesView';
 import { EmployeesView } from './views/EmployeesView';
 import { ProfileView } from './views/ProfileView';
+import { ChatView } from './views/ChatView';
 
 import type { ActiveView } from './types';
 
 // ─── COMPONENTE PRINCIPAL ────────────────────────────────────────────────────
 export default function ShelterDashboard() {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const navigate = useNavigate();
 
   // ─── Dark mode ────────────────────────────────────────────────────────────
@@ -147,6 +148,7 @@ export default function ShelterDashboard() {
           <NavItem view="monitoring" icon={<IconChart />} label="Monitorización" />
           <NavItem view="matches" icon={<IconHeart />} label="Solicitudes" />
           <NavItem view="employees" icon={<IconTeam />} label="Empleados" />
+          <NavItem view="chat" icon={<IconChat />} label="Chat" />
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-2 space-y-0.5">
           <p className="px-3 pt-1 pb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
@@ -192,6 +194,7 @@ export default function ShelterDashboard() {
                 {activeView === 'monitoring' && 'Monitorización'}
                 {activeView === 'matches' && 'Solicitudes'}
                 {activeView === 'employees' && 'Empleados'}
+                {activeView === 'chat' && 'Chat'}
                 {activeView === 'profile' && 'Mi Perfil'}
               </h2>
               <p className="text-sm text-gray-400 mt-1">
@@ -199,6 +202,7 @@ export default function ShelterDashboard() {
                 {activeView === 'monitoring' && 'Estadísticas del refugio'}
                 {activeView === 'matches' && `${matches.length} solicitud${matches.length !== 1 ? 'es' : ''}`}
                 {activeView === 'employees' && `${employees.length} empleado${employees.length !== 1 ? 's' : ''}`}
+                {activeView === 'chat' && 'Conversaciones con adoptantes'}
                 {activeView === 'profile' && 'Información de tu cuenta'}
               </p>
             </div>
@@ -250,6 +254,9 @@ export default function ShelterDashboard() {
               error={employeesError}
               onAddEmployee={handleAddEmployee}
             />
+          )}
+          {activeView === 'chat' && (
+            <ChatView token={token || ''} />
           )}
           {activeView === 'profile' && (
             <ProfileView

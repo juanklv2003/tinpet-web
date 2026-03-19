@@ -44,5 +44,5 @@ export interface ShelterProfileForm {
   avatarUrl: string;
 }
 
-export type ActiveView = 'pets' | 'monitoring' | 'matches' | 'employees' | 'profile';
+export type ActiveView = 'pets' | 'monitoring' | 'matches' | 'employees' | 'chat' | 'profile';
 export type PetsSort = 'newest' | 'oldest' | 'name';
