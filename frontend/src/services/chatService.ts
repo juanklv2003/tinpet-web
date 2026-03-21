@@ -1,6 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://192.168.5.101:3000';
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://10.145.22.253:3000';
 
 export interface Message {
   id: string;
@@ -69,6 +69,10 @@ class ChatService {
         this.emit('new_message', message);
       });
 
+      this.socket.on('receive_message', (message: Message) => {
+        this.emit('new_message', message);
+      });
+
       this.socket.on('error', (error: { message: string }) => {
         this.emit('socket_error', error);
       });
@@ -83,19 +87,21 @@ class ChatService {
   }
 
   joinConversation(conversationId: string) {
-    if (this.socket?.connected) {
+    if (this.socket) {
       this.socket.emit('join_conversation', conversationId);
+      this.socket.emit('join_room', conversationId);
     }
   }
 
   leaveConversation(conversationId: string) {
-    if (this.socket?.connected) {
+    if (this.socket) {
       this.socket.emit('leave_conversation', conversationId);
+      this.socket.emit('leave_room', conversationId);
     }
   }
 
   sendMessage(conversationId: string, content: string) {
-    if (this.socket?.connected) {
+    if (this.socket) {
       this.socket.emit('send_message', { conversation_id: conversationId, content });
     }
   }

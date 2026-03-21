@@ -30,7 +30,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'http://192.168.5.101:3000',
+        url: 'http://10.145.22.253:3000',
         description: 'Servidor de desarrollo',
       },
     ],
@@ -1158,13 +1158,14 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
 app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId, role } = req.user;
+    const userId = req.user?.sub;
+    const role = req.user?.role;
 
     // Verificar acceso a la conversación
     const conversation = await prisma.conversations.findUnique({
       where: { id },
       include: {
-        adopter: { include: { user: true } },
+        adopter: { include: { users: true } },
         shelter: true,
         vet_clinic: true,
       },
@@ -1174,7 +1175,7 @@ app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) =
 
     // Verificar permisos
     let hasAccess = false;
-    if (role === 'adopter' && conversation.adopter?.user?.id === userId) hasAccess = true;
+    if (role === 'adopter' && conversation.adopter?.users?.id === userId) hasAccess = true;
     if (role === 'shelter' && conversation.shelter?.user_id === userId) hasAccess = true;
     if (role === 'vet' && conversation.vet_clinic?.user_id === userId) hasAccess = true;
 
@@ -1185,7 +1186,8 @@ app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) =
       orderBy: { created_at: 'asc' },
     });
 
-    res.json(messages);
+    // If conversation exists and user is authorized, an empty chat should return [] with 200.
+    res.status(200).json(messages ?? []);
   } catch (error) {
     console.error('Error al obtener mensajes:', error);
     res.status(500).json({ error: 'Error al obtener mensajes' });
@@ -1205,7 +1207,8 @@ app.post('/api/conversations/:id/messages', authenticateToken, async (req, res) 
   try {
     const { id } = req.params;
     const { content } = req.body;
-    const { userId, role } = req.user;
+    const userId = req.user?.sub;
+    const role = req.user?.role;
 
     if (!content || !content.trim()) {
       return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
@@ -1215,7 +1218,7 @@ app.post('/api/conversations/:id/messages', authenticateToken, async (req, res) 
     const conversation = await prisma.conversations.findUnique({
       where: { id },
       include: {
-        adopter: { include: { user: true } },
+        adopter: { include: { users: true } },
         shelter: true,
         vet_clinic: true,
       },
@@ -1228,7 +1231,7 @@ app.post('/api/conversations/:id/messages', authenticateToken, async (req, res) 
     let hasAccess = false;
 
     if (role === 'adopter') {
-      if (conversation.adopter?.user?.id === userId) {
+      if (conversation.adopter?.users?.id === userId) {
         senderId = conversation.adopter.id;
         hasAccess = true;
       }
@@ -1272,6 +1275,7 @@ app.post('/api/conversations/:id/messages', authenticateToken, async (req, res) 
     // Emitir por WebSocket (lo hago después de configurar socket.io)
     if (global.io) {
       global.io.to(`conversation:${id}`).emit('new_message', message);
+      global.io.to(`conversation:${id}`).emit('receive_message', message);
     }
 
     res.status(201).json(message);
@@ -1613,14 +1617,13 @@ io.use(async (socket, next) => {
 io.on('connection', async (socket) => {
   console.log(`🔌 Usuario conectado: ${socket.user.sub} (${socket.user.role})`);
 
-  // Unirse a sala de conversación
-  socket.on('join_conversation', async (conversationId) => {
+  const handleJoinConversation = async (conversationId) => {
     try {
       // Verificar acceso a la conversación
       const conversation = await prisma.conversations.findUnique({
         where: { id: conversationId },
         include: {
-          adopter: { include: { user: true } },
+          adopter: { include: { users: true } },
           shelter: true,
           vet_clinic: true,
         },
@@ -1633,7 +1636,7 @@ io.on('connection', async (socket) => {
 
       // Verificar permisos
       let hasAccess = false;
-      if (socket.user.role === 'adopter' && conversation.adopter?.user?.id === socket.user.sub) hasAccess = true;
+      if (socket.user.role === 'adopter' && conversation.adopter?.users?.id === socket.user.sub) hasAccess = true;
       if (socket.user.role === 'shelter' && conversation.shelter?.user_id === socket.user.sub) hasAccess = true;
       if (socket.user.role === 'vet' && conversation.vet_clinic?.user_id === socket.user.sub) hasAccess = true;
 
@@ -1649,13 +1652,20 @@ io.on('connection', async (socket) => {
       console.error('Error al unirse a conversación:', error);
       socket.emit('error', { message: 'Error al unirse a la conversación' });
     }
-  });
+  };
 
-  // Salir de sala de conversación
-  socket.on('leave_conversation', (conversationId) => {
+  // Unirse a sala de conversación
+  socket.on('join_conversation', handleJoinConversation);
+  socket.on('join_room', handleJoinConversation);
+
+  const handleLeaveConversation = (conversationId) => {
     socket.leave(`conversation:${conversationId}`);
     console.log(`📤 ${socket.user.sub} salió de conversación ${conversationId}`);
-  });
+  };
+
+  // Salir de sala de conversación
+  socket.on('leave_conversation', handleLeaveConversation);
+  socket.on('leave_room', handleLeaveConversation);
 
   // Enviar mensaje (alternativa a REST)
   socket.on('send_message', async (data) => {
@@ -1671,7 +1681,7 @@ io.on('connection', async (socket) => {
       const conversation = await prisma.conversations.findUnique({
         where: { id: conversation_id },
         include: {
-          adopter: { include: { user: true } },
+          adopter: { include: { users: true } },
           shelter: true,
           vet_clinic: true,
         },
@@ -1683,13 +1693,18 @@ io.on('connection', async (socket) => {
       }
 
       let senderId = null;
-      if (socket.user.role === 'adopter' && conversation.adopter?.user?.id === socket.user.sub) {
+      if (socket.user.role === 'adopter' && conversation.adopter?.users?.id === socket.user.sub) {
         senderId = conversation.adopter.id;
       } else if (socket.user.role === 'shelter' && conversation.shelter?.user_id === socket.user.sub) {
         const employee = await prisma.shelter_employees.findFirst({
           where: { shelter_id: conversation.shelter.id },
         });
         senderId = employee?.id ?? conversation.shelter.id;
+      } else if (socket.user.role === 'vet' && conversation.vet_clinic?.user_id === socket.user.sub) {
+        const vetEmployee = await prisma.vet_employees.findFirst({
+          where: { vet_clinic_id: conversation.vet_clinic.id },
+        });
+        senderId = vetEmployee?.id ?? conversation.vet_clinic.id;
       }
 
       if (!senderId) {
@@ -1715,6 +1730,7 @@ io.on('connection', async (socket) => {
 
       // Emitir a todos en la sala
       io.to(`conversation:${conversation_id}`).emit('new_message', message);
+      io.to(`conversation:${conversation_id}`).emit('receive_message', message);
     } catch (error) {
       console.error('Error al enviar mensaje por socket:', error);
       socket.emit('error', { message: 'Error al enviar mensaje' });
@@ -1728,5 +1744,5 @@ io.on('connection', async (socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor backend con WebSocket en http://192.168.5.101:${PORT}`);
+  console.log(`🚀 Servidor backend con WebSocket en http://10.145.22.253:${PORT}`);
 });

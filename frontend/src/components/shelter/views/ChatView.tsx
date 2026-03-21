@@ -7,6 +7,35 @@ interface ChatViewProps {
   token: string;
 }
 
+type RawMessage = Partial<Message> & {
+  text?: string;
+  body?: string;
+};
+
+const normalizeMessage = (raw: RawMessage): Message | null => {
+  if (!raw) return null;
+
+  const content = raw.content ?? raw.text ?? raw.body;
+  if (!content || !String(content).trim()) return null;
+
+  return {
+    id: raw.id ?? `${raw.conversation_id ?? 'unknown'}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    conversation_id: raw.conversation_id ?? '',
+    sender_id: raw.sender_id ?? '',
+    sender_role: (raw.sender_role as Message['sender_role']) ?? 'adopter',
+    content: String(content),
+    read: Boolean(raw.read),
+    created_at: raw.created_at ?? new Date().toISOString(),
+  };
+};
+
+const appendUniqueMessage = (prev: Message[], incoming: Message): Message[] => {
+  if (prev.some(msg => msg.id === incoming.id)) {
+    return prev;
+  }
+  return [...prev, incoming];
+};
+
 export function ChatView({ token }: ChatViewProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -16,11 +45,12 @@ export function ChatView({ token }: ChatViewProps) {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const selectedConversationIdRef = useRef<string | null>(null);
 
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://192.168.5.101:3000'}/api/conversations`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://10.145.22.253:3000'}/api/conversations`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -46,7 +76,7 @@ export function ChatView({ token }: ChatViewProps) {
     setLoadingMessages(true);
     setMessages([]); // Reset messages before fetching
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://192.168.5.101:3000'}/api/conversations/${conversationId}/messages`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://10.145.22.253:3000'}/api/conversations/${conversationId}/messages`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -54,7 +84,11 @@ export function ChatView({ token }: ChatViewProps) {
       const data = await response.json();
       // Ensure data is an array
       if (Array.isArray(data)) {
-        setMessages(data);
+        const normalized = data
+          .map((message: RawMessage) => normalizeMessage(message))
+          .filter((message): message is Message => message !== null)
+          .filter(message => message.conversation_id === conversationId);
+        setMessages(normalized);
       } else {
         console.error('API returned non-array:', data);
         setMessages([]);
@@ -73,24 +107,38 @@ export function ChatView({ token }: ChatViewProps) {
     fetchConversations();
 
     // Listen for new messages
-    chatService.on('new_message', (message: Message) => {
-      setMessages(prev => [...prev, message]);
-    });
+    const handleNewMessage = (rawMessage: RawMessage) => {
+      console.log('WebSocket new_message payload:', rawMessage);
+
+      const normalized = normalizeMessage(rawMessage);
+      if (!normalized) return;
+
+      if (normalized.conversation_id !== selectedConversationIdRef.current) {
+        return;
+      }
+
+      setMessages(prev => appendUniqueMessage(prev, normalized));
+    };
 
     // Listen for new conversations
-    chatService.on('new_conversation', () => {
+    const handleNewConversation = () => {
       fetchConversations();
-    });
+    };
+
+    chatService.on('new_message', handleNewMessage);
+    chatService.on('new_conversation', handleNewConversation);
 
     return () => {
-      chatService.off('new_message', () => {});
-      chatService.off('new_conversation', () => {});
+      chatService.off('new_message', handleNewMessage);
+      chatService.off('new_conversation', handleNewConversation);
       chatService.disconnect();
     };
   }, [token, fetchConversations]);
 
   // Join/leave conversation room
   useEffect(() => {
+    selectedConversationIdRef.current = selectedConversation?.id ?? null;
+
     if (selectedConversation) {
       chatService.joinConversation(selectedConversation.id);
       fetchMessages(selectedConversation.id);
@@ -116,7 +164,7 @@ export function ChatView({ token }: ChatViewProps) {
 
     try {
       // Try REST API first
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://192.168.5.101:3000'}/api/conversations/${selectedConversation.id}/messages`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://10.145.22.253:3000'}/api/conversations/${selectedConversation.id}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,7 +175,10 @@ export function ChatView({ token }: ChatViewProps) {
 
       if (!response.ok) throw new Error('Failed to send');
 
-      // Socket will handle the update
+      const savedMessage = normalizeMessage(await response.json());
+      if (savedMessage) {
+        setMessages(prev => appendUniqueMessage(prev, savedMessage));
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       // Fallback to socket
@@ -159,6 +210,8 @@ export function ChatView({ token }: ChatViewProps) {
       </div>
     );
   }
+
+  console.log('Mensajes en el estado:', messages);
 
   return (
     <div className="flex h-[calc(100vh-180px)] bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
