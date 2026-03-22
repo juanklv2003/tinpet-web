@@ -184,7 +184,40 @@ const mapPetToFrontend = (pet) => ({
  */
 app.get('/api/pets', async (req, res) => {
   try {
-    const allPets = await prisma.pets.findMany();
+    let whereClause = {};
+
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const payload = jwt.verify(token, JWT_SECRET);
+
+        if (payload.role === 'adopter') {
+          const adopter = await prisma.adopters.findFirst({
+            where: { user_id: payload.sub }
+          });
+
+          if (adopter) {
+            whereClause = {
+              status: 'disponible',
+              NOT: {
+                matches: {
+                  some: {
+                    adopter_id: adopter.id
+                  }
+                }
+              }
+            };
+          } else {
+            whereClause = { status: 'disponible' };
+          }
+        }
+      } catch {
+        // If token is invalid on a public endpoint, return the default unfiltered feed.
+      }
+    }
+
+    const allPets = await prisma.pets.findMany({ where: whereClause });
     res.json(allPets.map(mapPetToFrontend));
   } catch (error) {
     console.error(error);
@@ -463,6 +496,22 @@ app.post('/api/swipe', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Mascota no encontrada' });
     }
 
+    const existingInteraction = await prisma.matches.findFirst({
+      where: {
+        adopter_id: adopter.id,
+        pet_id: petId,
+      }
+    });
+
+    if (existingInteraction) {
+      return res.status(200).json({
+        success: true,
+        alreadyInteracted: true,
+        matchId: existingInteraction.id,
+        message: 'Ya habias interactuado con esta mascota',
+      });
+    }
+
     // Crear el registro de match/solicitud
     const match = await prisma.matches.create({
       data: {
@@ -584,9 +633,40 @@ app.get('/api/likes', authenticateToken, async (req, res) => {
  */
 app.get('/api/pets-available', async (req, res) => {
   try {
+    let whereClause = { status: 'disponible' };
+
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const payload = jwt.verify(token, JWT_SECRET);
+
+        if (payload.role === 'adopter') {
+          const adopter = await prisma.adopters.findFirst({
+            where: { user_id: payload.sub }
+          });
+
+          if (adopter) {
+            whereClause = {
+              status: 'disponible',
+              NOT: {
+                matches: {
+                  some: {
+                    adopter_id: adopter.id
+                  }
+                }
+              }
+            };
+          }
+        }
+      } catch {
+        // If token is invalid on a public endpoint, keep default available-pets feed.
+      }
+    }
+
     // Obtener mascotas disponibles
     const pets = await prisma.pets.findMany({
-      where: { status: 'disponible' },
+      where: whereClause,
       include: {
         shelters: {
           select: { id: true, name: true }
@@ -1315,7 +1395,7 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
     if (match_id) {
       match = await prisma.matches.findUnique({
         where: { id: match_id },
-        include: { pets: { include: { shelter: true } } },
+        include: { pets: { include: { shelters: true } } },
       });
       if (match) {
         shelterId = match.pets?.shelter_id;
@@ -1324,7 +1404,7 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
     } else if (pet_id) {
       const pet = await prisma.pets.findUnique({
         where: { id: pet_id },
-        include: { shelter: true },
+        include: { shelters: true },
       });
       shelterId = pet?.shelter_id;
     }
