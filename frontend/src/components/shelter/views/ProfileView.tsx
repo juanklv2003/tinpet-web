@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { House } from 'lucide-react';
 import type { ShelterProfileForm } from '../types';
 
 interface ProfileViewProps {
@@ -40,7 +41,7 @@ export function ProfileView({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <span className="text-2xl">🏠</span>
+                <House className="w-8 h-8 text-gray-500 dark:text-gray-400" />
               )}
             </div>
             <div className="min-w-0">

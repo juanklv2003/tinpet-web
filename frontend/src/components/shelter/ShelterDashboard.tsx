@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from './hooks/useTheme';
 import { useShelterDashboardLogic } from './hooks/useShelterDashboardLogic';
 import { IconPaw, IconChart, IconHeart, IconTeam, IconUser, IconPlus, IconChat } from './Icons';
+import { PawPrint } from 'lucide-react';
 import { AddPetModal } from './modals/AddPetModal';
 import { PetProfileModal } from './modals/PetProfileModal';
 import { PetsView } from './views/PetsView';
@@ -124,8 +125,9 @@ export default function ShelterDashboard() {
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="px-3 py-2 mb-2 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
-            🐾 TinPet
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+            <PawPrint className="w-5 h-5 text-rose-500" />
+            TinPet
           </h1>
           <button
             type="button"

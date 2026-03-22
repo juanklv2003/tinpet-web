@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { chatService } from '../../../services/chatService';
 import type { Conversation, Message } from '../../../services/chatService';
 import { IconPaw, IconSend, IconPhone } from '../Icons';
+import { Building2, MessageCircle, Stethoscope, UserRound } from 'lucide-react';
 
 interface ChatViewProps {
   token: string;
@@ -34,6 +35,27 @@ const appendUniqueMessage = (prev: Message[], incoming: Message): Message[] => {
     return prev;
   }
   return [...prev, incoming];
+};
+
+const otherPartyBadge = (type: Conversation['other_party']['type']) => {
+  if (type === 'adopter') {
+    return {
+      icon: <UserRound className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />,
+      label: 'Adoptante',
+    };
+  }
+
+  if (type === 'shelter') {
+    return {
+      icon: <Building2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-300" />,
+      label: 'Refugio',
+    };
+  }
+
+  return {
+    icon: <Stethoscope className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-300" />,
+    label: 'Veterinaria',
+  };
 };
 
 export function ChatView({ token }: ChatViewProps) {
@@ -226,7 +248,7 @@ export function ChatView({ token }: ChatViewProps) {
 
         {!conversations || conversations.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
-            <span className="text-4xl mb-3">💬</span>
+            <MessageCircle className="w-10 h-10 mb-3 text-gray-400 dark:text-gray-500" />
             <p className="text-gray-500 dark:text-gray-400 text-sm">
               No hay conversaciones aún
             </p>
@@ -265,7 +287,10 @@ export function ChatView({ token }: ChatViewProps) {
                     )}
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                    {conv.other_party.type === 'adopter' ? '👤' : '🐾'} {conv.other_party.name}
+                    <span className="inline-flex items-center gap-1.5">
+                      {otherPartyBadge(conv.other_party.type).icon}
+                      {conv.other_party.name}
+                    </span>
                   </p>
                   {conv.last_message && (
                     <p className="text-sm text-gray-400 dark:text-gray-500 truncate mt-1">
@@ -308,7 +333,10 @@ export function ChatView({ token }: ChatViewProps) {
                     {selectedConversation.pet_name || 'Mascota'}
                   </h4>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {selectedConversation.other_party.type === 'adopter' ? '👤 Adoptante' : '📱 Contacto'}: {selectedConversation.other_party.name}
+                    <span className="inline-flex items-center gap-1.5">
+                      {otherPartyBadge(selectedConversation.other_party.type).icon}
+                      {otherPartyBadge(selectedConversation.other_party.type).label}: {selectedConversation.other_party.name}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -331,7 +359,7 @@ export function ChatView({ token }: ChatViewProps) {
                 </div>
               ) : !messages || messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-32 text-center">
-                  <span className="text-3xl mb-2">💬</span>
+                  <MessageCircle className="w-8 h-8 mb-2 text-gray-400 dark:text-gray-500" />
                   <p className="text-gray-500 dark:text-gray-400">Aún no hay mensajes</p>
                   <p className="text-gray-400 dark:text-gray-500 text-sm">Inicia la conversación</p>
                 </div>
@@ -391,7 +419,7 @@ export function ChatView({ token }: ChatViewProps) {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
-            <span className="text-5xl mb-4">💬</span>
+            <MessageCircle className="w-12 h-12 mb-4 text-gray-400 dark:text-gray-500" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
               Selecciona una conversación
             </h3>

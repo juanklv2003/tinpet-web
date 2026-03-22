@@ -3,6 +3,7 @@ import { IconPlus, IconTrash } from '../Icons';
 import { fmtDate, statusBadgeColor, statusDotColor, statusLabel } from '../helpers';
 import type { Pet, PetStatus } from '../../../types';
 import type { PetsSort } from '../types';
+import { Cat, Dog, PawPrint, Search } from 'lucide-react';
 
 interface PetsViewProps {
   pets: Pet[];
@@ -12,6 +13,20 @@ interface PetsViewProps {
   onSelectPet: (pet: Pet) => void;
   onOpenAddModal: () => void;
 }
+
+const speciesIcon = (species: string) => {
+  const normalizedSpecies = species.trim().toLowerCase();
+
+  if (normalizedSpecies.includes('dog') || normalizedSpecies.includes('perro')) {
+    return <Dog className="w-4 h-4 text-amber-600 dark:text-amber-300" />;
+  }
+
+  if (normalizedSpecies.includes('cat') || normalizedSpecies.includes('gato')) {
+    return <Cat className="w-4 h-4 text-indigo-600 dark:text-indigo-300" />;
+  }
+
+  return <PawPrint className="w-4 h-4 text-gray-500 dark:text-gray-400" />;
+};
 
 export function PetsView({
   pets,
@@ -146,7 +161,7 @@ export function PetsView({
         </div>
       ) : pets.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 text-gray-500 text-sm gap-3">
-          <span className="text-4xl">🐾</span>
+          <PawPrint className="w-9 h-9 text-gray-500 dark:text-gray-400" />
           <p>No tienes mascotas registradas aún.</p>
           <button
             type="button"
@@ -158,7 +173,7 @@ export function PetsView({
         </div>
       ) : filteredPets.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 text-gray-500 text-sm gap-2">
-          <span className="text-3xl">🔎</span>
+          <Search className="w-8 h-8 text-gray-500 dark:text-gray-400" />
           <p>No hay resultados con los filtros actuales.</p>
           <button
             type="button"
@@ -209,7 +224,7 @@ export function PetsView({
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <span className="text-lg">🐾</span>
+                          speciesIcon(pet.species)
                         )}
                       </div>
                       <span className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -218,7 +233,10 @@ export function PetsView({
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                    {pet.species}
+                    <span className="inline-flex items-center gap-1.5">
+                      {speciesIcon(pet.species)}
+                      {pet.species}
+                    </span>
                     {pet.ai_profile?.breed && (
                       <span className="text-gray-400 dark:text-gray-600">
                         {' '}
@@ -254,12 +272,12 @@ export function PetsView({
                   {pet.ai_profile?.photoUrl ? (
                     <img src={pet.ai_profile.photoUrl} alt={pet.name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-2xl">🐾</span>
+                    speciesIcon(pet.species)
                   )}
                 </div>
                 <div className="min-w-0">
                   <p className="font-semibold text-gray-900 dark:text-white truncate">{pet.name}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{pet.species}{pet.ai_profile?.breed && ` · ${pet.ai_profile.breed}`}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 inline-flex items-center gap-1.5">{speciesIcon(pet.species)} {pet.species}{pet.ai_profile?.breed && ` · ${pet.ai_profile.breed}`}</p>
                 </div>
               </div>
               <div className="flex items-center justify-between">

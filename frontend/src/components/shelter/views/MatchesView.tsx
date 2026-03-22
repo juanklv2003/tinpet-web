@@ -1,5 +1,6 @@
 import type { MatchRequest } from '../../../hooks/useShelterMatches';
 import { fmtDate } from '../helpers';
+import { Heart } from 'lucide-react';
 
 interface MatchesViewProps {
   matches: MatchRequest[];
@@ -24,7 +25,7 @@ export function MatchesView({ matches, loading, error, onAccept, onReject }: Mat
         </div>
       ) : matches.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 text-gray-500 text-sm gap-2">
-          <span className="text-3xl">💌</span>
+          <Heart className="w-8 h-8 text-rose-500 dark:text-rose-300" />
           <p>No hay solicitudes pendientes ahora mismo.</p>
         </div>
       ) : (
