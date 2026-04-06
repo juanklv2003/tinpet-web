@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { chatService } from '../../../services/chatService';
-import type { Conversation, Message } from '../../../services/chatService';
-import { IconPaw, IconSend, IconPhone } from '../Icons';
 import { Building2, MessageCircle, Stethoscope, UserRound } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Conversation, Message } from '../../../services/chatService';
+import { chatService } from '../../../services/chatService';
+import { IconPaw, IconPhone, IconSend } from '../Icons';
 
 interface ChatViewProps {
   token: string;
@@ -58,6 +58,35 @@ const otherPartyBadge = (type: Conversation['other_party']['type']) => {
   };
 };
 
+const pickFirstNonEmpty = (...values: Array<string | null | undefined>): string | null => {
+  const found = values.find(value => typeof value === 'string' && value.trim().length > 0);
+  return found ?? null;
+};
+
+const getPetAvatar = (conv: Conversation): string | null =>
+  pickFirstNonEmpty(conv.pet_image ?? null);
+
+const getAdopterAvatar = (conv: Conversation): string | null => {
+  if (conv.other_party.type !== 'adopter') return null;
+
+  const otherParty = conv.other_party as Conversation['other_party'] & {
+    avatar_url?: string;
+    profile_image?: string;
+    image_url?: string;
+    photoUrl?: string;
+    photo_url?: string;
+  };
+
+  return pickFirstNonEmpty(
+    otherParty.avatar,
+    otherParty.avatar_url,
+    otherParty.profile_image,
+    otherParty.image_url,
+    otherParty.photoUrl,
+    otherParty.photo_url,
+  );
+};
+
 export function ChatView({ token }: ChatViewProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -72,7 +101,7 @@ export function ChatView({ token }: ChatViewProps) {
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://10.145.22.253:3000'}/api/conversations`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://172.22.224.1:3000'}/api/conversations`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -98,7 +127,7 @@ export function ChatView({ token }: ChatViewProps) {
     setLoadingMessages(true);
     setMessages([]); // Reset messages before fetching
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://10.145.22.253:3000'}/api/conversations/${conversationId}/messages`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://172.22.224.1:3000'}/api/conversations/${conversationId}/messages`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -125,7 +154,6 @@ export function ChatView({ token }: ChatViewProps) {
 
   // Initialize socket connection
   useEffect(() => {
-    chatService.connect(token).catch(console.error);
     fetchConversations();
 
     // Listen for new messages
@@ -153,9 +181,8 @@ export function ChatView({ token }: ChatViewProps) {
     return () => {
       chatService.off('new_message', handleNewMessage);
       chatService.off('new_conversation', handleNewConversation);
-      chatService.disconnect();
     };
-  }, [token, fetchConversations]);
+  }, [fetchConversations]);
 
   // Join/leave conversation room
   useEffect(() => {
@@ -186,7 +213,7 @@ export function ChatView({ token }: ChatViewProps) {
 
     try {
       // Try REST API first
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://10.145.22.253:3000'}/api/conversations/${selectedConversation.id}/messages`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://172.22.224.1:3000'}/api/conversations/${selectedConversation.id}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -267,11 +294,15 @@ export function ChatView({ token }: ChatViewProps) {
                 }`}
               >
                 <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-600 flex-shrink-0 overflow-hidden">
-                  {conv.pet_image ? (
-                    <img src={conv.pet_image} alt={conv.pet_name || 'Mascota'} className="w-full h-full object-cover" />
+                  {getPetAvatar(conv) ? (
+                    <img
+                      src={getPetAvatar(conv) ?? ''}
+                      alt={conv.other_party.name || conv.pet_name || 'Avatar'}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-xl">
-                      <IconPaw />
+                      {conv.other_party.type === 'adopter' ? <UserRound className="w-5 h-5" /> : <IconPaw />}
                     </div>
                   )}
                 </div>
@@ -320,8 +351,8 @@ export function ChatView({ token }: ChatViewProps) {
                   </svg>
                 </button>
                 <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden">
-                  {selectedConversation.pet_image ? (
-                    <img src={selectedConversation.pet_image} alt="" className="w-full h-full object-cover" />
+                  {getPetAvatar(selectedConversation) ? (
+                    <img src={getPetAvatar(selectedConversation) ?? ''} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-lg">
                       <IconPaw />
@@ -366,11 +397,27 @@ export function ChatView({ token }: ChatViewProps) {
               ) : (
                 (messages as Message[]).map((msg) => {
                   const isOwn = msg.sender_role === 'shelter';
+                  const incomingAvatar = getAdopterAvatar(selectedConversation);
                   return (
                     <div
                       key={msg.id}
                       className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
                     >
+                      {!isOwn && (
+                        <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden flex-shrink-0 mr-2 self-end">
+                          {incomingAvatar ? (
+                            <img
+                              src={incomingAvatar}
+                              alt={selectedConversation.other_party.name || 'Avatar'}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-sm text-gray-500 dark:text-gray-300">
+                              <UserRound className="w-4 h-4" />
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <div
                         className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
                           isOwn

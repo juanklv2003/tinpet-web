@@ -1,18 +1,20 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { chatService } from '../../services/chatService';
 
-import { useTheme } from './hooks/useTheme';
-import { useShelterDashboardLogic } from './hooks/useShelterDashboardLogic';
-import { IconPaw, IconChart, IconHeart, IconTeam, IconUser, IconPlus, IconChat } from './Icons';
 import { PawPrint } from 'lucide-react';
+import { useShelterDashboardLogic } from './hooks/useShelterDashboardLogic';
+import { useTheme } from './hooks/useTheme';
+import { IconChart, IconChat, IconHeart, IconPaw, IconPlus, IconTeam, IconUser } from './Icons';
 import { AddPetModal } from './modals/AddPetModal';
 import { PetProfileModal } from './modals/PetProfileModal';
-import { PetsView } from './views/PetsView';
-import { MonitoringView } from './views/MonitoringView';
-import { MatchesView } from './views/MatchesView';
-import { EmployeesView } from './views/EmployeesView';
-import { ProfileView } from './views/ProfileView';
 import { ChatView } from './views/ChatView';
+import { EmployeesView } from './views/EmployeesView';
+import { MatchesView } from './views/MatchesView';
+import { MonitoringView } from './views/MonitoringView';
+import { PetsView } from './views/PetsView';
+import { ProfileView } from './views/ProfileView';
 
 import type { ActiveView } from './types';
 
@@ -20,6 +22,7 @@ import type { ActiveView } from './types';
 export default function ShelterDashboard() {
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
   // ─── Dark mode ────────────────────────────────────────────────────────────
   const { isDarkMode, toggleDarkMode } = useTheme();
@@ -67,29 +70,65 @@ export default function ShelterDashboard() {
   };
 
   // ─── Nav item helper ──────────────────────────────────────────────────────
-  const NavItem = ({
+  const renderNavItem = ({
     view,
     icon,
     label,
+    showBadge = false,
   }: {
     view: ActiveView;
     icon: React.ReactNode;
     label: string;
+    showBadge?: boolean;
   }) => (
     <button
       type="button"
-      onClick={() => { setActiveView(view); setSidebarOpen(false); }}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+      onClick={() => {
+        setActiveView(view);
+        setSidebarOpen(false);
+        if (view === 'chat') {
+          setUnreadMessagesCount(0);
+        }
+      }}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-base font-medium transition-colors
         ${
           activeView === view
             ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'
             : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700/50'
-        }`}
+        } [&_svg]:w-5 [&_svg]:h-5`}
     >
       {icon}
       {label}
+      {showBadge && (
+        <span
+          className="ml-auto inline-block h-2.5 w-2.5 rounded-full bg-pink-500"
+          aria-label="Mensajes nuevos"
+          title="Mensajes nuevos"
+        />
+      )}
     </button>
   );
+
+  useEffect(() => {
+    if (!token) return;
+
+    chatService.connect(token).catch((error: unknown) => {
+      console.error('Error connecting dashboard socket:', error);
+    });
+
+    const handleIncomingMessage = (message: { sender_role?: string }) => {
+      if (message?.sender_role !== 'adopter') return;
+      if (activeView !== 'chat') {
+        setUnreadMessagesCount((prev) => prev + 1);
+      }
+    };
+
+    chatService.on('new_message', handleIncomingMessage);
+
+    return () => {
+      chatService.off('new_message', handleIncomingMessage);
+    };
+  }, [token, activeView]);
 
   // ─── RENDER ────────────────────────────────────────────────────────────────
   return (
@@ -98,7 +137,7 @@ export default function ShelterDashboard() {
       <button
         type="button"
         onClick={() => setSidebarOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700"
+        className="xl:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700"
       >
         <svg className="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -108,59 +147,64 @@ export default function ShelterDashboard() {
       {/* OVERLAY MÓVIL */}
       {sidebarOpen && (
         <div 
-          className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          className="xl:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* SIDEBAR */}
       <aside className={`
-        fixed lg:relative z-50 lg:z-auto
-        w-64 shrink-0 h-full 
-        flex flex-col gap-3 p-4 
+        fixed xl:relative z-50 xl:z-auto
+        w-72 shrink-0 h-full 
+        flex flex-col gap-4 p-5 
         bg-gray-50 dark:bg-gray-900 
         border-r border-gray-100 dark:border-gray-800 
         overflow-y-auto
         transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full xl:translate-x-0'}
       `}>
-        <div className="px-3 py-2 mb-2 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
-            <PawPrint className="w-5 h-5 text-rose-500" />
+        <div className="px-4 py-2 mb-2 flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+            <PawPrint className="w-6 h-6 text-rose-500" />
             TinPet
           </h1>
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+            className="xl:hidden p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
           >
             <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <p className="px-3 text-xs text-gray-400 mt-0.5 truncate lg:hidden">
+        <p className="px-4 text-sm text-gray-400 mt-0.5 truncate xl:hidden">
           {user?.name || 'Refugio'}
         </p>
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-2 space-y-0.5">
-          <p className="px-3 pt-1 pb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 space-y-1">
+          <p className="px-3 pt-1 pb-2 text-sm font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
             General
           </p>
-          <NavItem view="pets" icon={<IconPaw />} label="Mascotas" />
-          <NavItem view="monitoring" icon={<IconChart />} label="Monitorización" />
-          <NavItem view="matches" icon={<IconHeart />} label="Solicitudes" />
-          <NavItem view="employees" icon={<IconTeam />} label="Empleados" />
-          <NavItem view="chat" icon={<IconChat />} label="Chat" />
+          {renderNavItem({ view: 'pets', icon: <IconPaw />, label: 'Mascotas' })}
+          {renderNavItem({ view: 'monitoring', icon: <IconChart />, label: 'Monitorización' })}
+          {renderNavItem({ view: 'matches', icon: <IconHeart />, label: 'Solicitudes' })}
+          {renderNavItem({ view: 'employees', icon: <IconTeam />, label: 'Empleados' })}
+          {renderNavItem({
+            view: 'chat',
+            icon: <IconChat />,
+            label: 'Chat',
+            showBadge: activeView !== 'chat' && unreadMessagesCount > 0,
+          })}
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-2 space-y-0.5">
-          <p className="px-3 pt-1 pb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 space-y-1">
+          <p className="px-3 pt-1 pb-2 text-sm font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
             Ajustes
           </p>
-          <NavItem view="profile" icon={<IconUser />} label="Mi Perfil" />
+          {renderNavItem({ view: 'profile', icon: <IconUser />, label: 'Mi Perfil' })}
           <button
             type="button"
             onClick={toggleDarkMode}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors [&_svg]:w-5 [&_svg]:h-5"
           >
             {isDarkMode ? (
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -176,7 +220,7 @@ export default function ShelterDashboard() {
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-base font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors [&_svg]:w-5 [&_svg]:h-5"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" />
@@ -188,10 +232,10 @@ export default function ShelterDashboard() {
 
       {/* MAIN */}
       <main className="flex-1 overflow-y-auto">
-        <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-          <div className="mb-6 lg:mb-8 flex items-center justify-between">
-            <div className="pl-12 lg:pl-0">
-              <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
+        <div className="w-full px-4 lg:px-5 xl:px-6 2xl:px-8 py-4 lg:py-6 xl:py-8">
+          <div className="mb-6 xl:mb-8 flex items-center justify-between">
+            <div className="pl-12 xl:pl-0">
+              <h2 className="text-xl xl:text-2xl font-bold text-gray-900 dark:text-white">
                 {activeView === 'pets' && 'Lista de Mascotas'}
                 {activeView === 'monitoring' && 'Monitorización'}
                 {activeView === 'matches' && 'Solicitudes'}
@@ -212,7 +256,7 @@ export default function ShelterDashboard() {
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(true)}
-                className="flex items-center gap-2 px-3 lg:px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-3 xl:px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
               >
                 <IconPlus />
                 <span className="hidden sm:inline">Nueva mascota</span>

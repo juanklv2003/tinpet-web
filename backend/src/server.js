@@ -15,6 +15,80 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tinpet-secret-key-2024';
+const MAX_JSON_PAYLOAD = process.env.MAX_JSON_PAYLOAD || '10mb';
+const MAX_PET_IMAGE_BYTES = Number(process.env.MAX_PET_IMAGE_BYTES || 4 * 1024 * 1024);
+const MAX_PET_PHOTOS = Number(process.env.MAX_PET_PHOTOS || 10);
+
+function estimateBase64Bytes(dataUrl) {
+  if (typeof dataUrl !== 'string' || !dataUrl.includes('base64,')) {
+    return 0;
+  }
+  const base64 = dataUrl.split('base64,')[1] || '';
+  const padding = (base64.match(/=+$/) || [''])[0].length;
+  return Math.floor((base64.length * 3) / 4) - padding;
+}
+
+function parsePhotoUrlsFromImageField(raw) {
+  if (!raw || typeof raw !== 'string') return [];
+
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+
+  if (trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item) => typeof item === 'string' && item.trim().length > 0);
+      }
+    } catch {
+      return [trimmed];
+    }
+  }
+
+  return [trimmed];
+}
+
+function toStoredImageField(photoUrls) {
+  if (!Array.isArray(photoUrls) || photoUrls.length === 0) return null;
+  if (photoUrls.length === 1) return photoUrls[0];
+  return JSON.stringify(photoUrls);
+}
+
+function normalizeIncomingPhotoUrls(aiProfile) {
+  const fromArray = Array.isArray(aiProfile?.photoUrls)
+    ? aiProfile.photoUrls.filter((item) => typeof item === 'string' && item.trim().length > 0)
+    : [];
+
+  if (fromArray.length > 0) {
+    return fromArray.slice(0, MAX_PET_PHOTOS);
+  }
+
+  if (typeof aiProfile?.photoUrl === 'string' && aiProfile.photoUrl.trim()) {
+    return [aiProfile.photoUrl.trim()];
+  }
+
+  return [];
+}
+
+function validatePhotoUrls(photoUrls) {
+  if (!Array.isArray(photoUrls)) return null;
+
+  if (photoUrls.length > MAX_PET_PHOTOS) {
+    return `Maximo ${MAX_PET_PHOTOS} fotos por mascota.`;
+  }
+
+  for (const url of photoUrls) {
+    if (typeof url !== 'string') continue;
+    if (url.startsWith('data:image/')) {
+      const imageBytes = estimateBase64Bytes(url);
+      if (imageBytes > MAX_PET_IMAGE_BYTES) {
+        return `Imagen demasiado grande. Maximo permitido: ${Math.round(MAX_PET_IMAGE_BYTES / (1024 * 1024))}MB por foto.`;
+      }
+    }
+  }
+
+  return null;
+}
 
 // Swagger configuration
 const swaggerOptions = {
@@ -30,7 +104,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'http://10.145.22.253:3000',
+        url: 'http://172.22.224.1:3000',
         description: 'Servidor de desarrollo',
       },
     ],
@@ -119,7 +193,17 @@ const app = express();
 
 // Middlewares básicos
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: MAX_JSON_PAYLOAD }));
+app.use(express.urlencoded({ extended: true, limit: MAX_JSON_PAYLOAD }));
+
+app.use((err, req, res, next) => {
+  if (err?.type === 'entity.too.large') {
+    return res.status(413).json({
+      error: `Payload demasiado grande. Reduce la imagen o usa un máximo de ${MAX_JSON_PAYLOAD}.`,
+    });
+  }
+  return next(err);
+});
 
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -148,15 +232,19 @@ const authenticateToken = (req, res, next) => {
 
 // --- HELPER: Mapear pet al formato del frontend ---
 const mapPetToFrontend = (pet) => ({
+  ...(pet ?? {}),
   id: pet.id,
   name: pet.name,
   species: pet.species,
   status: pet.status === 'disponible' ? 'available' : 
           pet.status === 'adoptado' ? 'adopted' : 'pending',
   created_at: pet.created_at,
+  shelter_id: pet.shelter_id,
   ai_profile: {
+    ...(typeof pet.ai_profile === 'object' && pet.ai_profile !== null ? pet.ai_profile : {}),
     breed: pet.breed || null,
-    photoUrl: pet.image_url || null,
+    photoUrls: parsePhotoUrlsFromImageField(pet.image_url),
+    photoUrl: parsePhotoUrlsFromImageField(pet.image_url)[0] || null,
     birthDate: pet.birth_date ? pet.birth_date.toISOString().split('T')[0] : null,
     intakeDate: pet.registration_date ? pet.registration_date.toISOString().split('T')[0] : null,
     vaccines: [],
@@ -312,6 +400,12 @@ app.post('/api/pets', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Nombre y especie son requeridos' });
     }
 
+    const photoUrls = normalizeIncomingPhotoUrls(ai_profile);
+    const validationError = validatePhotoUrls(photoUrls);
+    if (validationError) {
+      return res.status(413).json({ error: validationError });
+    }
+
     // Buscar el shelter del usuario
     const shelter = await prisma.shelters.findFirst({
       where: { user_id: req.user.sub }
@@ -332,7 +426,7 @@ app.post('/api/pets', authenticateToken, async (req, res) => {
       status: dbStatus,
       shelter_id: shelter.id,
       breed: ai_profile?.breed || null,
-      image_url: ai_profile?.photoUrl || null,
+      image_url: toStoredImageField(photoUrls),
       birth_date: ai_profile?.birthDate ? new Date(ai_profile.birthDate) : null,
       registration_date: new Date(),
     };
@@ -388,7 +482,17 @@ app.patch('/api/pets/:id', authenticateToken, async (req, res) => {
 
     if (ai_profile) {
       if (typeof ai_profile.breed === 'string') updateData.breed = ai_profile.breed || null;
-      if (typeof ai_profile.photoUrl === 'string') updateData.image_url = ai_profile.photoUrl || null;
+
+      const photoUrls = normalizeIncomingPhotoUrls(ai_profile);
+      const validationError = validatePhotoUrls(photoUrls);
+      if (validationError) {
+        return res.status(413).json({ error: validationError });
+      }
+
+      if (Array.isArray(ai_profile.photoUrls) || typeof ai_profile.photoUrl === 'string') {
+        updateData.image_url = toStoredImageField(photoUrls);
+      }
+
       if (typeof ai_profile.birthDate === 'string' && ai_profile.birthDate) {
         updateData.birth_date = new Date(ai_profile.birthDate);
       }
@@ -609,7 +713,7 @@ app.get('/api/likes', authenticateToken, async (req, res) => {
         status,
         created_at: like.created_at,
         pet_name: like.pets?.name ?? null,
-        pet_image: like.pets?.image_url ?? null,
+        pet_image: parsePhotoUrlsFromImageField(like.pets?.image_url)[0] ?? null,
         pet_species: like.pets?.species ?? null,
       };
     });
@@ -675,11 +779,14 @@ app.get('/api/pets-available', async (req, res) => {
     });
 
     const result = pets.map(pet => ({
+      photos: (() => {
+        const parsed = parsePhotoUrlsFromImageField(pet.image_url);
+        return parsed.length > 0 ? parsed : ['https://placedog.net/400/400?random'];
+      })(),
       id: pet.id,
       name: pet.name,
       species: pet.species === 'dog' ? 'dog' : pet.species === 'cat' ? 'cat' : 'dog',
       age: pet.birth_date ? Math.floor((new Date() - new Date(pet.birth_date)) / (365.25 * 24 * 60 * 60 * 1000)) : 1,
-      photos: pet.image_url ? [pet.image_url] : ['https://placedog.net/400/400?random'],
       description: `${pet.name} es un/a ${pet.species} muy especial. ${pet.breed ? `Raza: ${pet.breed}.` : ''}`,
       source: pet.shelters 
         ? { type: 'shelter', name: pet.shelters.name, id: pet.shelters.id }
@@ -1137,7 +1244,7 @@ app.get('/api/adopter/matches', authenticateToken, async (req, res) => {
         id: match.id,
         pet_id: match.pet_id,
         pet_name: match.pets?.name ?? null,
-        pet_image: match.pets?.image_url ?? null,
+        pet_image: parsePhotoUrlsFromImageField(match.pets?.image_url)[0] ?? null,
         contact,
         created_at: match.created_at,
       };
@@ -1205,12 +1312,18 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
       id: conv.id,
       pet_id: conv.pet_id,
       pet_name: conv.pet?.name ?? null,
-      pet_image: conv.pet?.image_url ?? null,
+      pet_image: parsePhotoUrlsFromImageField(conv.pet?.image_url)[0] ?? null,
       other_party: conv.shelter 
         ? { type: 'shelter', id: conv.shelter.id, name: conv.shelter.name, phone: conv.shelter.phone, location: conv.shelter.location }
         : conv.vet_clinic
         ? { type: 'vet', id: conv.vet_clinic.id, name: conv.vet_clinic.name, phone: conv.vet_clinic.phone, location: conv.vet_clinic.location }
-        : { type: 'adopter', id: conv.adopter.id, name: conv.adopter.name, avatar: conv.adopter.avatar_url },
+        : {
+            type: 'adopter',
+            id: conv.adopter.id,
+            name: conv.adopter.name,
+            avatar: conv.adopter.avatar_url,
+            avatar_url: conv.adopter.avatar_url,
+          },
       last_message: conv.messages[0] ? {
         content: conv.messages[0].content,
         created_at: conv.messages[0].created_at,
@@ -1536,9 +1649,13 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     let name = '';
+    let avatar = null;
+    let description = null;
     if (user.role === 'adopter') {
       const profile = await prisma.adopters.findFirst({ where: { user_id: user.id } });
       name = profile?.name || '';
+      avatar = profile?.avatar_url || null;
+      description = profile?.description || null;
     } else if (user.role === 'shelter') {
       const profile = await prisma.shelters.findFirst({ where: { user_id: user.id } });
       name = profile?.name || '';
@@ -1553,10 +1670,117 @@ app.post('/api/auth/login', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.json({ token, role: user.role, name });
+    res.json({ token, role: user.role, name, avatar, description });
   } catch (error) {
     console.error('Error en login:', error);
     res.status(500).json({ error: 'Error al iniciar sesión' });
+  }
+});
+
+// --- ADOPTER PROFILE ---
+app.patch('/api/adopter/profile', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'adopter') {
+      return res.status(403).json({ error: 'Solo los adoptantes pueden editar su perfil' });
+    }
+
+    const { name, description, avatar_url } = req.body;
+
+    const adopter = await prisma.adopters.findFirst({
+      where: { user_id: req.user.sub },
+    });
+
+    if (!adopter) {
+      return res.status(404).json({ error: 'Adoptante no encontrado' });
+    }
+
+    const data = {};
+
+    if (typeof name === 'string' && name.trim()) {
+      data.name = name.trim();
+    }
+
+    if (typeof description === 'string') {
+      data.description = description.trim();
+    }
+
+    if (avatar_url === null || avatar_url === '') {
+      data.avatar_url = null;
+    } else if (typeof avatar_url === 'string' && avatar_url.trim()) {
+      data.avatar_url = avatar_url.trim();
+    }
+
+    const updated = await prisma.adopters.update({
+      where: { id: adopter.id },
+      data,
+      select: {
+        id: true,
+        user_id: true,
+        name: true,
+        description: true,
+        avatar_url: true,
+      },
+    });
+
+    return res.json(updated);
+  } catch (error) {
+    console.error('Error al actualizar perfil de adoptante:', error);
+    return res.status(500).json({ error: 'Error al actualizar perfil de adoptante' });
+  }
+});
+
+// --- PUSH TOKEN ---
+/**
+ * @swagger
+ * /api/users/{userId}/push-token:
+ *   patch:
+ *     summary: Actualizar el token de notificaciones push
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               push_token:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Token actualizado
+ *       403:
+ *         description: No autorizado
+ */
+app.patch('/api/users/:userId/push-token', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { push_token } = req.body;
+    
+    if (req.user.sub !== userId) {
+      return res.status(403).json({ error: 'No puedes actualizar el token de otro usuario' });
+    }
+    
+    if (!push_token) {
+      return res.status(400).json({ error: 'push_token es requerido' });
+    }
+    
+    const user = await prisma.users.update({
+      where: { id: userId },
+      data: { push_token },
+    });
+    
+    res.json({ success: true, message: 'Token actualizado' });
+  } catch (error) {
+    console.error('Error al actualizar push token:', error);
+    res.status(500).json({ error: 'Error al actualizar token' });
   }
 });
 
@@ -1824,5 +2048,5 @@ io.on('connection', async (socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor backend con WebSocket en http://10.145.22.253:${PORT}`);
+  console.log(`🚀 Servidor backend con WebSocket en http://172.22.224.1:${PORT}`);
 });

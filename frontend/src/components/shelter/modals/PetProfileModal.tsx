@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { apiFetch } from '../../../services/api';
+import type { Pet } from '../../../types';
+import { StyledDatePicker } from '../../styled-date-picker';
+import { StyledSelect } from '../../styled-select';
 import { IconTrash, IconX } from '../Icons';
-import { fileToDataUrl, fmtDate } from '../helpers';
 import { NA } from '../components/NA';
 import { Row } from '../components/Row';
-import { apiFetch } from '../../../services/api';
+import { fileToDataUrl, fmtDate } from '../helpers';
 import type { EditPetForm, PetStatus } from '../types';
-import type { Pet } from '../../../types';
 
 interface PetProfileModalProps {
   pet: Pet;
@@ -14,12 +16,28 @@ interface PetProfileModalProps {
   onUpdate: (updated: Pet) => void;
 }
 
+const MAX_PHOTOS = 10;
+
+const readPhotoUrls = (aiProfile: Record<string, unknown> | undefined): string[] => {
+  const fromList = aiProfile?.photoUrls;
+  if (Array.isArray(fromList)) {
+    return fromList.filter((item): item is string => typeof item === 'string' && item.trim().length > 0).slice(0, MAX_PHOTOS);
+  }
+
+  if (typeof aiProfile?.photoUrl === 'string' && aiProfile.photoUrl.trim()) {
+    return [aiProfile.photoUrl];
+  }
+
+  return [];
+};
+
 export function PetProfileModal({
   pet,
   onClose,
   onDelete,
   onUpdate,
 }: PetProfileModalProps) {
+  const ANIMATION_MS = 280;
   const [ai, setAi] = useState<Record<string, unknown>>(pet.ai_profile ?? {});
   const [form, setForm] = useState<EditPetForm>({
     name: pet.name,
@@ -27,7 +45,7 @@ export function PetProfileModal({
     status: pet.status,
     breed: pet.ai_profile?.breed ?? '',
     birthDate: pet.ai_profile?.birthDate ?? '',
-    photoUrl: pet.ai_profile?.photoUrl ?? '',
+    photoUrls: readPhotoUrls(pet.ai_profile),
   });
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -36,7 +54,26 @@ export function PetProfileModal({
   const [addingVaccine, setAddingVaccine] = useState(false);
   const [newDisease, setNewDisease] = useState('');
   const [addingDisease, setAddingDisease] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const rafId = window.requestAnimationFrame(() => setIsVisible(true));
+    return () => window.cancelAnimationFrame(rafId);
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setIsVisible(false);
+        window.setTimeout(onClose, ANIMATION_MS);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
 
   useEffect(() => {
     setAi(pet.ai_profile ?? {});
@@ -46,7 +83,7 @@ export function PetProfileModal({
       status: pet.status,
       breed: pet.ai_profile?.breed ?? '',
       birthDate: pet.ai_profile?.birthDate ?? '',
-      photoUrl: pet.ai_profile?.photoUrl ?? '',
+      photoUrls: readPhotoUrls(pet.ai_profile),
     });
     setEditMode(false);
     setErr(null);
@@ -62,26 +99,42 @@ export function PetProfileModal({
   };
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const selectedFiles = Array.from(e.target.files ?? []);
+    if (selectedFiles.length === 0) return;
 
-    if (!file.type.startsWith('image/')) {
-      setErr('El archivo debe ser una imagen.');
+    if (form.photoUrls.length + selectedFiles.length > MAX_PHOTOS) {
+      setErr(`Solo puedes guardar hasta ${MAX_PHOTOS} fotos por mascota.`);
       return;
     }
 
-    if (file.size > 4 * 1024 * 1024) {
-      setErr('La imagen es demasiado grande. Usa una de menos de 4MB.');
+    const invalidType = selectedFiles.some((file) => !file.type.startsWith('image/'));
+    if (invalidType) {
+      setErr('Todos los archivos deben ser imágenes.');
+      return;
+    }
+
+    const oversized = selectedFiles.find((file) => file.size > 4 * 1024 * 1024);
+    if (oversized) {
+      setErr(`La imagen ${oversized.name} supera 4MB.`);
       return;
     }
 
     try {
-      const dataUrl = await fileToDataUrl(file);
-      setForm(prev => ({ ...prev, photoUrl: dataUrl }));
+      const urls = await Promise.all(selectedFiles.map((file) => fileToDataUrl(file)));
+      setForm(prev => ({ ...prev, photoUrls: [...prev.photoUrls, ...urls] }));
       setErr(null);
     } catch {
       setErr('No se pudo cargar la imagen');
+    } finally {
+      e.target.value = '';
     }
+  };
+
+  const removePhotoAt = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      photoUrls: prev.photoUrls.filter((_, i) => i !== index),
+    }));
   };
 
   const handleSaveEdit = async () => {
@@ -96,7 +149,8 @@ export function PetProfileModal({
     const nextAi = {
       ...ai,
       breed: form.breed.trim(),
-      photoUrl: form.photoUrl,
+      photoUrls: form.photoUrls,
+      photoUrl: form.photoUrls[0] ?? '',
       birthDate: form.birthDate,
     };
 
@@ -120,7 +174,7 @@ export function PetProfileModal({
         status: updated.status,
         breed: updated.ai_profile?.breed ?? '',
         birthDate: updated.ai_profile?.birthDate ?? '',
-        photoUrl: updated.ai_profile?.photoUrl ?? '',
+        photoUrls: readPhotoUrls(updated.ai_profile),
       });
       setEditMode(false);
     } catch (error: unknown) {
@@ -133,8 +187,14 @@ export function PetProfileModal({
   const handleDelete = () => {
     if (confirm(`¿Eliminar a ${pet.name}?`)) {
       onDelete(pet.id);
-      onClose();
+      setIsVisible(false);
+      window.setTimeout(onClose, ANIMATION_MS);
     }
+  };
+
+  const handleClose = () => {
+    setIsVisible(false);
+    window.setTimeout(onClose, ANIMATION_MS);
   };
 
   const saveVaccine = async () => {
@@ -181,20 +241,28 @@ export function PetProfileModal({
       : [];
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-      onClick={e => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50">
+      <button
+        type="button"
+        aria-label="Cerrar panel"
+        onClick={handleClose}
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
+          isVisible ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+
+      <div
+        className={`absolute right-3 top-3 bottom-3 w-[calc(100%-1.5rem)] sm:w-[min(calc(100%-1.5rem),46rem)] xl:w-[min(calc(100%-1.5rem),52rem)] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out ${
+          isVisible ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
         {/* Foto */}
-        <div className="relative h-44 bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center gap-2">
-          {form.photoUrl ? (
+        <div className="relative h-60 sm:h-64 xl:h-72 bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center gap-2">
+          {form.photoUrls[0] ? (
             <img
-              src={form.photoUrl}
+              src={form.photoUrls[0]}
               alt={form.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain bg-gray-100 dark:bg-gray-800 p-2"
             />
           ) : (
             <>
@@ -214,7 +282,7 @@ export function PetProfileModal({
             </>
           )}
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 transition-colors"
           >
             <IconX />
@@ -225,6 +293,7 @@ export function PetProfileModal({
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
+                multiple
                 onChange={handlePhotoSelect}
                 className="hidden"
               />
@@ -233,7 +302,7 @@ export function PetProfileModal({
                 onClick={() => fileInputRef.current?.click()}
                   className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full text-xs font-medium bg-black/60 hover:bg-black/75 text-white"
               >
-                Cambiar foto
+                Anadir fotos
               </button>
             </>
           )}
@@ -255,7 +324,7 @@ export function PetProfileModal({
         </div>
 
         {/* Contenido */}
-        <div className="p-5 max-h-[62vh] overflow-y-auto">
+        <div className="p-5 xl:p-6 max-h-[64vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-4 gap-3">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white truncate">{form.name}</h2>
             {!editMode ? (
@@ -277,7 +346,7 @@ export function PetProfileModal({
                       status: pet.status,
                       breed: pet.ai_profile?.breed ?? '',
                       birthDate: pet.ai_profile?.birthDate ?? '',
-                      photoUrl: pet.ai_profile?.photoUrl ?? '',
+                      photoUrls: readPhotoUrls(pet.ai_profile),
                     });
                     setEditMode(false);
                     setErr(null);
@@ -343,32 +412,30 @@ export function PetProfileModal({
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                   Estado
                 </label>
-                <select
+                <StyledSelect
                   value={form.status}
-                  onChange={e =>
+                  onChange={(value) =>
                     setForm(prev => ({
                       ...prev,
-                      status: e.target.value as PetStatus,
+                      status: value as PetStatus,
                     }))
                   }
-                  className="w-full rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-gray-400"
-                >
-                  <option value="available">Disponible</option>
-                  <option value="pending">Pendiente</option>
-                  <option value="adopted">Adoptado</option>
-                </select>
+                  options={[
+                    { value: 'available', label: 'Disponible' },
+                    { value: 'pending', label: 'Pendiente' },
+                    { value: 'adopted', label: 'Adoptado' },
+                  ]}
+                />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                   Fecha de nacimiento
                 </label>
-                <input
-                  type="date"
+                <StyledDatePicker
                   value={form.birthDate}
-                  onChange={e =>
-                    setForm(prev => ({ ...prev, birthDate: e.target.value }))
+                  onChange={(date) =>
+                    setForm(prev => ({ ...prev, birthDate: date }))
                   }
-                  className="w-full rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-gray-400"
                 />
               </div>
             </div>
@@ -382,6 +449,33 @@ export function PetProfileModal({
           )}
 
           {err && <p className="text-xs text-red-500 dark:text-red-400 mb-3">{err}</p>}
+
+          {editMode && (
+            <div className="mb-4">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                Fotos ({form.photoUrls.length}/{MAX_PHOTOS})
+              </p>
+              {form.photoUrls.length === 0 ? (
+                <p className="text-xs text-gray-500 dark:text-gray-400">Sin fotos cargadas.</p>
+              ) : (
+                <div className="grid grid-cols-5 gap-2">
+                  {form.photoUrls.map((url, index) => (
+                    <div key={`${url}-${index}`} className="relative group">
+                      <img src={url} alt={`Foto ${index + 1}`} className="h-14 w-full rounded-md object-cover border border-gray-300 dark:border-gray-700" />
+                      <button
+                        type="button"
+                        onClick={() => removePhotoAt(index)}
+                        className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-black/80 text-white text-xs hidden group-hover:flex items-center justify-center"
+                        aria-label="Eliminar foto"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Vacunas */}
           <div className="mt-4">

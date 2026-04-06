@@ -7,8 +7,8 @@ export interface AddPetForm {
   name: string;
   species: string;
   breed: string;
-  photoUrl: string;
-  photoFile: File | null;
+  photoUrls: string[];
+  photoFiles: File[];
   birthDate: string;
   intakeDate: string;
   status: PetStatus;
@@ -18,8 +18,8 @@ export const emptyAddForm: AddPetForm = {
   name: '',
   species: '',
   breed: '',
-  photoUrl: '',
-  photoFile: null,
+  photoUrls: [],
+  photoFiles: [],
   birthDate: '',
   intakeDate: '',
   status: 'available',
@@ -31,7 +31,7 @@ export interface EditPetForm {
   status: PetStatus;
   breed: string;
   birthDate: string;
-  photoUrl: string;
+  photoUrls: string[];
 }
 
 export interface ShelterProfileForm {

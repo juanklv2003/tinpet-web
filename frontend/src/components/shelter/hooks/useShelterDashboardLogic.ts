@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { apiFetch } from '../../../services/api';
-import type { AuthUser, Pet } from '../../../types';
 import { useShelterEmployees } from '../../../hooks/useShelterEmployees';
 import { useShelterMatches } from '../../../hooks/useShelterMatches';
 import { useShelterStats } from '../../../hooks/useShelterStats';
+import { apiFetch } from '../../../services/api';
+import type { AuthUser, Pet } from '../../../types';
 import { fileToDataUrl } from '../helpers';
 import type { ActiveView, AddPetForm, ShelterProfileForm } from '../types';
 
@@ -224,7 +224,10 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
 
     const ai_profile: Record<string, unknown> = {};
     if (form.breed) ai_profile.breed = form.breed;
-    if (form.photoUrl) ai_profile.photoUrl = form.photoUrl;
+    if (form.photoUrls.length > 0) {
+      ai_profile.photoUrls = form.photoUrls;
+      ai_profile.photoUrl = form.photoUrls[0];
+    }
     if (form.birthDate) ai_profile.birthDate = form.birthDate;
     if (form.intakeDate) ai_profile.intakeDate = form.intakeDate;
 

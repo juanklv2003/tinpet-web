@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL ?? 'http://10.145.22.253:3000';
+const BASE = import.meta.env.VITE_API_URL ?? 'http://172.22.224.1:3000';
 
 type JsonRecord = Record<string, unknown>;
 

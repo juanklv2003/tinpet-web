@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fmtDate, daysSince } from '../helpers';
-import type { Pet } from '../../../types';
 import type { ShelterStats } from '../../../hooks/useShelterStats';
+import type { Pet } from '../../../types';
+import { daysSince, fmtDate } from '../helpers';
 
 interface MonitoringViewProps {
   pets: Pet[];
@@ -18,6 +18,12 @@ export function MonitoringView({
   statsLoading = false,
   statsError = null,
 }: MonitoringViewProps) {
+  const hasAnyPhoto = (pet: Pet) => {
+    const photoUrls = pet.ai_profile?.photoUrls;
+    if (Array.isArray(photoUrls) && photoUrls.length > 0) return true;
+    return Boolean(pet.ai_profile?.photoUrl);
+  };
+
   const todayKey = new Date().toISOString().split('T')[0];
   const tasksStorageKey = `tinpet-daily-tasks-${todayKey}`;
 
@@ -45,7 +51,7 @@ export function MonitoringView({
     .slice(0, 5);
 
   const incompleteProfiles = pets
-    .filter(pet => !pet.ai_profile?.photoUrl || !pet.ai_profile?.breed)
+    .filter(pet => !hasAnyPhoto(pet) || !pet.ai_profile?.breed)
     .slice(0, 5);
 
   const recentActivity = [...pets]
@@ -334,8 +340,8 @@ export function MonitoringView({
             <ul className="space-y-2">
               {incompleteProfiles.map(pet => (
                 <li key={pet.id} className="text-sm text-blue-900 dark:text-blue-200">
-                  {pet.name}: {!pet.ai_profile?.photoUrl && 'falta foto'}
-                  {!pet.ai_profile?.photoUrl && !pet.ai_profile?.breed && ', '}
+                  {pet.name}: {!hasAnyPhoto(pet) && 'falta foto'}
+                  {!hasAnyPhoto(pet) && !pet.ai_profile?.breed && ', '}
                   {!pet.ai_profile?.breed && 'falta raza'}
                 </li>
               ))}
