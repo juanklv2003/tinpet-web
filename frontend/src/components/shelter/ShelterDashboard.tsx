@@ -324,6 +324,7 @@ export default function ShelterDashboard() {
         <AddPetModal
           onClose={() => setIsAddModalOpen(false)}
           onAdd={handleAddPet}
+          employees={employees}
         />
       )}
 
@@ -339,6 +340,7 @@ export default function ShelterDashboard() {
               prev.map(p => (p.id === updated.id ? updated : p))
             );
           }}
+          employees={employees}
         />
       )}
     </div>

@@ -8,12 +8,14 @@ import { NA } from '../components/NA';
 import { Row } from '../components/Row';
 import { fileToDataUrl, fmtDate } from '../helpers';
 import type { EditPetForm, PetStatus } from '../types';
+import type { ShelterEmployee } from '../../../hooks/useShelterEmployees';
 
 interface PetProfileModalProps {
   pet: Pet;
   onClose: () => void;
   onDelete: (id: string) => void;
   onUpdate: (updated: Pet) => void;
+  employees: ShelterEmployee[];
 }
 
 const MAX_PHOTOS = 10;
@@ -36,6 +38,7 @@ export function PetProfileModal({
   onClose,
   onDelete,
   onUpdate,
+  employees,
 }: PetProfileModalProps) {
   const ANIMATION_MS = 280;
   const [ai, setAi] = useState<Record<string, unknown>>(pet.ai_profile ?? {});
@@ -46,6 +49,7 @@ export function PetProfileModal({
     breed: pet.ai_profile?.breed ?? '',
     birthDate: pet.ai_profile?.birthDate ?? '',
     photoUrls: readPhotoUrls(pet.ai_profile),
+    inChargeEmployeeId: pet.ai_profile?.inChargeEmployeeId ?? '',
   });
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -84,6 +88,7 @@ export function PetProfileModal({
       breed: pet.ai_profile?.breed ?? '',
       birthDate: pet.ai_profile?.birthDate ?? '',
       photoUrls: readPhotoUrls(pet.ai_profile),
+      inChargeEmployeeId: pet.ai_profile?.inChargeEmployeeId ?? '',
     });
     setEditMode(false);
     setErr(null);
@@ -152,6 +157,7 @@ export function PetProfileModal({
       photoUrls: form.photoUrls,
       photoUrl: form.photoUrls[0] ?? '',
       birthDate: form.birthDate,
+      inChargeEmployeeId: form.inChargeEmployeeId || undefined,
     };
 
     try {
@@ -175,6 +181,7 @@ export function PetProfileModal({
         breed: updated.ai_profile?.breed ?? '',
         birthDate: updated.ai_profile?.birthDate ?? '',
         photoUrls: readPhotoUrls(updated.ai_profile),
+        inChargeEmployeeId: updated.ai_profile?.inChargeEmployeeId ?? '',
       });
       setEditMode(false);
     } catch (error: unknown) {
@@ -347,6 +354,7 @@ export function PetProfileModal({
                       breed: pet.ai_profile?.breed ?? '',
                       birthDate: pet.ai_profile?.birthDate ?? '',
                       photoUrls: readPhotoUrls(pet.ai_profile),
+                      inChargeEmployeeId: pet.ai_profile?.inChargeEmployeeId ?? '',
                     });
                     setEditMode(false);
                     setErr(null);
@@ -436,6 +444,24 @@ export function PetProfileModal({
                   onChange={(date) =>
                     setForm(prev => ({ ...prev, birthDate: date }))
                   }
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  Empleado encargado
+                </label>
+                <StyledSelect
+                  value={form.inChargeEmployeeId}
+                  onChange={(value) =>
+                    setForm(prev => ({ ...prev, inChargeEmployeeId: value as string }))
+                  }
+                  options={[
+                    { value: '', label: 'Ninguno' },
+                    ...employees.map(emp => ({
+                      value: emp.id,
+                      label: emp.name + (emp.role ? ` (${emp.role})` : ''),
+                    })),
+                  ]}
                 />
               </div>
             </div>
@@ -628,7 +654,7 @@ export function PetProfileModal({
             />
             <Row
               label="Empleado a cargo"
-              value={String(ai.assignedEmployee ?? '') || null}
+              value={employees.find(e => e.id === ai.inChargeEmployeeId)?.name || 'Ninguno'}
             />
           </div>
 

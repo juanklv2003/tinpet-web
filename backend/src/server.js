@@ -1,44 +1,48 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const http = require('http');
-const { randomUUID } = require('crypto');
-const { PrismaClient } = require('@prisma/client');
-const { PrismaPg } = require('@prisma/adapter-pg');
-const { Pool } = require('pg');
-const { Server } = require('socket.io');
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const http = require("http");
+const { randomUUID } = require("crypto");
+const { PrismaClient } = require("@prisma/client");
+const { PrismaPg } = require("@prisma/adapter-pg");
+const { Pool } = require("pg");
+const { Server } = require("socket.io");
 
 // Swagger imports
-const swaggerUi = require('swagger-ui-express');
-const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require("swagger-ui-express");
+const swaggerJsdoc = require("swagger-jsdoc");
 
-const JWT_SECRET = process.env.JWT_SECRET || 'tinpet-secret-key-2024';
-const MAX_JSON_PAYLOAD = process.env.MAX_JSON_PAYLOAD || '10mb';
-const MAX_PET_IMAGE_BYTES = Number(process.env.MAX_PET_IMAGE_BYTES || 4 * 1024 * 1024);
+const JWT_SECRET = process.env.JWT_SECRET || "tinpet-secret-key-2024";
+const MAX_JSON_PAYLOAD = process.env.MAX_JSON_PAYLOAD || "10mb";
+const MAX_PET_IMAGE_BYTES = Number(
+  process.env.MAX_PET_IMAGE_BYTES || 4 * 1024 * 1024,
+);
 const MAX_PET_PHOTOS = Number(process.env.MAX_PET_PHOTOS || 10);
 
 function estimateBase64Bytes(dataUrl) {
-  if (typeof dataUrl !== 'string' || !dataUrl.includes('base64,')) {
+  if (typeof dataUrl !== "string" || !dataUrl.includes("base64,")) {
     return 0;
   }
-  const base64 = dataUrl.split('base64,')[1] || '';
-  const padding = (base64.match(/=+$/) || [''])[0].length;
+  const base64 = dataUrl.split("base64,")[1] || "";
+  const padding = (base64.match(/=+$/) || [""])[0].length;
   return Math.floor((base64.length * 3) / 4) - padding;
 }
 
 function parsePhotoUrlsFromImageField(raw) {
-  if (!raw || typeof raw !== 'string') return [];
+  if (!raw || typeof raw !== "string") return [];
 
   const trimmed = raw.trim();
   if (!trimmed) return [];
 
-  if (trimmed.startsWith('[')) {
+  if (trimmed.startsWith("[")) {
     try {
       const parsed = JSON.parse(trimmed);
       if (Array.isArray(parsed)) {
-        return parsed.filter((item) => typeof item === 'string' && item.trim().length > 0);
+        return parsed.filter(
+          (item) => typeof item === "string" && item.trim().length > 0,
+        );
       }
     } catch {
       return [trimmed];
@@ -56,14 +60,16 @@ function toStoredImageField(photoUrls) {
 
 function normalizeIncomingPhotoUrls(aiProfile) {
   const fromArray = Array.isArray(aiProfile?.photoUrls)
-    ? aiProfile.photoUrls.filter((item) => typeof item === 'string' && item.trim().length > 0)
+    ? aiProfile.photoUrls.filter(
+        (item) => typeof item === "string" && item.trim().length > 0,
+      )
     : [];
 
   if (fromArray.length > 0) {
     return fromArray.slice(0, MAX_PET_PHOTOS);
   }
 
-  if (typeof aiProfile?.photoUrl === 'string' && aiProfile.photoUrl.trim()) {
+  if (typeof aiProfile?.photoUrl === "string" && aiProfile.photoUrl.trim()) {
     return [aiProfile.photoUrl.trim()];
   }
 
@@ -78,8 +84,8 @@ function validatePhotoUrls(photoUrls) {
   }
 
   for (const url of photoUrls) {
-    if (typeof url !== 'string') continue;
-    if (url.startsWith('data:image/')) {
+    if (typeof url !== "string") continue;
+    if (url.startsWith("data:image/")) {
       const imageBytes = estimateBase64Bytes(url);
       if (imageBytes > MAX_PET_IMAGE_BYTES) {
         return `Imagen demasiado grande. Maximo permitido: ${Math.round(MAX_PET_IMAGE_BYTES / (1024 * 1024))}MB por foto.`;
@@ -93,87 +99,90 @@ function validatePhotoUrls(photoUrls) {
 // Swagger configuration
 const swaggerOptions = {
   definition: {
-    openapi: '3.0.0',
+    openapi: "3.0.0",
     info: {
-      title: 'TinPet API',
-      version: '1.0.0',
-      description: 'API para la app TinPet - Tinder para mascotas',
+      title: "TinPet API",
+      version: "1.0.0",
+      description: "API para la app TinPet - Tinder para mascotas",
       contact: {
-        name: 'API Support',
+        name: "API Support",
       },
     },
     servers: [
       {
-        url: 'http://172.22.224.1:3000',
-        description: 'Servidor de desarrollo',
+        url: "http://192.168.1.134:3000",
+        description: "Servidor de desarrollo",
       },
     ],
     components: {
       securitySchemes: {
         bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
         },
       },
       schemas: {
         User: {
-          type: 'object',
+          type: "object",
           properties: {
-            id: { type: 'string' },
-            email: { type: 'string' },
-            name: { type: 'string' },
-            role: { type: 'string', enum: ['adopter', 'shelter', 'vet'] },
+            id: { type: "string" },
+            email: { type: "string" },
+            name: { type: "string" },
+            role: { type: "string", enum: ["adopter", "shelter", "vet"] },
           },
         },
         Pet: {
-          type: 'object',
+          type: "object",
           properties: {
-            id: { type: 'string' },
-            name: { type: 'string' },
-            species: { type: 'string' },
-            status: { type: 'string' },
-            breed: { type: 'string', nullable: true },
-            image_url: { type: 'string', nullable: true },
-            birth_date: { type: 'string', format: 'date', nullable: true },
-            shelter_id: { type: 'string' },
+            id: { type: "string" },
+            name: { type: "string" },
+            species: { type: "string" },
+            status: { type: "string" },
+            breed: { type: "string", nullable: true },
+            image_url: { type: "string", nullable: true },
+            birth_date: { type: "string", format: "date", nullable: true },
+            shelter_id: { type: "string" },
           },
         },
         LoginRequest: {
-          type: 'object',
-          required: ['email', 'password'],
+          type: "object",
+          required: ["email", "password"],
           properties: {
-            email: { type: 'string', format: 'email' },
-            password: { type: 'string' },
+            email: { type: "string", format: "email" },
+            password: { type: "string" },
           },
         },
         RegisterRequest: {
-          type: 'object',
-          required: ['email', 'password', 'name', 'role'],
+          type: "object",
+          required: ["email", "password", "name", "role"],
           properties: {
-            email: { type: 'string', format: 'email' },
-            password: { type: 'string', minLength: 6 },
-            name: { type: 'string' },
-            role: { type: 'string', enum: ['adopter', 'shelter', 'vet'] },
+            email: { type: "string", format: "email" },
+            password: { type: "string", minLength: 6 },
+            name: { type: "string" },
+            role: { type: "string", enum: ["adopter", "shelter", "vet"] },
           },
         },
         LoginResponse: {
-          type: 'object',
+          type: "object",
           properties: {
-            token: { type: 'string' },
-            role: { type: 'string' },
-            name: { type: 'string' },
+            token: { type: "string" },
+            role: { type: "string" },
+            name: { type: "string" },
           },
         },
         Match: {
-          type: 'object',
+          type: "object",
           properties: {
-            id: { type: 'string' },
-            pet_id: { type: 'string' },
-            adopter_id: { type: 'string' },
-            status: { type: 'string', enum: ['pending', 'accepted', 'rejected'] },
-            pet_name: { type: 'string', nullable: true },
-            user_name: { type: 'string', nullable: true },
+            id: { type: "string" },
+            pet_id: { type: "string" },
+            adopter_id: { type: "string" },
+            status: {
+              type: "string",
+              enum: ["pending", "accepted", "rejected"],
+            },
+            pet_name: { type: "string", nullable: true },
+            user_name: { type: "string", nullable: true },
           },
         },
       },
@@ -197,7 +206,7 @@ app.use(express.json({ limit: MAX_JSON_PAYLOAD }));
 app.use(express.urlencoded({ extended: true, limit: MAX_JSON_PAYLOAD }));
 
 app.use((err, req, res, next) => {
-  if (err?.type === 'entity.too.large') {
+  if (err?.type === "entity.too.large") {
     return res.status(413).json({
       error: `Payload demasiado grande. Reduce la imagen o usa un máximo de ${MAX_JSON_PAYLOAD}.`,
     });
@@ -206,24 +215,24 @@ app.use((err, req, res, next) => {
 });
 
 // Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.get('/api-docs.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get("/api-docs.json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
   res.send(swaggerSpec);
 });
 
 // --- MIDDLEWARE DE AUTENTICACIÓN ---
 const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
 
   if (!token) {
-    return res.status(401).json({ error: 'Token requerido' });
+    return res.status(401).json({ error: "Token requerido" });
   }
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
-      return res.status(403).json({ error: 'Token inválido' });
+      return res.status(403).json({ error: "Token inválido" });
     }
     req.user = user;
     next();
@@ -236,20 +245,31 @@ const mapPetToFrontend = (pet) => ({
   id: pet.id,
   name: pet.name,
   species: pet.species,
-  status: pet.status === 'disponible' ? 'available' : 
-          pet.status === 'adoptado' ? 'adopted' : 'pending',
+  status:
+    pet.status === "disponible"
+      ? "available"
+      : pet.status === "adoptado"
+        ? "adopted"
+        : "pending",
   created_at: pet.created_at,
   shelter_id: pet.shelter_id,
   ai_profile: {
-    ...(typeof pet.ai_profile === 'object' && pet.ai_profile !== null ? pet.ai_profile : {}),
+    ...(typeof pet.ai_profile === "object" && pet.ai_profile !== null
+      ? pet.ai_profile
+      : {}),
     breed: pet.breed || null,
     photoUrls: parsePhotoUrlsFromImageField(pet.image_url),
     photoUrl: parsePhotoUrlsFromImageField(pet.image_url)[0] || null,
-    birthDate: pet.birth_date ? pet.birth_date.toISOString().split('T')[0] : null,
-    intakeDate: pet.registration_date ? pet.registration_date.toISOString().split('T')[0] : null,
+    birthDate: pet.birth_date
+      ? pet.birth_date.toISOString().split("T")[0]
+      : null,
+    intakeDate: pet.registration_date
+      ? pet.registration_date.toISOString().split("T")[0]
+      : null,
     vaccines: [],
     medicalHistory: [],
-  }
+    inChargeEmployeeId: pet.in_charge_employee_id || null,
+  },
 });
 
 // --- PETS ---
@@ -270,34 +290,34 @@ const mapPetToFrontend = (pet) => ({
  *               items:
  *                 $ref: '#/components/schemas/Pet'
  */
-app.get('/api/pets', async (req, res) => {
+app.get("/api/pets", async (req, res) => {
   try {
     let whereClause = {};
 
     const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
       try {
         const payload = jwt.verify(token, JWT_SECRET);
 
-        if (payload.role === 'adopter') {
+        if (payload.role === "adopter") {
           const adopter = await prisma.adopters.findFirst({
-            where: { user_id: payload.sub }
+            where: { user_id: payload.sub },
           });
 
           if (adopter) {
             whereClause = {
-              status: 'disponible',
+              status: "disponible",
               NOT: {
                 matches: {
                   some: {
-                    adopter_id: adopter.id
-                  }
-                }
-              }
+                    adopter_id: adopter.id,
+                  },
+                },
+              },
             };
           } else {
-            whereClause = { status: 'disponible' };
+            whereClause = { status: "disponible" };
           }
         }
       } catch {
@@ -309,7 +329,7 @@ app.get('/api/pets', async (req, res) => {
     res.json(allPets.map(mapPetToFrontend));
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al obtener las mascotas' });
+    res.status(500).json({ error: "Error al obtener las mascotas" });
   }
 });
 
@@ -328,30 +348,32 @@ app.get('/api/pets', async (req, res) => {
  *       403:
  *         description: Solo los refugios pueden acceder
  */
-app.get('/api/pets/mine', authenticateToken, async (req, res) => {
+app.get("/api/pets/mine", authenticateToken, async (req, res) => {
   try {
     // Solo shelters pueden tener mascotas
-    if (req.user.role !== 'shelter') {
-      return res.status(403).json({ error: 'Solo los refugios pueden gestionar mascotas' });
+    if (req.user.role !== "shelter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los refugios pueden gestionar mascotas" });
     }
 
     // Buscar el shelter del usuario
     const shelter = await prisma.shelters.findFirst({
-      where: { user_id: req.user.sub }
+      where: { user_id: req.user.sub },
     });
 
     if (!shelter) {
-      return res.status(404).json({ error: 'Refugio no encontrado' });
+      return res.status(404).json({ error: "Refugio no encontrado" });
     }
 
     const myPets = await prisma.pets.findMany({
-      where: { shelter_id: shelter.id }
+      where: { shelter_id: shelter.id },
     });
 
     res.json(myPets.map(mapPetToFrontend));
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al obtener tus mascotas' });
+    res.status(500).json({ error: "Error al obtener tus mascotas" });
   }
 });
 
@@ -388,16 +410,18 @@ app.get('/api/pets/mine', authenticateToken, async (req, res) => {
  *       403:
  *         description: Solo los refugios pueden crear mascotas
  */
-app.post('/api/pets', authenticateToken, async (req, res) => {
+app.post("/api/pets", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'shelter') {
-      return res.status(403).json({ error: 'Solo los refugios pueden crear mascotas' });
+    if (req.user.role !== "shelter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los refugios pueden crear mascotas" });
     }
 
     const { name, species, status, ai_profile } = req.body;
 
     if (!name || !species) {
-      return res.status(400).json({ error: 'Nombre y especie son requeridos' });
+      return res.status(400).json({ error: "Nombre y especie son requeridos" });
     }
 
     const photoUrls = normalizeIncomingPhotoUrls(ai_profile);
@@ -408,16 +432,20 @@ app.post('/api/pets', authenticateToken, async (req, res) => {
 
     // Buscar el shelter del usuario
     const shelter = await prisma.shelters.findFirst({
-      where: { user_id: req.user.sub }
+      where: { user_id: req.user.sub },
     });
 
     if (!shelter) {
-      return res.status(404).json({ error: 'Refugio no encontrado' });
+      return res.status(404).json({ error: "Refugio no encontrado" });
     }
 
     // Mapear status al formato de la DB
-    const dbStatus = status === 'available' ? 'disponible' : 
-                     status === 'adopted' ? 'adoptado' : 'pendiente';
+    const dbStatus =
+      status === "available"
+        ? "disponible"
+        : status === "adopted"
+          ? "adoptado"
+          : "pendiente";
 
     // Extraer datos del ai_profile
     const petData = {
@@ -429,59 +457,67 @@ app.post('/api/pets', authenticateToken, async (req, res) => {
       image_url: toStoredImageField(photoUrls),
       birth_date: ai_profile?.birthDate ? new Date(ai_profile.birthDate) : null,
       registration_date: new Date(),
+      in_charge_employee_id: ai_profile?.inChargeEmployeeId || null,
     };
 
     const newPet = await prisma.pets.create({ data: petData });
     res.status(201).json(mapPetToFrontend(newPet));
   } catch (error) {
-    console.error('Error al crear mascota:', error);
-    res.status(500).json({ error: 'Error al crear mascota' });
+    console.error("Error al crear mascota:", error);
+    res.status(500).json({ error: "Error al crear mascota" });
   }
 });
 
 // GET /api/pets/:id - ver una mascota
-app.get('/api/pets/:id', authenticateToken, async (req, res) => {
+app.get("/api/pets/:id", authenticateToken, async (req, res) => {
   try {
     const pet = await prisma.pets.findUnique({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
     });
 
     if (!pet) {
-      return res.status(404).json({ error: 'Mascota no encontrada' });
+      return res.status(404).json({ error: "Mascota no encontrada" });
     }
 
     res.json(mapPetToFrontend(pet));
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al obtener la mascota' });
+    res.status(500).json({ error: "Error al obtener la mascota" });
   }
 });
 
 // PATCH /api/pets/:id - actualizar mascota
-app.patch('/api/pets/:id', authenticateToken, async (req, res) => {
+app.patch("/api/pets/:id", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'shelter') {
-      return res.status(403).json({ error: 'Solo los refugios pueden actualizar mascotas' });
+    if (req.user.role !== "shelter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los refugios pueden actualizar mascotas" });
     }
 
     const { ai_profile, status, name, species } = req.body;
     const updateData = {};
 
-    if (typeof name === 'string' && name.trim()) {
+    if (typeof name === "string" && name.trim()) {
       updateData.name = name.trim();
     }
 
-    if (typeof species === 'string' && species.trim()) {
+    if (typeof species === "string" && species.trim()) {
       updateData.species = species.trim();
     }
 
     if (status) {
-      updateData.status = status === 'available' ? 'disponible' : 
-                          status === 'adopted' ? 'adoptado' : 'pendiente';
+      updateData.status =
+        status === "available"
+          ? "disponible"
+          : status === "adopted"
+            ? "adoptado"
+            : "pendiente";
     }
 
     if (ai_profile) {
-      if (typeof ai_profile.breed === 'string') updateData.breed = ai_profile.breed || null;
+      if (typeof ai_profile.breed === "string")
+        updateData.breed = ai_profile.breed || null;
 
       const photoUrls = normalizeIncomingPhotoUrls(ai_profile);
       const validationError = validatePhotoUrls(photoUrls);
@@ -489,42 +525,51 @@ app.patch('/api/pets/:id', authenticateToken, async (req, res) => {
         return res.status(413).json({ error: validationError });
       }
 
-      if (Array.isArray(ai_profile.photoUrls) || typeof ai_profile.photoUrl === 'string') {
+      if (
+        Array.isArray(ai_profile.photoUrls) ||
+        typeof ai_profile.photoUrl === "string"
+      ) {
         updateData.image_url = toStoredImageField(photoUrls);
       }
 
-      if (typeof ai_profile.birthDate === 'string' && ai_profile.birthDate) {
+      if (typeof ai_profile.birthDate === "string" && ai_profile.birthDate) {
         updateData.birth_date = new Date(ai_profile.birthDate);
+      }
+
+      if (ai_profile.inChargeEmployeeId !== undefined) {
+        updateData.in_charge_employee_id = ai_profile.inChargeEmployeeId;
       }
     }
 
     const updatedPet = await prisma.pets.update({
       where: { id: req.params.id },
-      data: updateData
+      data: updateData,
     });
 
     res.json(mapPetToFrontend(updatedPet));
   } catch (error) {
-    console.error('Error al actualizar mascota:', error);
-    res.status(500).json({ error: 'Error al actualizar mascota' });
+    console.error("Error al actualizar mascota:", error);
+    res.status(500).json({ error: "Error al actualizar mascota" });
   }
 });
 
 // DELETE /api/pets/:id - eliminar mascota
-app.delete('/api/pets/:id', authenticateToken, async (req, res) => {
+app.delete("/api/pets/:id", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'shelter') {
-      return res.status(403).json({ error: 'Solo los refugios pueden eliminar mascotas' });
+    if (req.user.role !== "shelter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los refugios pueden eliminar mascotas" });
     }
 
     await prisma.pets.delete({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
     });
 
-    res.json({ message: 'Mascota eliminada' });
+    res.json({ message: "Mascota eliminada" });
   } catch (error) {
-    console.error('Error al eliminar mascota:', error);
-    res.status(500).json({ error: 'Error al eliminar mascota' });
+    console.error("Error al eliminar mascota:", error);
+    res.status(500).json({ error: "Error al eliminar mascota" });
   }
 });
 
@@ -559,52 +604,59 @@ app.delete('/api/pets/:id', authenticateToken, async (req, res) => {
  *       401:
  *         description: No autorizado
  */
-app.post('/api/swipe', authenticateToken, async (req, res) => {
+app.post("/api/swipe", authenticateToken, async (req, res) => {
   try {
-    console.log('Swipe request:', req.body);
-    console.log('User:', req.user);
+    console.log("Swipe request:", req.body);
+    console.log("User:", req.user);
 
-    if (req.user.role !== 'adopter') {
-      return res.status(403).json({ error: 'Solo los adoptantes pueden hacer swipe' });
+    if (req.user.role !== "adopter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los adoptantes pueden hacer swipe" });
     }
 
     const { petId, action } = req.body;
 
     if (!petId || !action) {
-      return res.status(400).json({ error: 'petId y action son requeridos' });
+      return res.status(400).json({ error: "petId y action son requeridos" });
     }
 
-    if (!['like', 'nope'].includes(action)) {
+    if (!["like", "nope"].includes(action)) {
       return res.status(400).json({ error: 'Action debe ser "like" o "nope"' });
     }
 
     // Buscar el adoptante
     const adopter = await prisma.adopters.findFirst({
-      where: { user_id: req.user.sub }
+      where: { user_id: req.user.sub },
     });
 
-    console.log('Adopter found:', adopter);
+    console.log("Adopter found:", adopter);
 
     if (!adopter) {
-      return res.status(404).json({ error: 'Adoptante no encontrado. Asegurate de registrarte como adoptante.' });
+      return res
+        .status(404)
+        .json({
+          error:
+            "Adoptante no encontrado. Asegurate de registrarte como adoptante.",
+        });
     }
 
     // Verificar que la mascota existe
     const pet = await prisma.pets.findUnique({
-      where: { id: petId }
+      where: { id: petId },
     });
 
-    console.log('Pet found:', pet);
+    console.log("Pet found:", pet);
 
     if (!pet) {
-      return res.status(404).json({ error: 'Mascota no encontrada' });
+      return res.status(404).json({ error: "Mascota no encontrada" });
     }
 
     const existingInteraction = await prisma.matches.findFirst({
       where: {
         adopter_id: adopter.id,
         pet_id: petId,
-      }
+      },
     });
 
     if (existingInteraction) {
@@ -612,7 +664,7 @@ app.post('/api/swipe', authenticateToken, async (req, res) => {
         success: true,
         alreadyInteracted: true,
         matchId: existingInteraction.id,
-        message: 'Ya habias interactuado con esta mascota',
+        message: "Ya habias interactuado con esta mascota",
       });
     }
 
@@ -621,18 +673,21 @@ app.post('/api/swipe', authenticateToken, async (req, res) => {
       data: {
         pet_id: petId,
         adopter_id: adopter.id,
-        interaction_type: action === 'like' ? 'pending' : 'disliked',
-      }
+        interaction_type: action === "like" ? "pending" : "disliked",
+      },
     });
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       matchId: match.id,
-      message: action === 'like' ? 'Te interesa esta mascota!' : 'Ok, siguiente'
+      message:
+        action === "like" ? "Te interesa esta mascota!" : "Ok, siguiente",
     });
   } catch (error) {
-    console.error('Error en swipe:', error);
-    res.status(500).json({ error: 'Error al registrar swipe: ' + error.message });
+    console.error("Error en swipe:", error);
+    res
+      .status(500)
+      .json({ error: "Error al registrar swipe: " + error.message });
   }
 });
 
@@ -669,43 +724,45 @@ app.post('/api/swipe', authenticateToken, async (req, res) => {
  *       401:
  *         description: No autorizado
  */
-app.get('/api/likes', authenticateToken, async (req, res) => {
+app.get("/api/likes", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'adopter') {
-      return res.status(403).json({ error: 'Solo los adoptantes pueden ver sus likes' });
+    if (req.user.role !== "adopter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los adoptantes pueden ver sus likes" });
     }
 
     const adopter = await prisma.adopters.findFirst({
-      where: { user_id: req.user.sub }
+      where: { user_id: req.user.sub },
     });
 
     if (!adopter) {
-      return res.status(404).json({ error: 'Adoptante no encontrado' });
+      return res.status(404).json({ error: "Adoptante no encontrado" });
     }
 
     const likes = await prisma.matches.findMany({
-      where: { 
+      where: {
         adopter_id: adopter.id,
-        interaction_type: { not: 'disliked' }
+        interaction_type: { not: "disliked" },
       },
       include: {
         pets: {
-          select: { 
-            id: true, 
-            name: true, 
+          select: {
+            id: true,
+            name: true,
             image_url: true,
-            species: true
-          }
-        }
+            species: true,
+          },
+        },
       },
-      orderBy: { created_at: 'desc' }
+      orderBy: { created_at: "desc" },
     });
 
-    const result = likes.map(like => {
-      let status = 'pending';
-      if (like.interaction_type === 'accepted') status = 'approved';
-      if (like.interaction_type === 'rejected') status = 'rejected';
-      if (like.interaction_type === 'disliked') status = 'disliked';
+    const result = likes.map((like) => {
+      let status = "pending";
+      if (like.interaction_type === "accepted") status = "approved";
+      if (like.interaction_type === "rejected") status = "rejected";
+      if (like.interaction_type === "disliked") status = "disliked";
 
       return {
         id: like.id,
@@ -713,15 +770,16 @@ app.get('/api/likes', authenticateToken, async (req, res) => {
         status,
         created_at: like.created_at,
         pet_name: like.pets?.name ?? null,
-        pet_image: parsePhotoUrlsFromImageField(like.pets?.image_url)[0] ?? null,
+        pet_image:
+          parsePhotoUrlsFromImageField(like.pets?.image_url)[0] ?? null,
         pet_species: like.pets?.species ?? null,
       };
     });
 
     res.json(result);
   } catch (error) {
-    console.error('Error al obtener likes:', error);
-    res.status(500).json({ error: 'Error al obtener likes' });
+    console.error("Error al obtener likes:", error);
+    res.status(500).json({ error: "Error al obtener likes" });
   }
 });
 
@@ -735,31 +793,31 @@ app.get('/api/likes', authenticateToken, async (req, res) => {
  *       200:
  *         description: Lista de mascotas disponibles
  */
-app.get('/api/pets-available', async (req, res) => {
+app.get("/api/pets-available", async (req, res) => {
   try {
-    let whereClause = { status: 'disponible' };
+    let whereClause = { status: "disponible" };
 
     const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
       try {
         const payload = jwt.verify(token, JWT_SECRET);
 
-        if (payload.role === 'adopter') {
+        if (payload.role === "adopter") {
           const adopter = await prisma.adopters.findFirst({
-            where: { user_id: payload.sub }
+            where: { user_id: payload.sub },
           });
 
           if (adopter) {
             whereClause = {
-              status: 'disponible',
+              status: "disponible",
               NOT: {
                 matches: {
                   some: {
-                    adopter_id: adopter.id
-                  }
-                }
-              }
+                    adopter_id: adopter.id,
+                  },
+                },
+              },
             };
           }
         }
@@ -773,30 +831,40 @@ app.get('/api/pets-available', async (req, res) => {
       where: whereClause,
       include: {
         shelters: {
-          select: { id: true, name: true }
-        }
-      }
+          select: { id: true, name: true },
+        },
+      },
     });
 
-    const result = pets.map(pet => ({
+    const result = pets.map((pet) => ({
       photos: (() => {
         const parsed = parsePhotoUrlsFromImageField(pet.image_url);
-        return parsed.length > 0 ? parsed : ['https://placedog.net/400/400?random'];
+        return parsed.length > 0
+          ? parsed
+          : ["https://placedog.net/400/400?random"];
       })(),
       id: pet.id,
       name: pet.name,
-      species: pet.species === 'dog' ? 'dog' : pet.species === 'cat' ? 'cat' : 'dog',
-      age: pet.birth_date ? Math.floor((new Date() - new Date(pet.birth_date)) / (365.25 * 24 * 60 * 60 * 1000)) : 1,
-      description: `${pet.name} es un/a ${pet.species} muy especial. ${pet.breed ? `Raza: ${pet.breed}.` : ''}`,
-      source: pet.shelters 
-        ? { type: 'shelter', name: pet.shelters.name, id: pet.shelters.id }
-        : { type: 'vet', name: 'Veterinaria', id: '' }
+      species:
+        pet.species === "dog" ? "dog" : pet.species === "cat" ? "cat" : "dog",
+      age: pet.birth_date
+        ? Math.floor(
+            (new Date() - new Date(pet.birth_date)) /
+              (365.25 * 24 * 60 * 60 * 1000),
+          )
+        : 1,
+      description: `${pet.name} es un/a ${pet.species} muy especial. ${pet.breed ? `Raza: ${pet.breed}.` : ""}`,
+      source: pet.shelters
+        ? { type: "shelter", name: pet.shelters.name, id: pet.shelters.id }
+        : { type: "vet", name: "Veterinaria", id: "" },
     }));
 
     res.json({ pets: result });
   } catch (error) {
-    console.error('Error al obtener mascotas disponibles:', error);
-    res.status(500).json({ error: 'Error al obtener mascotas: ' + error.message });
+    console.error("Error al obtener mascotas disponibles:", error);
+    res
+      .status(500)
+      .json({ error: "Error al obtener mascotas: " + error.message });
   }
 });
 
@@ -818,20 +886,20 @@ app.get('/api/pets-available', async (req, res) => {
  *       404:
  *         description: Mascota no encontrada
  */
-app.get('/api/pets/:id', authenticateToken, async (req, res) => {
+app.get("/api/pets/:id", authenticateToken, async (req, res) => {
   try {
     const pet = await prisma.pets.findUnique({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
     });
 
     if (!pet) {
-      return res.status(404).json({ error: 'Mascota no encontrada' });
+      return res.status(404).json({ error: "Mascota no encontrada" });
     }
 
     res.json(pet);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al obtener la mascota' });
+    res.status(500).json({ error: "Error al obtener la mascota" });
   }
 });
 
@@ -852,50 +920,54 @@ app.get('/api/pets/:id', authenticateToken, async (req, res) => {
  *       403:
  *         description: Solo los refugios pueden acceder
  */
-app.get('/api/employees', authenticateToken, async (req, res) => {
+app.get("/api/employees", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'shelter') {
-      return res.status(403).json({ error: 'Solo los refugios pueden gestionar empleados' });
+    if (req.user.role !== "shelter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los refugios pueden gestionar empleados" });
     }
 
     const shelter = await prisma.shelters.findFirst({
-      where: { user_id: req.user.sub }
+      where: { user_id: req.user.sub },
     });
 
     if (!shelter) {
-      return res.status(404).json({ error: 'Refugio no encontrado' });
+      return res.status(404).json({ error: "Refugio no encontrado" });
     }
 
     const employees = await prisma.shelter_employees.findMany({
-      where: { shelter_id: shelter.id }
+      where: { shelter_id: shelter.id },
     });
 
     res.json(employees);
   } catch (error) {
-    console.error('Error al obtener empleados:', error);
-    res.status(500).json({ error: 'Error al obtener los empleados' });
+    console.error("Error al obtener empleados:", error);
+    res.status(500).json({ error: "Error al obtener los empleados" });
   }
 });
 
 // POST /api/employees - crear empleado
-app.post('/api/employees', authenticateToken, async (req, res) => {
+app.post("/api/employees", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'shelter') {
-      return res.status(403).json({ error: 'Solo los refugios pueden gestionar empleados' });
+    if (req.user.role !== "shelter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los refugios pueden gestionar empleados" });
     }
 
-    const { name, email, phone, birth_date } = req.body;
+    const { name, email, phone, birth_date, role } = req.body;
 
     if (!name) {
-      return res.status(400).json({ error: 'El nombre es requerido' });
+      return res.status(400).json({ error: "El nombre es requerido" });
     }
 
     const shelter = await prisma.shelters.findFirst({
-      where: { user_id: req.user.sub }
+      where: { user_id: req.user.sub },
     });
 
     if (!shelter) {
-      return res.status(404).json({ error: 'Refugio no encontrado' });
+      return res.status(404).json({ error: "Refugio no encontrado" });
     }
 
     const employee = await prisma.shelter_employees.create({
@@ -903,33 +975,36 @@ app.post('/api/employees', authenticateToken, async (req, res) => {
         name,
         email: email || null,
         phone: phone || null,
+        role: role || null,
         birth_date: birth_date ? new Date(birth_date) : null,
-        shelter_id: shelter.id
-      }
+        shelter_id: shelter.id,
+      },
     });
 
     res.status(201).json(employee);
   } catch (error) {
-    console.error('Error al crear empleado:', error);
-    res.status(500).json({ error: 'Error al crear empleado' });
+    console.error("Error al crear empleado:", error);
+    res.status(500).json({ error: "Error al crear empleado" });
   }
 });
 
 // DELETE /api/employees/:id - eliminar empleado
-app.delete('/api/employees/:id', authenticateToken, async (req, res) => {
+app.delete("/api/employees/:id", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'shelter') {
-      return res.status(403).json({ error: 'Solo los refugios pueden gestionar empleados' });
+    if (req.user.role !== "shelter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los refugios pueden gestionar empleados" });
     }
 
     await prisma.shelter_employees.delete({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
     });
 
-    res.json({ message: 'Empleado eliminado' });
+    res.json({ message: "Empleado eliminado" });
   } catch (error) {
-    console.error('Error al eliminar empleado:', error);
-    res.status(500).json({ error: 'Error al eliminar empleado' });
+    console.error("Error al eliminar empleado:", error);
+    res.status(500).json({ error: "Error al eliminar empleado" });
   }
 });
 
@@ -956,10 +1031,12 @@ app.delete('/api/employees/:id', authenticateToken, async (req, res) => {
  *       403:
  *         description: Solo los refugios pueden acceder
  */
-app.get('/api/matches', authenticateToken, async (req, res) => {
+app.get("/api/matches", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'shelter') {
-      return res.status(403).json({ error: 'Solo los refugios pueden gestionar solicitudes' });
+    if (req.user.role !== "shelter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los refugios pueden gestionar solicitudes" });
     }
 
     const shelter = await prisma.shelters.findFirst({
@@ -967,7 +1044,7 @@ app.get('/api/matches', authenticateToken, async (req, res) => {
     });
 
     if (!shelter) {
-      return res.status(404).json({ error: 'Refugio no encontrado' });
+      return res.status(404).json({ error: "Refugio no encontrado" });
     }
 
     const matches = await prisma.matches.findMany({
@@ -985,18 +1062,18 @@ app.get('/api/matches', authenticateToken, async (req, res) => {
         },
       },
       orderBy: {
-        created_at: 'desc',
+        created_at: "desc",
       },
     });
 
     const payload = matches.map((match) => {
-      const rawType = String(match.interaction_type || '').toLowerCase();
+      const rawType = String(match.interaction_type || "").toLowerCase();
       const status =
-        rawType === 'accepted' || rawType === 'aceptado'
-          ? 'accepted'
-          : rawType === 'rejected' || rawType === 'rechazado'
-          ? 'rejected'
-          : 'pending';
+        rawType === "accepted" || rawType === "aceptado"
+          ? "accepted"
+          : rawType === "rejected" || rawType === "rechazado"
+            ? "rejected"
+            : "pending";
 
       return {
         id: match.id,
@@ -1011,8 +1088,8 @@ app.get('/api/matches', authenticateToken, async (req, res) => {
 
     res.json(payload);
   } catch (error) {
-    console.error('Error al obtener solicitudes:', error);
-    res.status(500).json({ error: 'Error al obtener las solicitudes' });
+    console.error("Error al obtener solicitudes:", error);
+    res.status(500).json({ error: "Error al obtener las solicitudes" });
   }
 });
 
@@ -1049,15 +1126,19 @@ app.get('/api/matches', authenticateToken, async (req, res) => {
  *       400:
  *         description: Estado inválido
  */
-app.patch('/api/matches/:id', authenticateToken, async (req, res) => {
+app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'shelter') {
-      return res.status(403).json({ error: 'Solo los refugios pueden gestionar solicitudes' });
+    if (req.user.role !== "shelter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los refugios pueden gestionar solicitudes" });
     }
 
     const { status } = req.body;
-    if (status !== 'accepted' && status !== 'rejected') {
-      return res.status(400).json({ error: 'Estado no válido. Usa accepted o rejected.' });
+    if (status !== "accepted" && status !== "rejected") {
+      return res
+        .status(400)
+        .json({ error: "Estado no válido. Usa accepted o rejected." });
     }
 
     const shelter = await prisma.shelters.findFirst({
@@ -1065,7 +1146,7 @@ app.patch('/api/matches/:id', authenticateToken, async (req, res) => {
     });
 
     if (!shelter) {
-      return res.status(404).json({ error: 'Refugio no encontrado' });
+      return res.status(404).json({ error: "Refugio no encontrado" });
     }
 
     const currentMatch = await prisma.matches.findUnique({
@@ -1081,7 +1162,9 @@ app.patch('/api/matches/:id', authenticateToken, async (req, res) => {
     });
 
     if (!currentMatch || currentMatch.pets?.shelter_id !== shelter.id) {
-      return res.status(404).json({ error: 'Solicitud no encontrada o sin permisos' });
+      return res
+        .status(404)
+        .json({ error: "Solicitud no encontrada o sin permisos" });
     }
 
     const updated = await prisma.matches.update({
@@ -1100,7 +1183,7 @@ app.patch('/api/matches/:id', authenticateToken, async (req, res) => {
     });
 
     // Si se acepta, crear conversación automáticamente
-    if (status === 'accepted') {
+    if (status === "accepted") {
       await prisma.conversations.create({
         data: {
           id: randomUUID(),
@@ -1120,11 +1203,11 @@ app.patch('/api/matches/:id', authenticateToken, async (req, res) => {
       created_at: updated.created_at,
       pet_name: updated.pets?.name ?? null,
       user_name: updated.adopters?.name ?? null,
-      conversation_created: status === 'accepted',
+      conversation_created: status === "accepted",
     });
   } catch (error) {
-    console.error('Error al actualizar solicitud:', error);
-    res.status(500).json({ error: 'Error al actualizar la solicitud' });
+    console.error("Error al actualizar solicitud:", error);
+    res.status(500).json({ error: "Error al actualizar la solicitud" });
   }
 });
 
@@ -1177,10 +1260,12 @@ app.patch('/api/matches/:id', authenticateToken, async (req, res) => {
  *                     format: date-time
  *                     description: Fecha de creación del match
  */
-app.get('/api/adopter/matches', authenticateToken, async (req, res) => {
+app.get("/api/adopter/matches", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'adopter') {
-      return res.status(403).json({ error: 'Solo los adoptantes pueden ver sus matches' });
+    if (req.user.role !== "adopter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los adoptantes pueden ver sus matches" });
     }
 
     const adopter = await prisma.adopters.findFirst({
@@ -1188,14 +1273,14 @@ app.get('/api/adopter/matches', authenticateToken, async (req, res) => {
     });
 
     if (!adopter) {
-      return res.status(404).json({ error: 'Adoptante no encontrado' });
+      return res.status(404).json({ error: "Adoptante no encontrado" });
     }
 
     // Obtener matches aprobados (interaction_type = 'accepted')
     const matches = await prisma.matches.findMany({
       where: {
         adopter_id: adopter.id,
-        interaction_type: 'accepted',
+        interaction_type: "accepted",
       },
       include: {
         pets: {
@@ -1219,21 +1304,21 @@ app.get('/api/adopter/matches', authenticateToken, async (req, res) => {
         },
       },
       orderBy: {
-        created_at: 'desc',
+        created_at: "desc",
       },
     });
 
     const payload = matches.map((match) => {
       // Determinar el contacto (refugio o empleado)
-      const contact = match.pets?.shelter_employees 
+      const contact = match.pets?.shelter_employees
         ? {
-            type: 'employee',
+            type: "employee",
             id: match.pets.shelter_employees.id,
             name: match.pets.shelter_employees.name,
             phone: match.pets.shelter_employees.phone,
           }
         : {
-            type: 'shelter',
+            type: "shelter",
             id: match.pets?.shelters?.id ?? null,
             name: match.pets?.shelters?.name ?? null,
             phone: match.pets?.shelters?.phone ?? null,
@@ -1244,7 +1329,8 @@ app.get('/api/adopter/matches', authenticateToken, async (req, res) => {
         id: match.id,
         pet_id: match.pet_id,
         pet_name: match.pets?.name ?? null,
-        pet_image: parsePhotoUrlsFromImageField(match.pets?.image_url)[0] ?? null,
+        pet_image:
+          parsePhotoUrlsFromImageField(match.pets?.image_url)[0] ?? null,
         contact,
         created_at: match.created_at,
       };
@@ -1252,8 +1338,8 @@ app.get('/api/adopter/matches', authenticateToken, async (req, res) => {
 
     res.json(payload);
   } catch (error) {
-    console.error('Error al obtener matches del adoptante:', error);
-    res.status(500).json({ error: 'Error al obtener los matches' });
+    console.error("Error al obtener matches del adoptante:", error);
+    res.status(500).json({ error: "Error al obtener los matches" });
   }
 });
 
@@ -1268,43 +1354,53 @@ app.get('/api/adopter/matches', authenticateToken, async (req, res) => {
  *     security:
  *       - bearerAuth: []
  */
-app.get('/api/conversations', authenticateToken, async (req, res) => {
+app.get("/api/conversations", authenticateToken, async (req, res) => {
   try {
     const { userId, role } = req.user;
     let conversations = [];
 
-    if (role === 'adopter') {
-      const adopter = await prisma.adopters.findFirst({ where: { user_id: userId } });
-      if (!adopter) return res.status(404).json({ error: 'Adoptante no encontrado' });
-      
+    if (role === "adopter") {
+      const adopter = await prisma.adopters.findFirst({
+        where: { user_id: userId },
+      });
+      if (!adopter)
+        return res.status(404).json({ error: "Adoptante no encontrado" });
+
       conversations = await prisma.conversations.findMany({
         where: { adopter_id: adopter.id },
         include: {
-          shelter: { select: { id: true, name: true, phone: true, location: true } },
-          vet_clinic: { select: { id: true, name: true, phone: true, location: true } },
+          shelter: {
+            select: { id: true, name: true, phone: true, location: true },
+          },
+          vet_clinic: {
+            select: { id: true, name: true, phone: true, location: true },
+          },
           pet: { select: { id: true, name: true, image_url: true } },
           messages: {
-            orderBy: { created_at: 'desc' },
+            orderBy: { created_at: "desc" },
             take: 1,
           },
         },
-        orderBy: { last_message_at: 'desc' },
+        orderBy: { last_message_at: "desc" },
       });
-    } else if (role === 'shelter') {
-      const shelter = await prisma.shelters.findFirst({ where: { user_id: userId } });
-      if (!shelter) return res.status(404).json({ error: 'Refugio no encontrado' });
-      
+    } else if (role === "shelter") {
+      const shelter = await prisma.shelters.findFirst({
+        where: { user_id: userId },
+      });
+      if (!shelter)
+        return res.status(404).json({ error: "Refugio no encontrado" });
+
       conversations = await prisma.conversations.findMany({
         where: { shelter_id: shelter.id },
         include: {
           adopter: { select: { id: true, name: true, avatar_url: true } },
           pet: { select: { id: true, name: true, image_url: true } },
           messages: {
-            orderBy: { created_at: 'desc' },
+            orderBy: { created_at: "desc" },
             take: 1,
           },
         },
-        orderBy: { last_message_at: 'desc' },
+        orderBy: { last_message_at: "desc" },
       });
     }
 
@@ -1313,29 +1409,43 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
       pet_id: conv.pet_id,
       pet_name: conv.pet?.name ?? null,
       pet_image: parsePhotoUrlsFromImageField(conv.pet?.image_url)[0] ?? null,
-      other_party: conv.shelter 
-        ? { type: 'shelter', id: conv.shelter.id, name: conv.shelter.name, phone: conv.shelter.phone, location: conv.shelter.location }
+      other_party: conv.shelter
+        ? {
+            type: "shelter",
+            id: conv.shelter.id,
+            name: conv.shelter.name,
+            phone: conv.shelter.phone,
+            location: conv.shelter.location,
+          }
         : conv.vet_clinic
-        ? { type: 'vet', id: conv.vet_clinic.id, name: conv.vet_clinic.name, phone: conv.vet_clinic.phone, location: conv.vet_clinic.location }
-        : {
-            type: 'adopter',
-            id: conv.adopter.id,
-            name: conv.adopter.name,
-            avatar: conv.adopter.avatar_url,
-            avatar_url: conv.adopter.avatar_url,
-          },
-      last_message: conv.messages[0] ? {
-        content: conv.messages[0].content,
-        created_at: conv.messages[0].created_at,
-        sender_role: conv.messages[0].sender_role,
-      } : null,
+          ? {
+              type: "vet",
+              id: conv.vet_clinic.id,
+              name: conv.vet_clinic.name,
+              phone: conv.vet_clinic.phone,
+              location: conv.vet_clinic.location,
+            }
+          : {
+              type: "adopter",
+              id: conv.adopter.id,
+              name: conv.adopter.name,
+              avatar: conv.adopter.avatar_url,
+              avatar_url: conv.adopter.avatar_url,
+            },
+      last_message: conv.messages[0]
+        ? {
+            content: conv.messages[0].content,
+            created_at: conv.messages[0].created_at,
+            sender_role: conv.messages[0].sender_role,
+          }
+        : null,
       last_message_at: conv.last_message_at,
     }));
 
     res.json(payload);
   } catch (error) {
-    console.error('Error al obtener conversaciones:', error);
-    res.status(500).json({ error: 'Error al obtener conversaciones' });
+    console.error("Error al obtener conversaciones:", error);
+    res.status(500).json({ error: "Error al obtener conversaciones" });
   }
 });
 
@@ -1348,44 +1458,55 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
  *     security:
  *       - bearerAuth: []
  */
-app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user?.sub;
-    const role = req.user?.role;
+app.get(
+  "/api/conversations/:id/messages",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.sub;
+      const role = req.user?.role;
 
-    // Verificar acceso a la conversación
-    const conversation = await prisma.conversations.findUnique({
-      where: { id },
-      include: {
-        adopter: { include: { users: true } },
-        shelter: true,
-        vet_clinic: true,
-      },
-    });
+      // Verificar acceso a la conversación
+      const conversation = await prisma.conversations.findUnique({
+        where: { id },
+        include: {
+          adopter: { include: { users: true } },
+          shelter: true,
+          vet_clinic: true,
+        },
+      });
 
-    if (!conversation) return res.status(404).json({ error: 'Conversación no encontrada' });
+      if (!conversation)
+        return res.status(404).json({ error: "Conversación no encontrada" });
 
-    // Verificar permisos
-    let hasAccess = false;
-    if (role === 'adopter' && conversation.adopter?.users?.id === userId) hasAccess = true;
-    if (role === 'shelter' && conversation.shelter?.user_id === userId) hasAccess = true;
-    if (role === 'vet' && conversation.vet_clinic?.user_id === userId) hasAccess = true;
+      // Verificar permisos
+      let hasAccess = false;
+      if (role === "adopter" && conversation.adopter?.users?.id === userId)
+        hasAccess = true;
+      if (role === "shelter" && conversation.shelter?.user_id === userId)
+        hasAccess = true;
+      if (role === "vet" && conversation.vet_clinic?.user_id === userId)
+        hasAccess = true;
 
-    if (!hasAccess) return res.status(403).json({ error: 'No tienes acceso a esta conversación' });
+      if (!hasAccess)
+        return res
+          .status(403)
+          .json({ error: "No tienes acceso a esta conversación" });
 
-    const messages = await prisma.messages.findMany({
-      where: { conversation_id: id },
-      orderBy: { created_at: 'asc' },
-    });
+      const messages = await prisma.messages.findMany({
+        where: { conversation_id: id },
+        orderBy: { created_at: "asc" },
+      });
 
-    // If conversation exists and user is authorized, an empty chat should return [] with 200.
-    res.status(200).json(messages ?? []);
-  } catch (error) {
-    console.error('Error al obtener mensajes:', error);
-    res.status(500).json({ error: 'Error al obtener mensajes' });
-  }
-});
+      // If conversation exists and user is authorized, an empty chat should return [] with 200.
+      res.status(200).json(messages ?? []);
+    } catch (error) {
+      console.error("Error al obtener mensajes:", error);
+      res.status(500).json({ error: "Error al obtener mensajes" });
+    }
+  },
+);
 
 /**
  * @swagger
@@ -1396,87 +1517,97 @@ app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) =
  *     security:
  *       - bearerAuth: []
  */
-app.post('/api/conversations/:id/messages', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { content } = req.body;
-    const userId = req.user?.sub;
-    const role = req.user?.role;
+app.post(
+  "/api/conversations/:id/messages",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { content } = req.body;
+      const userId = req.user?.sub;
+      const role = req.user?.role;
 
-    if (!content || !content.trim()) {
-      return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
-    }
-
-    // Verificar acceso a la conversación
-    const conversation = await prisma.conversations.findUnique({
-      where: { id },
-      include: {
-        adopter: { include: { users: true } },
-        shelter: true,
-        vet_clinic: true,
-      },
-    });
-
-    if (!conversation) return res.status(404).json({ error: 'Conversación no encontrada' });
-
-    // Determinar sender_id según el rol
-    let senderId = null;
-    let hasAccess = false;
-
-    if (role === 'adopter') {
-      if (conversation.adopter?.users?.id === userId) {
-        senderId = conversation.adopter.id;
-        hasAccess = true;
+      if (!content || !content.trim()) {
+        return res
+          .status(400)
+          .json({ error: "El mensaje no puede estar vacío" });
       }
-    } else if (role === 'shelter') {
-      if (conversation.shelter?.user_id === userId) {
-        const employee = await prisma.shelter_employees.findFirst({
-          where: { shelter_id: conversation.shelter.id },
-        });
-        senderId = employee?.id ?? conversation.shelter.id;
-        hasAccess = true;
+
+      // Verificar acceso a la conversación
+      const conversation = await prisma.conversations.findUnique({
+        where: { id },
+        include: {
+          adopter: { include: { users: true } },
+          shelter: true,
+          vet_clinic: true,
+        },
+      });
+
+      if (!conversation)
+        return res.status(404).json({ error: "Conversación no encontrada" });
+
+      // Determinar sender_id según el rol
+      let senderId = null;
+      let hasAccess = false;
+
+      if (role === "adopter") {
+        if (conversation.adopter?.users?.id === userId) {
+          senderId = conversation.adopter.id;
+          hasAccess = true;
+        }
+      } else if (role === "shelter") {
+        if (conversation.shelter?.user_id === userId) {
+          const employee = await prisma.shelter_employees.findFirst({
+            where: { shelter_id: conversation.shelter.id },
+          });
+          senderId = employee?.id ?? conversation.shelter.id;
+          hasAccess = true;
+        }
+      } else if (role === "vet") {
+        if (conversation.vet_clinic?.user_id === userId) {
+          const vetEmployee = await prisma.vet_employees.findFirst({
+            where: { vet_clinic_id: conversation.vet_clinic.id },
+          });
+          senderId = vetEmployee?.id ?? conversation.vet_clinic.id;
+          hasAccess = true;
+        }
       }
-    } else if (role === 'vet') {
-      if (conversation.vet_clinic?.user_id === userId) {
-        const vetEmployee = await prisma.vet_employees.findFirst({
-          where: { vet_clinic_id: conversation.vet_clinic.id },
-        });
-        senderId = vetEmployee?.id ?? conversation.vet_clinic.id;
-        hasAccess = true;
+
+      if (!hasAccess)
+        return res
+          .status(403)
+          .json({ error: "No tienes acceso a esta conversación" });
+
+      // Crear mensaje
+      const message = await prisma.messages.create({
+        data: {
+          id: randomUUID(),
+          conversation_id: id,
+          sender_id: senderId,
+          sender_role: role,
+          content: content.trim(),
+        },
+      });
+
+      // Actualizar last_message_at de la conversación
+      await prisma.conversations.update({
+        where: { id },
+        data: { last_message_at: new Date() },
+      });
+
+      // Emitir por WebSocket (lo hago después de configurar socket.io)
+      if (global.io) {
+        global.io.to(`conversation:${id}`).emit("new_message", message);
+        global.io.to(`conversation:${id}`).emit("receive_message", message);
       }
+
+      res.status(201).json(message);
+    } catch (error) {
+      console.error("Error al enviar mensaje:", error);
+      res.status(500).json({ error: "Error al enviar mensaje" });
     }
-
-    if (!hasAccess) return res.status(403).json({ error: 'No tienes acceso a esta conversación' });
-
-    // Crear mensaje
-    const message = await prisma.messages.create({
-      data: {
-        id: randomUUID(),
-        conversation_id: id,
-        sender_id: senderId,
-        sender_role: role,
-        content: content.trim(),
-      },
-    });
-
-    // Actualizar last_message_at de la conversación
-    await prisma.conversations.update({
-      where: { id },
-      data: { last_message_at: new Date() },
-    });
-
-    // Emitir por WebSocket (lo hago después de configurar socket.io)
-    if (global.io) {
-      global.io.to(`conversation:${id}`).emit('new_message', message);
-      global.io.to(`conversation:${id}`).emit('receive_message', message);
-    }
-
-    res.status(201).json(message);
-  } catch (error) {
-    console.error('Error al enviar mensaje:', error);
-    res.status(500).json({ error: 'Error al enviar mensaje' });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -1487,17 +1618,22 @@ app.post('/api/conversations/:id/messages', authenticateToken, async (req, res) 
  *     security:
  *       - bearerAuth: []
  */
-app.post('/api/conversations', authenticateToken, async (req, res) => {
+app.post("/api/conversations", authenticateToken, async (req, res) => {
   try {
     const { match_id, pet_id } = req.body;
     const { userId, role } = req.user;
 
-    if (role !== 'adopter') {
-      return res.status(403).json({ error: 'Solo los adoptantes pueden iniciar conversaciones' });
+    if (role !== "adopter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los adoptantes pueden iniciar conversaciones" });
     }
 
-    const adopter = await prisma.adopters.findFirst({ where: { user_id: userId } });
-    if (!adopter) return res.status(404).json({ error: 'Adoptante no encontrado' });
+    const adopter = await prisma.adopters.findFirst({
+      where: { user_id: userId },
+    });
+    if (!adopter)
+      return res.status(404).json({ error: "Adoptante no encontrado" });
 
     // Obtener info del match para saber el shelter
     let match = null;
@@ -1523,7 +1659,9 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
     }
 
     if (!shelterId && !vetClinicId) {
-      return res.status(400).json({ error: 'No se encontró el refugio o clínica' });
+      return res
+        .status(400)
+        .json({ error: "No se encontró el refugio o clínica" });
     }
 
     // Buscar conversación existente
@@ -1550,18 +1688,20 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
 
     res.status(201).json(conversation);
   } catch (error) {
-    console.error('Error al crear conversación:', error);
-    res.status(500).json({ error: 'Error al crear conversación' });
+    console.error("Error al crear conversación:", error);
+    res.status(500).json({ error: "Error al crear conversación" });
   }
 });
 
 // --- STATS ---
 
 // GET /api/stats - resumen del dashboard del refugio autenticado
-app.get('/api/stats', authenticateToken, async (req, res) => {
+app.get("/api/stats", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'shelter') {
-      return res.status(403).json({ error: 'Solo los refugios pueden ver estadísticas' });
+    if (req.user.role !== "shelter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los refugios pueden ver estadísticas" });
     }
 
     const shelter = await prisma.shelters.findFirst({
@@ -1569,7 +1709,7 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
     });
 
     if (!shelter) {
-      return res.status(404).json({ error: 'Refugio no encontrado' });
+      return res.status(404).json({ error: "Refugio no encontrado" });
     }
 
     const [totalPets, totalLikesReceived, closedAdoptions] = await Promise.all([
@@ -1586,7 +1726,7 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
       prisma.pets.count({
         where: {
           shelter_id: shelter.id,
-          status: 'adoptado',
+          status: "adoptado",
         },
       }),
     ]);
@@ -1597,8 +1737,8 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
       closedAdoptions,
     });
   } catch (error) {
-    console.error('Error al obtener estadísticas:', error);
-    res.status(500).json({ error: 'Error al obtener estadísticas' });
+    console.error("Error al obtener estadísticas:", error);
+    res.status(500).json({ error: "Error al obtener estadísticas" });
   }
 });
 
@@ -1627,61 +1767,69 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
  *       401:
  *         description: Credenciales inválidas
  */
-app.post('/api/auth/login', async (req, res) => {
+app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({ error: 'Email y contraseña requeridos' });
+    return res.status(400).json({ error: "Email y contraseña requeridos" });
   }
 
   try {
     const user = await prisma.users.findUnique({
-      where: { email: email.toLowerCase() }
+      where: { email: email.toLowerCase() },
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'Credenciales inválidas' });
+      return res.status(401).json({ error: "Credenciales inválidas" });
     }
 
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
-      return res.status(401).json({ error: 'Credenciales inválidas' });
+      return res.status(401).json({ error: "Credenciales inválidas" });
     }
 
-    let name = '';
+    let name = "";
     let avatar = null;
     let description = null;
-    if (user.role === 'adopter') {
-      const profile = await prisma.adopters.findFirst({ where: { user_id: user.id } });
-      name = profile?.name || '';
+    if (user.role === "adopter") {
+      const profile = await prisma.adopters.findFirst({
+        where: { user_id: user.id },
+      });
+      name = profile?.name || "";
       avatar = profile?.avatar_url || null;
       description = profile?.description || null;
-    } else if (user.role === 'shelter') {
-      const profile = await prisma.shelters.findFirst({ where: { user_id: user.id } });
-      name = profile?.name || '';
-    } else if (user.role === 'vet') {
-      const profile = await prisma.vet_clinics.findFirst({ where: { user_id: user.id } });
-      name = profile?.name || '';
+    } else if (user.role === "shelter") {
+      const profile = await prisma.shelters.findFirst({
+        where: { user_id: user.id },
+      });
+      name = profile?.name || "";
+    } else if (user.role === "vet") {
+      const profile = await prisma.vet_clinics.findFirst({
+        where: { user_id: user.id },
+      });
+      name = profile?.name || "";
     }
 
     const token = jwt.sign(
       { sub: user.id, email: user.email, role: user.role, name },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: "7d" },
     );
 
     res.json({ token, role: user.role, name, avatar, description });
   } catch (error) {
-    console.error('Error en login:', error);
-    res.status(500).json({ error: 'Error al iniciar sesión' });
+    console.error("Error en login:", error);
+    res.status(500).json({ error: "Error al iniciar sesión" });
   }
 });
 
 // --- ADOPTER PROFILE ---
-app.patch('/api/adopter/profile', authenticateToken, async (req, res) => {
+app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'adopter') {
-      return res.status(403).json({ error: 'Solo los adoptantes pueden editar su perfil' });
+    if (req.user.role !== "adopter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los adoptantes pueden editar su perfil" });
     }
 
     const { name, description, avatar_url } = req.body;
@@ -1691,22 +1839,22 @@ app.patch('/api/adopter/profile', authenticateToken, async (req, res) => {
     });
 
     if (!adopter) {
-      return res.status(404).json({ error: 'Adoptante no encontrado' });
+      return res.status(404).json({ error: "Adoptante no encontrado" });
     }
 
     const data = {};
 
-    if (typeof name === 'string' && name.trim()) {
+    if (typeof name === "string" && name.trim()) {
       data.name = name.trim();
     }
 
-    if (typeof description === 'string') {
+    if (typeof description === "string") {
       data.description = description.trim();
     }
 
-    if (avatar_url === null || avatar_url === '') {
+    if (avatar_url === null || avatar_url === "") {
       data.avatar_url = null;
-    } else if (typeof avatar_url === 'string' && avatar_url.trim()) {
+    } else if (typeof avatar_url === "string" && avatar_url.trim()) {
       data.avatar_url = avatar_url.trim();
     }
 
@@ -1724,8 +1872,10 @@ app.patch('/api/adopter/profile', authenticateToken, async (req, res) => {
 
     return res.json(updated);
   } catch (error) {
-    console.error('Error al actualizar perfil de adoptante:', error);
-    return res.status(500).json({ error: 'Error al actualizar perfil de adoptante' });
+    console.error("Error al actualizar perfil de adoptante:", error);
+    return res
+      .status(500)
+      .json({ error: "Error al actualizar perfil de adoptante" });
   }
 });
 
@@ -1759,30 +1909,36 @@ app.patch('/api/adopter/profile', authenticateToken, async (req, res) => {
  *       403:
  *         description: No autorizado
  */
-app.patch('/api/users/:userId/push-token', authenticateToken, async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { push_token } = req.body;
-    
-    if (req.user.sub !== userId) {
-      return res.status(403).json({ error: 'No puedes actualizar el token de otro usuario' });
+app.patch(
+  "/api/users/:userId/push-token",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { push_token } = req.body;
+
+      if (req.user.sub !== userId) {
+        return res
+          .status(403)
+          .json({ error: "No puedes actualizar el token de otro usuario" });
+      }
+
+      if (!push_token) {
+        return res.status(400).json({ error: "push_token es requerido" });
+      }
+
+      const user = await prisma.users.update({
+        where: { id: userId },
+        data: { push_token },
+      });
+
+      res.json({ success: true, message: "Token actualizado" });
+    } catch (error) {
+      console.error("Error al actualizar push token:", error);
+      res.status(500).json({ error: "Error al actualizar token" });
     }
-    
-    if (!push_token) {
-      return res.status(400).json({ error: 'push_token es requerido' });
-    }
-    
-    const user = await prisma.users.update({
-      where: { id: userId },
-      data: { push_token },
-    });
-    
-    res.json({ success: true, message: 'Token actualizado' });
-  } catch (error) {
-    console.error('Error al actualizar push token:', error);
-    res.status(500).json({ error: 'Error al actualizar token' });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -1816,20 +1972,20 @@ app.patch('/api/users/:userId/push-token', authenticateToken, async (req, res) =
  *       400:
  *         description: Datos inválidos o email ya registrado
  */
-app.post('/api/auth/register', async (req, res) => {
+app.post("/api/auth/register", async (req, res) => {
   const { email, password, name, role } = req.body;
 
   if (!email || !password || !name || !role) {
-    return res.status(400).json({ error: 'Faltan datos requeridos' });
+    return res.status(400).json({ error: "Faltan datos requeridos" });
   }
 
   try {
     const existingUser = await prisma.users.findUnique({
-      where: { email: email.toLowerCase() }
+      where: { email: email.toLowerCase() },
     });
 
     if (existingUser) {
-      return res.status(400).json({ error: 'El email ya está registrado' });
+      return res.status(400).json({ error: "El email ya está registrado" });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -1839,49 +1995,51 @@ app.post('/api/auth/register', async (req, res) => {
         id: randomUUID(),
         email: email.toLowerCase(),
         password_hash: passwordHash,
-        role: role.toLowerCase()
-      }
+        role: role.toLowerCase(),
+      },
     });
 
     switch (role.toLowerCase()) {
-      case 'adopter':
+      case "adopter":
         await prisma.adopters.create({
           data: {
             id: randomUUID(),
             user_id: user.id,
             name: name,
-            email: email.toLowerCase()
-          }
+            email: email.toLowerCase(),
+          },
         });
         break;
-      case 'shelter':
+      case "shelter":
         await prisma.shelters.create({
           data: {
             id: randomUUID(),
             user_id: user.id,
             name: name,
-            email: email.toLowerCase()
-          }
+            email: email.toLowerCase(),
+          },
         });
         break;
-      case 'vet':
+      case "vet":
         await prisma.vet_clinics.create({
           data: {
             id: randomUUID(),
             user_id: user.id,
             name: name,
-            email: email.toLowerCase()
-          }
+            email: email.toLowerCase(),
+          },
         });
         break;
       default:
-        return res.status(400).json({ error: 'Rol inválido' });
+        return res.status(400).json({ error: "Rol inválido" });
     }
 
-    res.status(201).json({ message: 'Usuario creado correctamente', userId: user.id });
+    res
+      .status(201)
+      .json({ message: "Usuario creado correctamente", userId: user.id });
   } catch (error) {
-    console.error('Error en registro:', error);
-    res.status(500).json({ error: 'Error al registrar usuario' });
+    console.error("Error en registro:", error);
+    res.status(500).json({ error: "Error al registrar usuario" });
   }
 });
 
@@ -1892,8 +2050,8 @@ const server = http.createServer(app);
 // Configurar Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
+    origin: "*",
+    methods: ["GET", "POST"],
   },
 });
 
@@ -1903,9 +2061,9 @@ global.io = io;
 // Autenticación de WebSocket
 io.use(async (socket, next) => {
   const token = socket.handshake.auth.token;
-  
+
   if (!token) {
-    return next(new Error('Token requerido'));
+    return next(new Error("Token requerido"));
   }
 
   try {
@@ -1913,12 +2071,12 @@ io.use(async (socket, next) => {
     socket.user = decoded;
     next();
   } catch (err) {
-    next(new Error('Token inválido'));
+    next(new Error("Token inválido"));
   }
 });
 
 // Manejo de conexiones WebSocket
-io.on('connection', async (socket) => {
+io.on("connection", async (socket) => {
   console.log(`🔌 Usuario conectado: ${socket.user.sub} (${socket.user.role})`);
 
   const handleJoinConversation = async (conversationId) => {
@@ -1934,50 +2092,68 @@ io.on('connection', async (socket) => {
       });
 
       if (!conversation) {
-        socket.emit('error', { message: 'Conversación no encontrada' });
+        socket.emit("error", { message: "Conversación no encontrada" });
         return;
       }
 
       // Verificar permisos
       let hasAccess = false;
-      if (socket.user.role === 'adopter' && conversation.adopter?.users?.id === socket.user.sub) hasAccess = true;
-      if (socket.user.role === 'shelter' && conversation.shelter?.user_id === socket.user.sub) hasAccess = true;
-      if (socket.user.role === 'vet' && conversation.vet_clinic?.user_id === socket.user.sub) hasAccess = true;
+      if (
+        socket.user.role === "adopter" &&
+        conversation.adopter?.users?.id === socket.user.sub
+      )
+        hasAccess = true;
+      if (
+        socket.user.role === "shelter" &&
+        conversation.shelter?.user_id === socket.user.sub
+      )
+        hasAccess = true;
+      if (
+        socket.user.role === "vet" &&
+        conversation.vet_clinic?.user_id === socket.user.sub
+      )
+        hasAccess = true;
 
       if (!hasAccess) {
-        socket.emit('error', { message: 'No tienes acceso a esta conversación' });
+        socket.emit("error", {
+          message: "No tienes acceso a esta conversación",
+        });
         return;
       }
 
       socket.join(`conversation:${conversationId}`);
-      console.log(`📥 ${socket.user.sub} se unió a conversación ${conversationId}`);
-      socket.emit('joined_conversation', { conversationId });
+      console.log(
+        `📥 ${socket.user.sub} se unió a conversación ${conversationId}`,
+      );
+      socket.emit("joined_conversation", { conversationId });
     } catch (error) {
-      console.error('Error al unirse a conversación:', error);
-      socket.emit('error', { message: 'Error al unirse a la conversación' });
+      console.error("Error al unirse a conversación:", error);
+      socket.emit("error", { message: "Error al unirse a la conversación" });
     }
   };
 
   // Unirse a sala de conversación
-  socket.on('join_conversation', handleJoinConversation);
-  socket.on('join_room', handleJoinConversation);
+  socket.on("join_conversation", handleJoinConversation);
+  socket.on("join_room", handleJoinConversation);
 
   const handleLeaveConversation = (conversationId) => {
     socket.leave(`conversation:${conversationId}`);
-    console.log(`📤 ${socket.user.sub} salió de conversación ${conversationId}`);
+    console.log(
+      `📤 ${socket.user.sub} salió de conversación ${conversationId}`,
+    );
   };
 
   // Salir de sala de conversación
-  socket.on('leave_conversation', handleLeaveConversation);
-  socket.on('leave_room', handleLeaveConversation);
+  socket.on("leave_conversation", handleLeaveConversation);
+  socket.on("leave_room", handleLeaveConversation);
 
   // Enviar mensaje (alternativa a REST)
-  socket.on('send_message', async (data) => {
+  socket.on("send_message", async (data) => {
     try {
       const { conversation_id, content } = data;
 
       if (!content || !content.trim()) {
-        socket.emit('error', { message: 'El mensaje no puede estar vacío' });
+        socket.emit("error", { message: "El mensaje no puede estar vacío" });
         return;
       }
 
@@ -1992,19 +2168,28 @@ io.on('connection', async (socket) => {
       });
 
       if (!conversation) {
-        socket.emit('error', { message: 'Conversación no encontrada' });
+        socket.emit("error", { message: "Conversación no encontrada" });
         return;
       }
 
       let senderId = null;
-      if (socket.user.role === 'adopter' && conversation.adopter?.users?.id === socket.user.sub) {
+      if (
+        socket.user.role === "adopter" &&
+        conversation.adopter?.users?.id === socket.user.sub
+      ) {
         senderId = conversation.adopter.id;
-      } else if (socket.user.role === 'shelter' && conversation.shelter?.user_id === socket.user.sub) {
+      } else if (
+        socket.user.role === "shelter" &&
+        conversation.shelter?.user_id === socket.user.sub
+      ) {
         const employee = await prisma.shelter_employees.findFirst({
           where: { shelter_id: conversation.shelter.id },
         });
         senderId = employee?.id ?? conversation.shelter.id;
-      } else if (socket.user.role === 'vet' && conversation.vet_clinic?.user_id === socket.user.sub) {
+      } else if (
+        socket.user.role === "vet" &&
+        conversation.vet_clinic?.user_id === socket.user.sub
+      ) {
         const vetEmployee = await prisma.vet_employees.findFirst({
           where: { vet_clinic_id: conversation.vet_clinic.id },
         });
@@ -2012,7 +2197,7 @@ io.on('connection', async (socket) => {
       }
 
       if (!senderId) {
-        socket.emit('error', { message: 'No tienes acceso' });
+        socket.emit("error", { message: "No tienes acceso" });
         return;
       }
 
@@ -2033,20 +2218,22 @@ io.on('connection', async (socket) => {
       });
 
       // Emitir a todos en la sala
-      io.to(`conversation:${conversation_id}`).emit('new_message', message);
-      io.to(`conversation:${conversation_id}`).emit('receive_message', message);
+      io.to(`conversation:${conversation_id}`).emit("new_message", message);
+      io.to(`conversation:${conversation_id}`).emit("receive_message", message);
     } catch (error) {
-      console.error('Error al enviar mensaje por socket:', error);
-      socket.emit('error', { message: 'Error al enviar mensaje' });
+      console.error("Error al enviar mensaje por socket:", error);
+      socket.emit("error", { message: "Error al enviar mensaje" });
     }
   });
 
   // Desconexión
-  socket.on('disconnect', () => {
+  socket.on("disconnect", () => {
     console.log(`🔴 Usuario desconectado: ${socket.user.sub}`);
   });
 });
 
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor backend con WebSocket en http://172.22.224.1:${PORT}`);
+  console.log(
+    `🚀 Servidor backend con WebSocket en http://192.168.1.134:${PORT}`,
+  );
 });

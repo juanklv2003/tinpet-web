@@ -80,6 +80,11 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
     website: '',
     description: '',
     avatarUrl: '',
+    googleMaps: '',
+    instagram: '',
+    tiktok: '',
+    facebook: '',
+    youtube: '',
   });
   const [profileDirty, setProfileDirty] = useState(false);
   const [profileSaveMsg, setProfileSaveMsg] = useState<string | null>(null);
@@ -150,6 +155,11 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
       website: '',
       description: '',
       avatarUrl: '',
+      googleMaps: '',
+      instagram: '',
+      tiktok: '',
+      facebook: '',
+      youtube: '',
     };
 
     try {
@@ -166,6 +176,11 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
           website: parsed.website ?? '',
           description: parsed.description ?? '',
           avatarUrl: parsed.avatarUrl ?? '',
+          googleMaps: parsed.googleMaps ?? '',
+          instagram: parsed.instagram ?? '',
+          tiktok: parsed.tiktok ?? '',
+          facebook: parsed.facebook ?? '',
+          youtube: parsed.youtube ?? '',
         });
       }
     } catch {

@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL ?? 'http://172.22.224.1:3000';
+const BASE = import.meta.env.VITE_API_URL ?? "http://192.168.1.134:3000";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -18,7 +18,7 @@ export class ApiClientError extends Error {
 
   constructor(info: ApiErrorInfo) {
     super(info.message);
-    this.name = 'ApiClientError';
+    this.name = "ApiClientError";
     this.info = info;
   }
 }
@@ -29,23 +29,23 @@ function logApiError(info: ApiErrorInfo, responseBody: unknown): void {
   if (!isDev) return;
 
   console.groupCollapsed(
-    `[api] ${info.method} ${info.path} -> ${info.status} ${info.code ?? 'UNSPECIFIED_ERROR'}`
+    `[api] ${info.method} ${info.path} -> ${info.status} ${info.code ?? "UNSPECIFIED_ERROR"}`,
   );
-  console.error('message:', info.message);
-  console.error('requestId:', info.requestId ?? 'n/a');
-  console.error('details:', info.details ?? null);
-  console.error('responseBody:', responseBody);
+  console.error("message:", info.message);
+  console.error("requestId:", info.requestId ?? "n/a");
+  console.error("details:", info.details ?? null);
+  console.error("responseBody:", responseBody);
   console.groupEnd();
 }
 
 async function parseResponseBody(res: Response): Promise<unknown> {
-  const contentType = res.headers.get('content-type') ?? '';
+  const contentType = res.headers.get("content-type") ?? "";
 
-  if (contentType.includes('application/json')) {
+  if (contentType.includes("application/json")) {
     return res.json().catch(() => ({}));
   }
 
-  const text = await res.text().catch(() => '');
+  const text = await res.text().catch(() => "");
   return text ? { raw: text } : {};
 }
 
@@ -53,19 +53,19 @@ function buildApiErrorInfo(
   res: Response,
   path: string,
   method: string,
-  responseBody: unknown
+  responseBody: unknown,
 ): ApiErrorInfo {
   const body = responseBody as JsonRecord;
 
   const message =
-    typeof body?.error === 'string'
+    typeof body?.error === "string"
       ? body.error
-      : typeof body?.message === 'string'
-      ? body.message
-      : `HTTP ${res.status}`;
+      : typeof body?.message === "string"
+        ? body.message
+        : `HTTP ${res.status}`;
 
-  const code = typeof body?.code === 'string' ? body.code : undefined;
-  const requestId = res.headers.get('x-request-id') ?? undefined;
+  const code = typeof body?.code === "string" ? body.code : undefined;
+  const requestId = res.headers.get("x-request-id") ?? undefined;
   const details = body?.details;
 
   return {
@@ -80,16 +80,19 @@ function buildApiErrorInfo(
   };
 }
 
-export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('token');
-  const method = options?.method?.toUpperCase() ?? 'GET';
+export async function apiFetch<T>(
+  path: string,
+  options?: RequestInit,
+): Promise<T> {
+  const token = localStorage.getItem("token");
+  const method = options?.method?.toUpperCase() ?? "GET";
 
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
       ...options,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options?.headers,
       },
@@ -99,8 +102,8 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
       status: 0,
       method,
       path,
-      message: 'No se pudo conectar con el servidor',
-      code: 'NETWORK_ERROR',
+      message: "No se pudo conectar con el servidor",
+      code: "NETWORK_ERROR",
       timestamp: new Date().toISOString(),
     };
     logApiError(networkError, null);

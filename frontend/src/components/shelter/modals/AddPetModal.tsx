@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
+import { ImagePlus } from 'lucide-react';
 import { StyledDatePicker } from '../../styled-date-picker';
 import { StyledSelect } from '../../styled-select';
 import { IconPlus, IconX } from '../Icons';
 import { fileToDataUrl } from '../helpers';
 import type { AddPetForm, PetStatus } from '../types';
 import { emptyAddForm } from '../types';
+import type { ShelterEmployee } from '../../../hooks/useShelterEmployees';
 
 interface AddPetModalProps {
   onClose: () => void;
   onAdd: (form: AddPetForm) => Promise<void>;
+  employees: ShelterEmployee[];
 }
 
-export function AddPetModal({ onClose, onAdd }: AddPetModalProps) {
+export function AddPetModal({ onClose, onAdd, employees }: AddPetModalProps) {
   const ANIMATION_MS = 280;
   const MAX_PHOTOS = 10;
   const [form, setForm] = useState<AddPetForm>(emptyAddForm);
@@ -120,7 +123,7 @@ export function AddPetModal({ onClose, onAdd }: AddPetModalProps) {
       />
 
       <div
-        className={`absolute right-3 top-3 bottom-3 w-[calc(100%-1.5rem)] sm:w-[min(calc(100%-1.5rem),50rem)] xl:w-[min(calc(100%-1.5rem),56rem)] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out ${
+        className={`absolute right-3 top-3 bottom-3 w-[calc(100%-1.5rem)] sm:w-[30rem] xl:w-[35rem] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out ${
           isVisible ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -188,6 +191,22 @@ export function AddPetModal({ onClose, onAdd }: AddPetModalProps) {
                 ]}
               />
             </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                Empleado encargado (Opcional)
+              </label>
+              <StyledSelect
+                value={form.inChargeEmployeeId}
+                onChange={(value) => set('inChargeEmployeeId', value as string)}
+                options={[
+                  { value: '', label: 'Ninguno' },
+                  ...employees.map(emp => ({
+                    value: emp.id,
+                    label: emp.name + (emp.role ? ` (${emp.role})` : ''),
+                  })),
+                ]}
+              />
+            </div>
             <div className="col-span-2 flex flex-col min-h-[17rem]">
               <label className="block text-xs font-medium text-gray-400 mb-1.5">
                 Foto
@@ -221,8 +240,8 @@ export function AddPetModal({ onClose, onAdd }: AddPetModalProps) {
                   className="w-full flex-1 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/70 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors p-3"
                 >
                   <div className="w-full h-full min-h-[12rem] xl:min-h-[15rem] mx-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex items-center justify-center overflow-hidden">
-                    <div className="text-center px-4">
-                      <p className="text-3xl mb-2">🖼️</p>
+                    <div className="flex flex-col items-center text-center px-4">
+                      <ImagePlus className="w-10 h-10 mb-3 text-pink-500" strokeWidth={1.5} />
                       <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
                         Haz click para subir fotos
                       </p>
