@@ -9,6 +9,9 @@ const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { Pool } = require("pg");
 const { Server } = require("socket.io");
+const { OAuth2Client } = require("google-auth-library");
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Swagger imports
 const swaggerUi = require("swagger-ui-express");
@@ -110,7 +113,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: "http://192.168.1.134:3000",
+        url: "http://192.168.1.44:3000",
         description: "Servidor de desarrollo",
       },
     ],
@@ -2043,6 +2046,105 @@ app.post("/api/auth/register", async (req, res) => {
   }
 });
 
+// --- GOOGLE AUTH ---
+/**
+ * POST /api/auth/google
+ * Verifica el id_token de Google, hace upsert del usuario y devuelve nuestro JWT.
+ */
+app.post("/api/auth/google", async (req, res) => {
+  const { idToken } = req.body;
+
+  if (!idToken) {
+    return res.status(400).json({ error: "idToken es requerido" });
+  }
+
+  try {
+    // Verificar el id_token con Google
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.email) {
+      return res.status(401).json({ error: "Token de Google inválido" });
+    }
+
+    const { email, name: googleName, picture, sub: googleId } = payload;
+    const normalizedEmail = email.toLowerCase();
+
+    // Buscar o crear usuario
+    let user = await prisma.users.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    let profileName = googleName || "";
+    let avatarUrl = picture || null;
+    let isNewUser = false;
+
+    if (!user) {
+      // Crear nuevo usuario Google (sin password_hash, usamos google_id si la columna existe)
+      isNewUser = true;
+      user = await prisma.users.create({
+        data: {
+          id: randomUUID(),
+          email: normalizedEmail,
+          password_hash: "", // sin contraseña para usuarios Google
+          role: "adopter",   // Google Sign-In siempre crea adoptantes
+        },
+      });
+
+      // Crear perfil de adoptante
+      await prisma.adopters.create({
+        data: {
+          id: randomUUID(),
+          user_id: user.id,
+          name: profileName,
+          email: normalizedEmail,
+          avatar_url: avatarUrl,
+        },
+      });
+    } else {
+      // Usuario existente: obtener nombre/avatar del perfil
+      if (user.role === "adopter") {
+        const profile = await prisma.adopters.findFirst({
+          where: { user_id: user.id },
+        });
+        profileName = profile?.name || googleName || "";
+        avatarUrl = profile?.avatar_url || picture || null;
+      } else if (user.role === "shelter") {
+        const profile = await prisma.shelters.findFirst({
+          where: { user_id: user.id },
+        });
+        profileName = profile?.name || googleName || "";
+      } else if (user.role === "vet") {
+        const profile = await prisma.vet_clinics.findFirst({
+          where: { user_id: user.id },
+        });
+        profileName = profile?.name || googleName || "";
+      }
+    }
+
+    // Generar nuestro JWT propio
+    const token = jwt.sign(
+      { sub: user.id, email: user.email, role: user.role, name: profileName },
+      JWT_SECRET,
+      { expiresIn: "7d" },
+    );
+
+    return res.json({
+      token,
+      role: user.role,
+      name: profileName,
+      avatar: avatarUrl,
+      isNewUser,
+    });
+  } catch (error) {
+    console.error("Error en Google Auth:", error);
+    return res.status(401).json({ error: "Error al verificar token de Google" });
+  }
+});
+
 // --- ARRANCAR SERVIDOR CON SOCKET.IO ---
 const PORT = 3000;
 const server = http.createServer(app);
@@ -2234,6 +2336,6 @@ io.on("connection", async (socket) => {
 
 server.listen(PORT, () => {
   console.log(
-    `🚀 Servidor backend con WebSocket en http://192.168.1.134:${PORT}`,
+    `🚀 Servidor backend con WebSocket en http://192.168.1.44:${PORT}`,
   );
 });
