@@ -115,7 +115,7 @@ export function ChatView({ token }: ChatViewProps) {
   const fetchConversations = useCallback(async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://192.168.1.44:3000"}/api/conversations`,
+        `${import.meta.env.VITE_API_URL || "http://10.143.148.253:3000"}/api/conversations`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -145,7 +145,7 @@ export function ChatView({ token }: ChatViewProps) {
       setMessages([]); // Reset messages before fetching
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL || "http://192.168.1.44:3000"}/api/conversations/${conversationId}/messages`,
+          `${import.meta.env.VITE_API_URL || "http://10.143.148.253:3000"}/api/conversations/${conversationId}/messages`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -236,7 +236,7 @@ export function ChatView({ token }: ChatViewProps) {
     try {
       // Try REST API first
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://192.168.1.44:3000"}/api/conversations/${selectedConversation.id}/messages`,
+        `${import.meta.env.VITE_API_URL || "http://10.143.148.253:3000"}/api/conversations/${selectedConversation.id}/messages`,
         {
           method: "POST",
           headers: {

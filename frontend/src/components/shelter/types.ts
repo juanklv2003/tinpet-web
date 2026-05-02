@@ -35,6 +35,7 @@ export interface EditPetForm {
   birthDate: string;
   photoUrls: string[];
   inChargeEmployeeId: string;
+  description: string;
 }
 
 export interface ShelterProfileForm {

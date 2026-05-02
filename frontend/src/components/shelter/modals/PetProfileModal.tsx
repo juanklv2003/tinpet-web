@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ShelterEmployee } from '../../../hooks/useShelterEmployees';
 import { apiFetch } from '../../../services/api';
 import type { Pet } from '../../../types';
 import { StyledDatePicker } from '../../styled-date-picker';
@@ -8,7 +9,6 @@ import { NA } from '../components/NA';
 import { Row } from '../components/Row';
 import { fileToDataUrl, fmtDate } from '../helpers';
 import type { EditPetForm, PetStatus } from '../types';
-import type { ShelterEmployee } from '../../../hooks/useShelterEmployees';
 
 interface PetProfileModalProps {
   pet: Pet;
@@ -50,6 +50,7 @@ export function PetProfileModal({
     birthDate: pet.ai_profile?.birthDate ?? '',
     photoUrls: readPhotoUrls(pet.ai_profile),
     inChargeEmployeeId: pet.ai_profile?.inChargeEmployeeId ?? '',
+    description: pet.description ?? '',
   });
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -89,6 +90,7 @@ export function PetProfileModal({
       birthDate: pet.ai_profile?.birthDate ?? '',
       photoUrls: readPhotoUrls(pet.ai_profile),
       inChargeEmployeeId: pet.ai_profile?.inChargeEmployeeId ?? '',
+      description: pet.description ?? '',
     });
     setEditMode(false);
     setErr(null);
@@ -169,6 +171,7 @@ export function PetProfileModal({
           name: cleanName,
           species: cleanSpecies,
           status: form.status,
+          description: form.description.trim() || null,
           ai_profile: nextAi,
         }),
       });
@@ -182,6 +185,7 @@ export function PetProfileModal({
         birthDate: updated.ai_profile?.birthDate ?? '',
         photoUrls: readPhotoUrls(updated.ai_profile),
         inChargeEmployeeId: updated.ai_profile?.inChargeEmployeeId ?? '',
+        description: updated.description ?? '',
       });
       setEditMode(false);
     } catch (error: unknown) {
@@ -355,6 +359,7 @@ export function PetProfileModal({
                       birthDate: pet.ai_profile?.birthDate ?? '',
                       photoUrls: readPhotoUrls(pet.ai_profile),
                       inChargeEmployeeId: pet.ai_profile?.inChargeEmployeeId ?? '',
+                      description: pet.description ?? '',
                     });
                     setEditMode(false);
                     setErr(null);
@@ -464,6 +469,20 @@ export function PetProfileModal({
                   ]}
                 />
               </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  Descripción
+                </label>
+                <textarea
+                  value={form.description}
+                  onChange={e =>
+                    setForm(prev => ({ ...prev, description: e.target.value }))
+                  }
+                  placeholder="Describe las características, personalidad o información relevante de la mascota..."
+                  className="w-full rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none"
+                  rows={4}
+                />
+              </div>
             </div>
           ) : (
             <div className="space-y-0">
@@ -471,6 +490,20 @@ export function PetProfileModal({
               <Row label="Especie" value={form.species ?? null} />
               <Row label="Raza" value={form.breed || null} />
               <Row label="Fecha de nacimiento" value={fmtDate(form.birthDate)} />
+              <Row
+                label="Empleado a cargo"
+                value={employees.find(e => e.id === form.inChargeEmployeeId)?.name || 'Ninguno'}
+              />
+              {form.description && (
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                    Descripción
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                    {form.description}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

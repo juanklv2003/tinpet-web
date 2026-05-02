@@ -35,6 +35,7 @@ export interface Pet {
   name: string;
   species: string;
   status: PetStatus;
+  description?: string;
   ai_profile: Record<string, any>;
   created_at: string;
 }

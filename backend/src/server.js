@@ -1,4 +1,5 @@
 require("dotenv").config();
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
@@ -113,7 +114,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: "http://192.168.1.44:3000",
+        url: "http://10.143.148.253:3000",
         description: "Servidor de desarrollo",
       },
     ],
@@ -208,6 +209,9 @@ app.use(cors());
 app.use(express.json({ limit: MAX_JSON_PAYLOAD }));
 app.use(express.urlencoded({ extended: true, limit: MAX_JSON_PAYLOAD }));
 
+// Serve static files (uploaded images)
+app.use("/public", express.static(path.join(__dirname, "../../public")));
+
 app.use((err, req, res, next) => {
   if (err?.type === "entity.too.large") {
     return res.status(413).json({
@@ -217,7 +221,7 @@ app.use((err, req, res, next) => {
   return next(err);
 });
 
-// Swagger UI
+// --- SWAGGER UI ---
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get("/api-docs.json", (req, res) => {
   res.setHeader("Content-Type", "application/json");
@@ -241,6 +245,47 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
+// --- UPLOAD IMAGE (base64) ---
+app.post("/api/uploads", authenticateToken, async (req, res) => {
+  try {
+    const fs = require("fs");
+    const path = require("path");
+
+    // Ensure uploads directory exists
+    const uploadDir = path.join(__dirname, "../../public/uploads");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    let base64Data, ext;
+
+    if (req.body?.base64 && typeof req.body.base64 === "string") {
+      // Accept base64 data URL
+      const match = req.body.base64.match(/^data:image\/(\w+);base64,(.+)$/);
+      if (!match) {
+        return res.status(400).json({ error: "Formato de imagen inválido" });
+      }
+      ext = match[1] === "jpeg" ? "jpg" : match[1];
+      base64Data = match[2];
+    } else {
+      return res.status(400).json({ error: "Se requiere campo 'base64'" });
+    }
+
+    const filename = `${randomUUID()}.${ext}`;
+    const filepath = path.join(uploadDir, filename);
+    fs.writeFileSync(filepath, base64Data, "base64");
+
+    // Return full URL (use env or construct from request host)
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
+    const url = `${baseUrl}/public/uploads/${filename}`;
+
+    return res.json({ url, filename });
+  } catch (error) {
+    console.error("Error uploading image:", error);
+    return res.status(500).json({ error: "Error al subir la imagen" });
+  }
+});
 
 // --- HELPER: Mapear pet al formato del frontend ---
 const mapPetToFrontend = (pet) => ({
@@ -498,7 +543,7 @@ app.patch("/api/pets/:id", authenticateToken, async (req, res) => {
         .json({ error: "Solo los refugios pueden actualizar mascotas" });
     }
 
-    const { ai_profile, status, name, species } = req.body;
+    const { ai_profile, status, name, species, description } = req.body;
     const updateData = {};
 
     if (typeof name === "string" && name.trim()) {
@@ -507,6 +552,10 @@ app.patch("/api/pets/:id", authenticateToken, async (req, res) => {
 
     if (typeof species === "string" && species.trim()) {
       updateData.species = species.trim();
+    }
+
+    if (typeof description === "string") {
+      updateData.description = description.trim() || null;
     }
 
     if (status) {
@@ -1196,6 +1245,28 @@ app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
           match_id: currentMatch.id,
         },
       });
+      // Marcar la mascota como adoptada y asignar adopter_id
+      try {
+        await prisma.pets.update({
+          where: { id: currentMatch.pet_id },
+          data: {
+            status: 'adoptado',
+            adopter_id: currentMatch.adopter_id,
+          },
+        });
+
+        // Rechazar otras solicitudes pendientes para la misma mascota
+        await prisma.matches.updateMany({
+          where: {
+            pet_id: currentMatch.pet_id,
+            id: { not: currentMatch.id },
+            interaction_type: 'pending',
+          },
+          data: { interaction_type: 'rejected' },
+        });
+      } catch (e) {
+        console.error('Error al marcar mascota como adoptada:', e);
+      }
     }
 
     res.json({
@@ -1359,7 +1430,8 @@ app.get("/api/adopter/matches", authenticateToken, async (req, res) => {
  */
 app.get("/api/conversations", authenticateToken, async (req, res) => {
   try {
-    const { userId, role } = req.user;
+    const userId = req.user.userId || req.user.sub;
+    const { role } = req.user;
     let conversations = [];
 
     if (role === "adopter") {
@@ -1624,7 +1696,8 @@ app.post(
 app.post("/api/conversations", authenticateToken, async (req, res) => {
   try {
     const { match_id, pet_id } = req.body;
-    const { userId, role } = req.user;
+    const userId = req.user.userId || req.user.sub;
+    const { role } = req.user;
 
     if (role !== "adopter") {
       return res
@@ -1826,6 +1899,51 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+// --- GET ADOPTER PROFILE ---
+app.get("/api/adopter/profile", authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== "adopter") {
+      return res
+        .status(403)
+        .json({ error: "Solo los adoptantes pueden ver su perfil" });
+    }
+
+    const adopter = await prisma.adopters.findFirst({
+      where: { user_id: req.user.sub },
+      select: {
+        id: true,
+        user_id: true,
+        name: true,
+        username: true,
+        email: true,
+        description: true,
+        avatar_url: true,
+        photos: true,
+        hobbies: true,
+        housing_type: true,
+        has_other_pets: true,
+        other_pets_desc: true,
+        pet_experience: true,
+        has_children: true,
+        hours_at_home: true,
+        work_from_home: true,
+        created_at: true,
+      },
+    });
+
+    if (!adopter) {
+      return res.status(404).json({ error: "Perfil de adoptante no encontrado" });
+    }
+
+    return res.json(adopter);
+  } catch (error) {
+    console.error("Error al obtener perfil de adoptante:", error);
+    return res
+      .status(500)
+      .json({ error: "Error al obtener perfil de adoptante" });
+  }
+});
+
 // --- ADOPTER PROFILE ---
 app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
   try {
@@ -1835,7 +1953,21 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
         .json({ error: "Solo los adoptantes pueden editar su perfil" });
     }
 
-    const { name, description, avatar_url } = req.body;
+    const {
+      name,
+      username,
+      description,
+      avatar_url,
+      photos,
+      hobbies,
+      housing_type,
+      has_other_pets,
+      other_pets_desc,
+      pet_experience,
+      has_children,
+      hours_at_home,
+      work_from_home,
+    } = req.body;
 
     const adopter = await prisma.adopters.findFirst({
       where: { user_id: req.user.sub },
@@ -1861,6 +1993,47 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
       data.avatar_url = avatar_url.trim();
     }
 
+    // Photos array (max 5)
+    if (Array.isArray(photos)) {
+      data.photos = photos.slice(0, 5);
+    }
+
+    if (typeof housing_type === "string" && ["house", "apartment"].includes(housing_type)) {
+      data.housing_type = housing_type;
+    }
+
+    if (typeof has_other_pets === "boolean") {
+      data.has_other_pets = has_other_pets;
+    }
+
+    if (typeof other_pets_desc === "string") {
+      data.other_pets_desc = other_pets_desc.trim();
+    }
+
+    if (typeof pet_experience === "string" && ["none", "some", "lots"].includes(pet_experience)) {
+      data.pet_experience = pet_experience;
+    }
+
+    if (typeof has_children === "boolean") {
+      data.has_children = has_children;
+    }
+
+    if (typeof hours_at_home === "string" && ["less4", "4to8", "more8", "always"].includes(hours_at_home)) {
+      data.hours_at_home = hours_at_home;
+    }
+
+    if (typeof work_from_home === "boolean") {
+      data.work_from_home = work_from_home;
+    }
+
+    if (Array.isArray(hobbies)) {
+      data.hobbies = hobbies;
+    }
+
+    if (typeof username === "string" && username.trim()) {
+      data.username = username.trim();
+    }
+
     const updated = await prisma.adopters.update({
       where: { id: adopter.id },
       data,
@@ -1868,8 +2041,18 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
         id: true,
         user_id: true,
         name: true,
+        username: true,
         description: true,
         avatar_url: true,
+        photos: true,
+        hobbies: true,
+        housing_type: true,
+        has_other_pets: true,
+        other_pets_desc: true,
+        pet_experience: true,
+        has_children: true,
+        hours_at_home: true,
+        work_from_home: true,
       },
     });
 
@@ -1881,6 +2064,7 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
       .json({ error: "Error al actualizar perfil de adoptante" });
   }
 });
+
 
 // --- PUSH TOKEN ---
 /**
@@ -2336,6 +2520,6 @@ io.on("connection", async (socket) => {
 
 server.listen(PORT, () => {
   console.log(
-    `🚀 Servidor backend con WebSocket en http://192.168.1.44:${PORT}`,
+    `🚀 Servidor backend con WebSocket en http://10.143.148.253:${PORT}`,
   );
 });
