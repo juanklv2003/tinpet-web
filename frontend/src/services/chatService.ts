@@ -1,6 +1,6 @@
 import { io, Socket } from "socket.io-client";
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || "http://10.143.148.253:3000";
+const SOCKET_URL = import.meta.env.VITE_API_URL || "http://10.245.90.253:3000";
 
 export interface Message {
   id: string;
@@ -10,6 +10,13 @@ export interface Message {
   content: string;
   read: boolean;
   created_at: string;
+}
+
+export interface NewMatchRequestPayload {
+  matchId: string;
+  petId: string;
+  petName: string;
+  adopterName: string;
 }
 
 export interface Conversation {
@@ -71,6 +78,10 @@ class ChatService {
 
       this.socket.on("receive_message", (message: Message) => {
         this.emit("new_message", message);
+      });
+
+      this.socket.on("new_match_request", (payload: NewMatchRequestPayload) => {
+        this.emit("new_match_request", payload);
       });
 
       this.socket.on("error", (error: { message: string }) => {

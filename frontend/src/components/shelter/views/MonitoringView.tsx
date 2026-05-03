@@ -104,6 +104,10 @@ export function MonitoringView({
   }, [incompleteProfiles, staleAvailablePets, longPendingPets, pets, recentActivity]);
 
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
+  const [customTasks, setCustomTasks] = useState<Array<{ id: string; title: string; description?: string }>>([]);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDesc, setNewTaskDesc] = useState('');
+  const customTasksStorageKey = `tinpet-custom-tasks-${todayKey}`;
 
   useEffect(() => {
     try {
@@ -111,13 +115,23 @@ export function MonitoringView({
       if (raw) {
         const parsed = JSON.parse(raw) as Record<string, boolean>;
         setCompletedTasks(parsed);
-        return;
       }
     } catch {
-      // ignore broken localStorage content
+      // ignore
     }
-    setCompletedTasks({});
   }, [tasksStorageKey]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(customTasksStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setCustomTasks(parsed);
+      }
+    } catch {
+      // ignore
+    }
+  }, [customTasksStorageKey]);
 
   useEffect(() => {
     try {
@@ -127,7 +141,16 @@ export function MonitoringView({
     }
   }, [completedTasks, tasksStorageKey]);
 
-  const completedCount = dailyTasks.filter(task => completedTasks[task.id]).length;
+  useEffect(() => {
+    try {
+      localStorage.setItem(customTasksStorageKey, JSON.stringify(customTasks));
+    } catch {
+      // ignore
+    }
+  }, [customTasks, customTasksStorageKey]);
+
+  const allTasks = customTasks;
+  const completedCount = allTasks.filter(task => completedTasks[task.id]).length;
 
   return (
     <div className="space-y-6">
@@ -229,32 +252,69 @@ export function MonitoringView({
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <div className="xl:col-span-3 rounded-2xl border border-violet-200/60 dark:border-violet-700/40 bg-violet-50/60 dark:bg-violet-900/10 p-5">
+        <div className="xl:col-span-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-transparent p-5">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
-              <h3 className="text-sm font-semibold text-violet-900 dark:text-violet-200">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
                 Tareas del dia
               </h3>
-              <p className="text-xs text-violet-700/80 dark:text-violet-300/80 mt-1">
-                {completedCount} de {dailyTasks.length} tareas marcadas para hoy.
+              <p className="text-xs text-gray-500 mt-1">
+                {completedCount} de {allTasks.length} tareas marcadas para hoy.
               </p>
             </div>
             <button
               type="button"
-              onClick={() => setCompletedTasks({})}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-violet-300/60 dark:border-violet-600/50 text-violet-900 dark:text-violet-200 hover:bg-violet-100/70 dark:hover:bg-violet-900/30"
+              onClick={() => {
+                setCompletedTasks({});
+                setCustomTasks([]);
+              }}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/30"
             >
               Reiniciar checklist
             </button>
           </div>
 
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              if (!newTaskTitle.trim()) return;
+              const id = `custom-task-${Date.now()}`;
+              setCustomTasks(prev => [...prev, { id, title: newTaskTitle, description: newTaskDesc }]);
+              setNewTaskTitle('');
+              setNewTaskDesc('');
+            }}
+            className="flex flex-wrap sm:flex-nowrap gap-3 mb-4 bg-transparent p-3 rounded-xl border border-gray-200 dark:border-gray-700"
+          >
+            <input
+              type="text"
+              value={newTaskTitle}
+              onChange={e => setNewTaskTitle(e.target.value)}
+              placeholder="Nueva tarea (ej. Comprar comida)"
+              className="flex-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-sm text-gray-900 dark:text-white px-3.5 py-2 outline-none focus:border-pink-500"
+            />
+            <input
+              type="text"
+              value={newTaskDesc}
+              onChange={e => setNewTaskDesc(e.target.value)}
+              placeholder="Descripción (opcional)"
+              className="flex-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-sm text-gray-900 dark:text-white px-3.5 py-2 outline-none focus:border-pink-500"
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 text-sm font-semibold rounded-xl bg-pink-500 hover:bg-pink-600 text-white shadow-lg shadow-pink-500/20 transition duration-100 shrink-0"
+            >
+              Añadir
+            </button>
+          </form>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {dailyTasks.map(task => {
+            {allTasks.map(task => {
               const done = Boolean(completedTasks[task.id]);
+              const isCustom = task.id.startsWith('custom-task-');
               return (
                 <label
                   key={task.id}
-                  className="flex items-start gap-3 rounded-xl border border-violet-200/60 dark:border-violet-700/40 bg-white/80 dark:bg-gray-900/40 px-4 py-3"
+                  className="flex items-start gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-900/40 px-4 py-3 relative group select-none"
                 >
                   <input
                     type="checkbox"
@@ -263,21 +323,41 @@ export function MonitoringView({
                       const checked = e.target.checked;
                       setCompletedTasks(prev => ({ ...prev, [task.id]: checked }));
                     }}
-                    className="mt-0.5 h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-500"
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
                   />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className={`text-sm font-semibold ${done ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'}`}>
-                      {task.title} ({task.count})
+                      {task.title} {('count' in task) && `(${task.count})`}
                     </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                      {task.description}
-                    </p>
-                    {task.details.length > 0 && (
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 truncate">
+                    {task.description && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        {task.description}
+                      </p>
+                    )}
+                    {('details' in task) && task.details.length > 0 && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
                         Ejemplos: {task.details.join(', ')}
                       </p>
                     )}
                   </div>
+                  {isCustom && (
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.preventDefault();
+                        setCustomTasks(prev => prev.filter(t => t.id !== task.id));
+                        setCompletedTasks(prev => {
+                          const next = { ...prev };
+                          delete next[task.id];
+                          return next;
+                        });
+                      }}
+                      className="text-gray-400 hover:text-red-500 transition duration-100 absolute top-3 right-3 opacity-0 group-hover:opacity-100"
+                      title="Eliminar tarea"
+                    >
+                      ×
+                    </button>
+                  )}
                 </label>
               );
             })}

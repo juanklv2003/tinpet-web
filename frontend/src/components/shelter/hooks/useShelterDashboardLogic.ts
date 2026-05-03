@@ -116,7 +116,9 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
 
   const fetchMyPets = async () => {
     if (!user?.id) return;
-    setLoading(true);
+    if (pets.length === 0) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const data = await apiFetch<Pet[]>('/api/pets/mine');
@@ -139,10 +141,10 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
     if (activeView === 'matches') {
       void fetchMatches();
     }
-    if (activeView === 'employees') {
+    if (activeView === 'employees' || activeView === 'pets' || isAddModalOpen) {
       void fetchEmployees();
     }
-  }, [user?.id, activeView, fetchStats, fetchMatches, fetchEmployees]);
+  }, [user?.id, activeView, isAddModalOpen, fetchStats, fetchMatches, fetchEmployees]);
 
   useEffect(() => {
     if (!user?.id || !profileStorageKey) return;

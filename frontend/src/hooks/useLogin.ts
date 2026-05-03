@@ -14,7 +14,7 @@ export const useLogin = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, remember = true) => {
     setLoading(true);
     setError(null);
     try {
@@ -28,7 +28,7 @@ export const useLogin = () => {
         role: data.role,
         name: data.name,
       };
-      setAuth(authUser, data.token);
+      setAuth(authUser, data.token, remember);
       return true;
     } catch (err: any) {
       setError(err.message);

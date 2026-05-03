@@ -5,7 +5,7 @@ interface AuthState {
   user: AuthUser | null;
   token: string | null;
   loading: boolean;
-  setAuth: (user: AuthUser, token: string) => void;
+  setAuth: (user: AuthUser, token: string, remember?: boolean) => void;
   logout: () => void;
 }
 
@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
+    const storedToken = localStorage.getItem('token') || sessionStorage.getItem('token');
     if (storedToken) {
       setToken(storedToken);
       setUser(parseToken(storedToken));
@@ -40,14 +40,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   }, []);
 
-  const setAuth = (authUser: AuthUser, newToken: string) => {
-    localStorage.setItem('token', newToken);
+  const setAuth = (authUser: AuthUser, newToken: string, remember = true) => {
+    const storage = remember ? localStorage : sessionStorage;
+    storage.setItem('token', newToken);
+    if (remember) {
+      sessionStorage.removeItem('token');
+    } else {
+      localStorage.removeItem('token');
+    }
     setToken(newToken);
     setUser(authUser);
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     setToken(null);
     setUser(null);
   };

@@ -99,6 +99,43 @@ const getAdopterAvatar = (conv: Conversation): string | null => {
   );
 };
 
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 600;
+        const MAX_HEIGHT = 600;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.7));
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
+
 export function ChatView({ token }: ChatViewProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] =
@@ -108,6 +145,31 @@ export function ChatView({ token }: ChatViewProps) {
   const [loading, setLoading] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showSubMenu, setShowSubMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [successModal, setSuccessModal] = useState<{ isOpen: boolean; message: string }>({
+    isOpen: false,
+    message: ""
+  });
+  const [activeTab, setActiveTab] = useState<"active" | "archived" | "blocked">("active");
+  const [archivedIds, setArchivedIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("tinpet_archived_chats") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [blockedIds, setBlockedIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("tinpet_blocked_chats") || "[]");
+    } catch {
+      return [];
+    }
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const selectedConversationIdRef = useRef<string | null>(null);
 
@@ -115,7 +177,7 @@ export function ChatView({ token }: ChatViewProps) {
   const fetchConversations = useCallback(async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://10.143.148.253:3000"}/api/conversations`,
+        `${import.meta.env.VITE_API_URL || "http://10.245.90.253:3000"}/api/conversations`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -145,7 +207,7 @@ export function ChatView({ token }: ChatViewProps) {
       setMessages([]); // Reset messages before fetching
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL || "http://10.143.148.253:3000"}/api/conversations/${conversationId}/messages`,
+          `${import.meta.env.VITE_API_URL || "http://10.245.90.253:3000"}/api/conversations/${conversationId}/messages`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -236,7 +298,7 @@ export function ChatView({ token }: ChatViewProps) {
     try {
       // Try REST API first
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://10.143.148.253:3000"}/api/conversations/${selectedConversation.id}/messages`,
+        `${import.meta.env.VITE_API_URL || "http://10.245.90.253:3000"}/api/conversations/${selectedConversation.id}/messages`,
         {
           method: "POST",
           headers: {
@@ -294,28 +356,82 @@ export function ChatView({ token }: ChatViewProps) {
         className={`${selectedConversation ? "hidden md:flex" : "flex"} flex-col w-full md:w-80 border-r border-gray-200 dark:border-gray-700`}
       >
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="font-semibold text-gray-900 dark:text-white">
-            Conversaciones
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {conversations.length} conversación
-            {conversations.length !== 1 ? "es" : ""}
-          </p>
+          <div className="flex justify-between items-center mb-3">
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white">
+                Conversaciones
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {conversations.length} conversación
+                {conversations.length !== 1 ? "es" : ""}
+              </p>
+            </div>
+          </div>
+
+          {/* Subtabs de chat */}
+          <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl gap-1 border border-gray-200/60 dark:border-gray-700/60 select-none">
+            <button
+              onClick={() => setActiveTab("active")}
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                activeTab === "active"
+                  ? "bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-300 shadow-sm"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              }`}
+            >
+              Activos
+            </button>
+            <button
+              onClick={() => setActiveTab("archived")}
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                activeTab === "archived"
+                  ? "bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-300 shadow-sm"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              }`}
+            >
+              Archivados
+            </button>
+            <button
+              onClick={() => setActiveTab("blocked")}
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                activeTab === "blocked"
+                  ? "bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-300 shadow-sm"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              }`}
+            >
+              Bloqueados
+            </button>
+          </div>
         </div>
 
-        {!conversations || conversations.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
-            <MessageCircle className="w-10 h-10 mb-3 text-gray-400 dark:text-gray-500" />
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              No hay conversaciones aún
-            </p>
-            <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">
-              Aparecerán cuando un adoptante haga match
-            </p>
-          </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto">
-            {(conversations as Conversation[]).map((conv) => (
+        {(() => {
+          const filteredConversations = (conversations as Conversation[] || []).filter((c) => {
+            const isArch = archivedIds.includes(c.id);
+            const isBlk = blockedIds.includes(c.id);
+
+            if (activeTab === "archived") return isArch;
+            if (activeTab === "blocked") return isBlk;
+            return !isArch && !isBlk;
+          });
+
+          if (!filteredConversations || filteredConversations.length === 0) {
+            return (
+              <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
+                <MessageCircle className="w-10 h-10 mb-3 text-gray-400 dark:text-gray-500" />
+                <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
+                  No hay chats en esta sección
+                </p>
+                <p className="text-gray-400 dark:text-gray-500 text-xs mt-1 leading-relaxed">
+                  {activeTab === "active" && "Aparecerán cuando un adoptante haga match"}
+                  {activeTab === "archived" && "Acá podés ver y desarchivar chats antiguos"}
+                  {activeTab === "blocked" && "Acá podés gestionar los usuarios bloqueados"}
+                </p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="flex-1 overflow-y-auto">
+              {filteredConversations.map((conv) => (
               <button
                 key={conv.id}
                 onClick={() => setSelectedConversation(conv)}
@@ -361,14 +477,23 @@ export function ChatView({ token }: ChatViewProps) {
                   </p>
                   {conv.last_message && (
                     <p className="text-sm text-gray-400 dark:text-gray-500 truncate mt-1">
-                      {conv.last_message.content}
+                      {typeof conv.last_message.content === "string" &&
+                      (conv.last_message.content.startsWith("data:image/") ||
+                        conv.last_message.content.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i)) ? (
+                        <span className="flex items-center gap-1">
+                          <span>📷</span> Imagen
+                        </span>
+                      ) : (
+                        conv.last_message.content
+                      )}
                     </p>
                   )}
                 </div>
               </button>
             ))}
-          </div>
-        )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Chat Area */}
@@ -430,17 +555,106 @@ export function ChatView({ token }: ChatViewProps) {
                   </p>
                 </div>
               </div>
-              {selectedConversation.other_party.phone && (
-                <button
-                  onClick={() =>
-                    handleCall(selectedConversation.other_party.phone)
-                  }
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                  title="Llamar"
-                >
-                  <IconPhone />
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {selectedConversation.other_party.phone && (
+                  <button
+                    onClick={() =>
+                      handleCall(selectedConversation.other_party.phone)
+                    }
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400 transition-colors"
+                    title="Llamar"
+                  >
+                    <IconPhone />
+                  </button>
+                )}
+
+                {/* 3 puntos Menu contextual */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowSubMenu(!showSubMenu)}
+                    className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400 transition-colors flex items-center justify-center ${
+                      showSubMenu ? "bg-gray-100 dark:bg-gray-700 text-pink-500 dark:text-pink-400" : ""
+                    }`}
+                    title="Opciones de chat"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 5v.01M12 12v.01M12 19v.01" />
+                    </svg>
+                  </button>
+
+                  {showSubMenu && (() => {
+                    const isArch = archivedIds.includes(selectedConversation.id);
+                    const isBlk = blockedIds.includes(selectedConversation.id);
+
+                    return (
+                      <div className="absolute right-0 top-full mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl py-2 z-50 select-none">
+                        <button
+                          onClick={() => {
+                            setShowSubMenu(false);
+                            if (isBlk) {
+                              const updated = blockedIds.filter((id) => id !== selectedConversation.id);
+                              setBlockedIds(updated);
+                              localStorage.setItem("tinpet_blocked_chats", JSON.stringify(updated));
+                              fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/conversations/${selectedConversation.id}/unblock`, {
+                                method: "POST",
+                                headers: {
+                                  "Authorization": `Bearer ${token}`
+                                }
+                              }).catch(err => console.error(err));
+                              setSuccessModal({ isOpen: true, message: `El usuario ${selectedConversation.other_party.name} ha sido desbloqueado exitosamente.` });
+                            } else {
+                              setShowBlockModal(true);
+                            }
+                          }}
+                          className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3"
+                        >
+                          <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                          </svg>
+                          <span>{isBlk ? "Desbloquear usuario" : `Bloquear a ${selectedConversation.other_party.name}`}</span>
+                        </button>
+
+                        {!isBlk && (
+                          <button
+                            onClick={() => {
+                              setShowSubMenu(false);
+                              setShowReportModal(true);
+                            }}
+                            className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3"
+                          >
+                            <svg className="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span>Reportar a <strong className="font-semibold">{selectedConversation.other_party.name}</strong></span>
+                          </button>
+                        )}
+
+                        <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+
+                        <button
+                          onClick={() => {
+                            setShowSubMenu(false);
+                            if (isArch) {
+                              const updated = archivedIds.filter((id) => id !== selectedConversation.id);
+                              setArchivedIds(updated);
+                              localStorage.setItem("tinpet_archived_chats", JSON.stringify(updated));
+                              setSuccessModal({ isOpen: true, message: `El chat con ${selectedConversation.other_party.name} ha sido desarchivado.` });
+                            } else {
+                              setShowArchiveModal(true);
+                            }
+                          }}
+                          className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3"
+                        >
+                          <svg className="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                          </svg>
+                          <span>{isArch ? "Desarchivar chat" : "Archivar chat"}</span>
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
 
             {/* Messages */}
@@ -493,7 +707,16 @@ export function ChatView({ token }: ChatViewProps) {
                             : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-bl-sm"
                         }`}
                       >
-                        <p className="text-sm">{msg.content}</p>
+                        {msg.content.startsWith("data:image/") || msg.content.startsWith("http://") || msg.content.startsWith("https://") ? (
+                          <img
+                            src={msg.content}
+                            alt="Attachment"
+                            className="max-w-xs max-h-48 rounded-lg object-contain cursor-pointer select-none"
+                            onClick={() => window.open(msg.content, "_blank")}
+                          />
+                        ) : (
+                          <p className="text-sm break-words">{msg.content}</p>
+                        )}
                         <p
                           className={`text-xs mt-1 ${
                             isOwn ? "text-pink-200" : "text-gray-400"
@@ -513,24 +736,117 @@ export function ChatView({ token }: ChatViewProps) {
             </div>
 
             {/* Input */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 relative">
+              {showEmojiPicker && (
+                <div className="absolute bottom-full mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl p-4 w-72 z-40 max-h-64 overflow-y-auto left-4 select-none">
+                  <div className="flex justify-between items-center mb-2 border-b border-gray-100 dark:border-gray-700 pb-2">
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Emojis</span>
+                    <button
+                      onClick={() => setShowEmojiPicker(false)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-6 gap-1">
+                    {[
+                      "😊", "😂", "🥰", "😍", "😅", "😘", "😎", "🤔", "🙄", "🥳",
+                      "😭", "😡", "😱", "😴", "🤤", "🤯", "🤢", "🤮", "🤧", "🤠",
+                      "👍", "👎", "👌", "✌️", "🤞", "🤟", "🤘", "👋", "👏", "🙌",
+                      "🙏", "🤝", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💔",
+                      "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐾", "🦁",
+                      "🌍", "🌟", "🔥", "✨", "🎉", "🎁", "🍕", "🍔", "🍟", "🍦"
+                    ].map((emoji) => (
+                      <button
+                        key={emoji}
+                        onClick={() => {
+                          setNewMessage((prev) => prev + emoji);
+                        }}
+                        type="button"
+                        className="text-xl p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all active:scale-95 duration-100"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-end gap-2">
+                {/* Emoji Toggle Button (Carita feliz) */}
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className={`p-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-gray-600 dark:text-gray-300 ${
+                    showEmojiPicker ? "ring-2 ring-pink-500" : ""
+                  }`}
+                  title="Emojis"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+
+                {/* File Upload Button (Clip icon) */}
+                <label className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer transition-colors flex items-center justify-center text-gray-500 dark:text-gray-400">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file && selectedConversation) {
+                        try {
+                          setSending(true);
+                          const compressedBase64 = await compressImage(file);
+                          const response = await fetch(
+                            `${import.meta.env.VITE_API_URL || "http://10.245.90.253:3000"}/api/conversations/${selectedConversation.id}/messages`,
+                            {
+                              method: "POST",
+                              headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${token}`,
+                              },
+                              body: JSON.stringify({ content: compressedBase64 }),
+                            }
+                          );
+                          if (!response.ok) throw new Error("No se pudo enviar la foto");
+                          const savedMessage = normalizeMessage(await response.json());
+                          if (savedMessage) {
+                            setMessages((prev) => appendUniqueMessage(prev, savedMessage));
+                          }
+                        } catch (err) {
+                          console.error("Error sending image:", err);
+                        } finally {
+                          setSending(false);
+                          e.target.value = ""; // clear input
+                        }
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                </label>
+
                 <textarea
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Escribe un mensaje..."
-                  className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 dark:text-white"
+                  className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 dark:text-white min-h-[44px]"
                   rows={1}
                 />
                 <button
                   onClick={handleSend}
                   disabled={!newMessage.trim() || sending}
-                  className={`p-2 rounded-xl ${
+                  className={`p-2.5 rounded-xl ${
                     newMessage.trim()
                       ? "bg-pink-500 hover:bg-pink-600 text-white"
                       : "bg-gray-200 dark:bg-gray-600 text-gray-400"
-                  } transition-colors`}
+                  } transition-colors flex items-center justify-center min-h-[44px] min-w-[44px]`}
                 >
                   <IconSend />
                 </button>
@@ -546,6 +862,241 @@ export function ChatView({ token }: ChatViewProps) {
             <p className="text-gray-500 dark:text-gray-400">
               Elige una conversación de la lista para ver los mensajes
             </p>
+          </div>
+        )}
+
+        {/* Modal de Reporte */}
+        {showReportModal && selectedConversation && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 select-none animate-fadeIn">
+            <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 w-full max-w-md rounded-2xl shadow-2xl p-6 relative">
+              <button
+                onClick={() => setShowReportModal(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center text-amber-500">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    Reportar a {selectedConversation.other_party.name}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Tu reporte es completamente anónimo.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-5 space-y-3">
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  ¿Por qué querés reportar a este usuario?
+                </label>
+                <div className="grid grid-cols-1 gap-2.5 max-h-48 overflow-y-auto pr-1">
+                  {[
+                    "Spam / Publicidad engañosa",
+                    "Comportamiento ofensivo o acoso",
+                    "Información falsa o sospechosa",
+                    "Uso inapropiado de la plataforma",
+                    "Otro motivo"
+                  ].map((option) => (
+                    <button
+                      key={option}
+                      onClick={() => setReportReason(option)}
+                      type="button"
+                      className={`w-full px-4 py-3 text-left text-sm rounded-xl border transition-all flex justify-between items-center ${
+                        reportReason === option
+                          ? "bg-pink-50 dark:bg-pink-900/10 border-pink-500 text-pink-700 dark:text-pink-300 ring-1 ring-pink-500"
+                          : "border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60 text-gray-700 dark:text-gray-300"
+                      }`}
+                    >
+                      <span>{option}</span>
+                      {reportReason === option && (
+                        <svg className="w-4 h-4 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end border-t border-gray-100 dark:border-gray-700 pt-4">
+                <button
+                  onClick={() => {
+                    setShowReportModal(false);
+                    setReportReason("");
+                  }}
+                  className="px-4 py-2.5 text-sm rounded-xl font-medium border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-all active:scale-95 duration-100"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    setSuccessModal({ isOpen: true, message: `Reporte enviado correctamente. Motivo: ${reportReason || "No especificado"}` });
+                    setShowReportModal(false);
+                    setReportReason("");
+                  }}
+                  disabled={!reportReason}
+                  className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-pink-500 hover:bg-pink-600 disabled:bg-gray-200 dark:disabled:bg-gray-700 disabled:text-gray-400 text-white shadow-lg shadow-pink-500/20 disabled:shadow-none transition-all active:scale-95 duration-100"
+                >
+                  Enviar reporte
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Bloqueo */}
+        {showBlockModal && selectedConversation && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 select-none animate-fadeIn">
+            <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 w-full max-w-md rounded-2xl shadow-2xl p-6 relative">
+              <button
+                onClick={() => setShowBlockModal(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center text-red-500">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    ¿Bloquear a {selectedConversation.other_party.name}?
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Dejarás de recibir mensajes de esta persona.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-5 bg-red-50 dark:bg-red-900/10 p-3.5 rounded-xl border border-red-100 dark:border-red-900/20 text-sm text-red-700 dark:text-red-300 leading-relaxed">
+                Esta acción ocultará el chat actual y no permitirá que el adoptante vuelva a contactarte.
+              </div>
+
+              <div className="flex gap-3 justify-end border-t border-gray-100 dark:border-gray-700 pt-4">
+                <button
+                  onClick={() => setShowBlockModal(false)}
+                  className="px-4 py-2.5 text-sm rounded-xl font-medium border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-all active:scale-95 duration-100"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    const updated = [...blockedIds, selectedConversation.id];
+                    setBlockedIds(updated);
+                    localStorage.setItem("tinpet_blocked_chats", JSON.stringify(updated));
+                    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/conversations/${selectedConversation.id}/block`, {
+                      method: "POST",
+                      headers: {
+                        "Authorization": `Bearer ${token}`
+                      }
+                    }).catch(err => console.error(err));
+                    setSuccessModal({ isOpen: true, message: `El usuario ${selectedConversation.other_party.name} ha sido bloqueado exitosamente.` });
+                    setShowBlockModal(false);
+                    setSelectedConversation(null);
+                  }}
+                  className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-pink-500 hover:bg-pink-600 text-white shadow-lg shadow-pink-500/20 transition-all active:scale-95 duration-100"
+                >
+                  Bloquear usuario
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Archivo */}
+        {showArchiveModal && selectedConversation && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 select-none animate-fadeIn">
+            <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 w-full max-w-md rounded-2xl shadow-2xl p-6 relative">
+              <button
+                onClick={() => setShowArchiveModal(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-500">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    ¿Archivar chat?
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Oculta el chat de tu bandeja de entrada.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-5 bg-blue-50 dark:bg-blue-900/10 p-3.5 rounded-xl border border-blue-100 dark:border-blue-900/20 text-sm text-blue-700 dark:text-blue-300 leading-relaxed">
+                Esta conversación será archivada. No se borrará y podrás volver a verla si recibís un nuevo mensaje.
+              </div>
+
+              <div className="flex gap-3 justify-end border-t border-gray-100 dark:border-gray-700 pt-4">
+                <button
+                  onClick={() => setShowArchiveModal(false)}
+                  className="px-4 py-2.5 text-sm rounded-xl font-medium border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-all active:scale-95 duration-100"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    const updated = [...archivedIds, selectedConversation.id];
+                    setArchivedIds(updated);
+                    localStorage.setItem("tinpet_archived_chats", JSON.stringify(updated));
+                    setSuccessModal({ isOpen: true, message: `Chat con ${selectedConversation.other_party.name} archivado correctamente.` });
+                    setShowArchiveModal(false);
+                    setSelectedConversation(null);
+                  }}
+                  className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-pink-500 hover:bg-pink-600 text-white shadow-lg shadow-pink-500/20 transition-all active:scale-95 duration-100"
+                >
+                  Archivar chat
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de éxito personalizado */}
+        {successModal.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 select-none animate-fadeIn">
+            <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 w-full max-w-sm rounded-2xl shadow-2xl p-6 relative text-center">
+              <div className="mx-auto w-14 h-14 bg-green-50 dark:bg-green-900/30 text-green-500 rounded-2xl flex items-center justify-center mb-4">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                ¡Acción completada!
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-5 leading-relaxed">
+                {successModal.message}
+              </p>
+              <button
+                onClick={() => setSuccessModal({ isOpen: false, message: "" })}
+                className="w-full py-3 text-sm font-bold rounded-xl bg-pink-500 hover:bg-pink-600 text-white shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 transition-all active:scale-95 duration-100"
+              >
+                Aceptar
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL ?? "http://10.143.148.253:3000";
+export const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://10.245.90.253:3000";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -89,7 +89,7 @@ export async function apiFetch<T>(
 
   let res: Response;
   try {
-    res = await fetch(`${BASE}${path}`, {
+    res = await fetch(`${API_BASE_URL}${path}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",

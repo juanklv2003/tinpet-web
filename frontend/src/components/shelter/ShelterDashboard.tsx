@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { chatService } from '../../services/chatService';
+import type { NewMatchRequestPayload } from '../../services/chatService';
 
 import { PawPrint } from 'lucide-react';
 import { useShelterDashboardLogic } from './hooks/useShelterDashboardLogic';
@@ -19,10 +20,11 @@ import { ProfileView } from './views/ProfileView';
 import type { ActiveView } from './types';
 
 // ─── COMPONENTE PRINCIPAL ────────────────────────────────────────────────────
-export default function ShelterDashboard() {
+export default function ShelterDashboard({ initialView }: { initialView?: string } = {}) {
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [unreadMatchesCount, setUnreadMatchesCount] = useState(0);
 
   // ─── Dark mode ────────────────────────────────────────────────────────────
   const { isDarkMode, toggleDarkMode } = useTheme();
@@ -63,6 +65,14 @@ export default function ShelterDashboard() {
     handleAddEmployee,
   } = useShelterDashboardLogic(user);
 
+  // If a route set an initialView, apply it on mount.
+  useEffect(() => {
+    if (initialView && typeof setActiveView === 'function') {
+      setActiveView(initialView as any);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialView]);
+
   // ─── Cerrar sesión ────────────────────────────────────────────────────────
   const handleLogout = () => {
     logout();
@@ -70,6 +80,36 @@ export default function ShelterDashboard() {
   };
 
   // ─── Nav item helper ──────────────────────────────────────────────────────
+  const viewToPath = (v: ActiveView) => {
+    switch (v) {
+      case 'pets':
+        return '/shelter/pets';
+      case 'monitoring':
+        return '/shelter/dashboard';
+      case 'employees':
+        return '/shelter/employees';
+      case 'matches':
+        return '/shelter/requests';
+      case 'chat':
+        return '/shelter/chat';
+      case 'profile':
+        return '/shelter/profile';
+      default:
+        return '/shelter/pets';
+    }
+  };
+
+  const location = useLocation();
+
+  const pathToView = (path: string): ActiveView | null => {
+    if (path.startsWith('/shelter/pets')) return 'pets';
+    if (path.startsWith('/shelter/dashboard')) return 'monitoring';
+    if (path.startsWith('/shelter/employees')) return 'employees';
+    if (path.startsWith('/shelter/requests')) return 'matches';
+    if (path.startsWith('/shelter/chat')) return 'chat';
+    if (path.startsWith('/shelter/profile')) return 'profile';
+    return null;
+  };
   const renderNavItem = ({
     view,
     icon,
@@ -84,16 +124,21 @@ export default function ShelterDashboard() {
     <button
       type="button"
       onClick={() => {
+        const to = viewToPath(view);
+        navigate(to);
         setActiveView(view);
         setSidebarOpen(false);
         if (view === 'chat') {
           setUnreadMessagesCount(0);
         }
+        if (view === 'matches') {
+          setUnreadMatchesCount(0);
+        }
       }}
       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-base font-medium transition-colors
         ${
           activeView === view
-            ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'
+            ? 'bg-gray-100 text-[#ec4899] dark:bg-gray-700 dark:text-[#ec4899]'
             : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700/50'
         } [&_svg]:w-5 [&_svg]:h-5`}
     >
@@ -109,6 +154,15 @@ export default function ShelterDashboard() {
     </button>
   );
 
+  // Keep activeView in sync with the URL when the user navigates or lands on a role path
+  useEffect(() => {
+    const fromPath = pathToView(location.pathname);
+    if (fromPath && fromPath !== activeView) {
+      setActiveView(fromPath);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
   useEffect(() => {
     if (!token) return;
 
@@ -123,10 +177,18 @@ export default function ShelterDashboard() {
       }
     };
 
+    const handleNewMatchRequest = (_payload: NewMatchRequestPayload) => {
+      if (activeView !== 'matches') {
+        setUnreadMatchesCount((prev) => prev + 1);
+      }
+    };
+
     chatService.on('new_message', handleIncomingMessage);
+    chatService.on('new_match_request', handleNewMatchRequest);
 
     return () => {
       chatService.off('new_message', handleIncomingMessage);
+      chatService.off('new_match_request', handleNewMatchRequest);
     };
   }, [token, activeView]);
 
@@ -187,7 +249,7 @@ export default function ShelterDashboard() {
           </p>
           {renderNavItem({ view: 'pets', icon: <IconPaw />, label: 'Mascotas' })}
           {renderNavItem({ view: 'monitoring', icon: <IconChart />, label: 'Monitorización' })}
-          {renderNavItem({ view: 'matches', icon: <IconHeart />, label: 'Solicitudes' })}
+          {renderNavItem({ view: 'matches', icon: <IconHeart />, label: 'Solicitudes', showBadge: activeView !== 'matches' && unreadMatchesCount > 0 })}
           {renderNavItem({ view: 'employees', icon: <IconTeam />, label: 'Empleados' })}
           {renderNavItem({
             view: 'chat',
@@ -296,6 +358,7 @@ export default function ShelterDashboard() {
           {activeView === 'employees' && (
             <EmployeesView
               employees={employees}
+              pets={pets}
               loading={employeesLoading}
               error={employeesError}
               onAddEmployee={handleAddEmployee}

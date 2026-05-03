@@ -9,6 +9,26 @@ export interface MatchRequest {
   adopter_id: string;
   status: MatchStatus;
   created_at?: string;
+  pet_name?: string;
+  user_name?: string;
+  adopter?: {
+    id: string;
+    name: string;
+    username?: string;
+    email?: string;
+    phone?: string;
+    avatar_url?: string;
+    photos?: string[];
+    description?: string;
+    housing_type?: string;
+    has_other_pets?: boolean;
+    other_pets_desc?: string;
+    pet_experience?: string;
+    has_children?: boolean;
+    hours_at_home?: string;
+    work_from_home?: boolean;
+    hobbies?: string[];
+  };
   [key: string]: unknown;
 }
 
@@ -32,7 +52,9 @@ export function useShelterMatches(options?: UseShelterMatchesOptions): UseShelte
   const [error, setError] = useState<string | null>(null);
 
   const fetchMatches = useCallback(async () => {
-    setLoading(true);
+    if (matches.length === 0) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const data = await apiFetch<MatchRequest[]>('/api/matches');
@@ -43,10 +65,9 @@ export function useShelterMatches(options?: UseShelterMatchesOptions): UseShelte
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [matches.length]);
 
   const updateMatchStatus = useCallback(async (matchId: string, status: Exclude<MatchStatus, 'pending'>) => {
-    setLoading(true);
     setError(null);
     try {
       const updated = await apiFetch<MatchRequest>(`/api/matches/${matchId}`, {
@@ -59,8 +80,6 @@ export function useShelterMatches(options?: UseShelterMatchesOptions): UseShelte
       const message = err instanceof Error ? err.message : 'No se pudo actualizar la solicitud';
       setError(message);
       return null;
-    } finally {
-      setLoading(false);
     }
   }, []);
 

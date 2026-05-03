@@ -1,6 +1,8 @@
 import {
     ArrowRight,
     Dog,
+    Eye,
+    EyeOff,
     MessagesSquare,
     PawPrint,
     ShieldCheck,
@@ -23,6 +25,8 @@ export default function AuthPage() {
   // --- Login state ---
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   // --- Register state ---
   const [regName, setRegName] = useState('');
@@ -52,7 +56,7 @@ export default function AuthPage() {
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await login(loginEmail, loginPassword);
+    const success = await login(loginEmail, loginPassword, rememberMe);
     if (success) {
       navigate('/dashboard');
     }
@@ -299,16 +303,39 @@ export default function AuthPage() {
 
                 <div>
                   <label className="mb-1.5 block text-lg font-semibold text-slate-700 dark:text-slate-200">Contrasena</label>
-                  <input
-                    type="password"
-                    required
-                    autoComplete="current-password"
-                    placeholder="••••••"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-base font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-blue-400"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      autoComplete="current-password"
+                      placeholder="••••••"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 pr-12 text-base font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-blue-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 z-10 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                      aria-label={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
                 </div>
+
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                  </div>
+                  <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Recuerdame</span>
+                </label>
 
                 <p className="text-right text-sm font-semibold text-slate-500 dark:text-slate-400">¿Olvidaste tu contrasena?</p>
 

@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { Eye, EyeOff, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLogin } from '../../../hooks/useLogin';
@@ -20,12 +20,14 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
   // Login state
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // Register state
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [regRole, setRegRole] = useState<UserRole>('adopter');
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [regRole, setRegRole] = useState<UserRole>('shelter');
 
   const { login, loading: loginLoading, error: loginError } = useLogin();
   const { register, loading: regLoading, error: regError } = useRegister();
@@ -149,15 +151,25 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
                   Contraseña
                 </label>
-                <input
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  placeholder="••••••"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  className={inputClass}
-                />
+                <div className="relative">
+                  <input
+                    type={showLoginPassword ? 'text' : 'password'}
+                    required
+                    autoComplete="current-password"
+                    placeholder="••••••"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className={`${inputClass} pr-12`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword((value) => !value)}
+                    aria-label={showLoginPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                  >
+                    {showLoginPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+                  </button>
+                </div>
               </div>
 
               <p className="text-right text-sm font-semibold text-slate-400 dark:text-slate-500">
@@ -227,15 +239,25 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
                   Contraseña
                 </label>
-                <input
-                  type="password"
-                  required
-                  autoComplete="new-password"
-                  placeholder="••••••"
-                  value={regPassword}
-                  onChange={(e) => setRegPassword(e.target.value)}
-                  className={inputClass}
-                />
+                <div className="relative">
+                  <input
+                    type={showRegisterPassword ? 'text' : 'password'}
+                    required
+                    autoComplete="new-password"
+                    placeholder="••••••"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    className={`${inputClass} pr-12`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegisterPassword((value) => !value)}
+                    aria-label={showRegisterPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                  >
+                    {showRegisterPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -245,9 +267,8 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
                   value={regRole}
                   onChange={(value) => setRegRole(value as UserRole)}
                   options={[
-                    { value: 'adopter', label: 'Adoptante' },
                     { value: 'shelter', label: 'Refugio' },
-                    { value: 'vet', label: 'Veterinario' },
+                    { value: 'vet', label: 'Veterinaria' },
                   ]}
                   className={inputClass}
                 />

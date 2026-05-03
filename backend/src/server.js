@@ -114,7 +114,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: "http://10.143.148.253:3000",
+        url: "http://10.245.90.253:3000",
         description: "Servidor de desarrollo",
       },
     ],
@@ -261,15 +261,22 @@ app.post("/api/uploads", authenticateToken, async (req, res) => {
     let base64Data, ext;
 
     if (req.body?.base64 && typeof req.body.base64 === "string") {
-      // Accept base64 data URL
-      const match = req.body.base64.match(/^data:image\/(\w+);base64,(.+)$/);
+      base64Data = req.body.base64;
+    } else if (req.body?.image && typeof req.body.image === "string") {
+      base64Data = req.body.image;
+    } else {
+      return res.status(400).json({ error: "Se requiere campo 'image' o 'base64'" });
+    }
+
+    if (base64Data.startsWith('data:')) {
+      const match = base64Data.match(/^data:image\/(\w+);base64,(.+)$/);
       if (!match) {
         return res.status(400).json({ error: "Formato de imagen inválido" });
       }
       ext = match[1] === "jpeg" ? "jpg" : match[1];
       base64Data = match[2];
     } else {
-      return res.status(400).json({ error: "Se requiere campo 'base64'" });
+      ext = "jpg";
     }
 
     const filename = `${randomUUID()}.${ext}`;
@@ -704,6 +711,25 @@ app.post("/api/swipe", authenticateToken, async (req, res) => {
       return res.status(404).json({ error: "Mascota no encontrada" });
     }
 
+    // Verificar si el usuario está bloqueado por este refugio
+    const isBlocked = await prisma.matches.findFirst({
+      where: {
+        adopter_id: adopter.id,
+        interaction_type: "blocked",
+        pets: {
+          shelter_id: pet.shelter_id,
+        },
+      },
+    });
+
+    if (isBlocked) {
+      return res.status(200).json({
+        success: true,
+        alreadyInteracted: true,
+        message: "No puedes interactuar con mascotas de este refugio",
+      });
+    }
+
     const existingInteraction = await prisma.matches.findFirst({
       where: {
         adopter_id: adopter.id,
@@ -729,6 +755,26 @@ app.post("/api/swipe", authenticateToken, async (req, res) => {
       },
     });
 
+    // Notificar en tiempo real al refugio dueño de la mascota
+    if (action === "like") {
+      try {
+        const shelter = await prisma.shelters.findUnique({
+          where: { id: pet.shelter_id },
+        });
+        if (shelter?.user_id) {
+          global.io.to(`user:${shelter.user_id}`).emit("new_match_request", {
+            matchId: match.id,
+            petId: pet.id,
+            petName: pet.name,
+            adopterName: adopter.name,
+          });
+        }
+      } catch (notifyErr) {
+        // No bloqueamos la respuesta si falla la notificación
+        console.error("Error al notificar match al refugio:", notifyErr);
+      }
+    }
+
     res.json({
       success: true,
       matchId: match.id,
@@ -740,6 +786,126 @@ app.post("/api/swipe", authenticateToken, async (req, res) => {
     res
       .status(500)
       .json({ error: "Error al registrar swipe: " + error.message });
+  }
+});
+
+// --- BLOCKING ENDPOINTS ---
+app.post("/api/conversations/:id/block", authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== "shelter") {
+      return res.status(403).json({ error: "Solo los refugios pueden bloquear usuarios" });
+    }
+
+    const conversationId = req.params.id;
+    const conversation = await prisma.conversations.findUnique({
+      where: { id: conversationId },
+      include: { pet: true }
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversación no encontrada" });
+    }
+
+    const shelter = await prisma.shelters.findFirst({
+      where: { user_id: req.user.sub }
+    });
+
+    if (!shelter || shelter.id !== conversation.shelter_id) {
+      return res.status(403).json({ error: "No tienes permiso para bloquear en esta conversación" });
+    }
+
+    // Encontramos todos los matches de este adoptante con cualquier mascota del shelter
+    // O si ya existe uno, lo actualizamos. Sino creamos uno nuevo con interaction_type = "blocked"
+    if (conversation.match_id) {
+      await prisma.matches.upsert({
+        where: { id: conversation.match_id },
+        update: { interaction_type: "blocked" },
+        create: {
+          id: conversation.match_id,
+          adopter_id: conversation.adopter_id,
+          pet_id: conversation.pet_id,
+          interaction_type: "blocked"
+        }
+      });
+    } else {
+      await prisma.matches.create({
+        data: {
+          adopter_id: conversation.adopter_id,
+          pet_id: conversation.pet_id,
+          interaction_type: "blocked"
+        }
+      });
+    }
+
+    const shelterPets = await prisma.pets.findMany({
+      where: { shelter_id: shelter.id },
+      select: { id: true }
+    });
+
+    const petIds = shelterPets.map(p => p.id);
+
+    await prisma.matches.updateMany({
+      where: {
+        adopter_id: conversation.adopter_id,
+        pet_id: { in: petIds }
+      },
+      data: {
+        interaction_type: "blocked"
+      }
+    });
+
+    return res.json({ success: true, message: "Usuario bloqueado exitosamente" });
+  } catch (error) {
+    console.error("Error al bloquear usuario:", error);
+    return res.status(500).json({ error: "Error interno al bloquear usuario" });
+  }
+});
+
+app.post("/api/conversations/:id/unblock", authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== "shelter") {
+      return res.status(403).json({ error: "Solo los refugios pueden desbloquear usuarios" });
+    }
+
+    const conversationId = req.params.id;
+    const conversation = await prisma.conversations.findUnique({
+      where: { id: conversationId }
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversación no encontrada" });
+    }
+
+    const shelter = await prisma.shelters.findFirst({
+      where: { user_id: req.user.sub }
+    });
+
+    if (!shelter || shelter.id !== conversation.shelter_id) {
+      return res.status(403).json({ error: "No tienes permiso para desbloquear en esta conversación" });
+    }
+
+    const shelterPets = await prisma.pets.findMany({
+      where: { shelter_id: shelter.id },
+      select: { id: true }
+    });
+
+    const petIds = shelterPets.map(p => p.id);
+
+    await prisma.matches.updateMany({
+      where: {
+        adopter_id: conversation.adopter_id,
+        pet_id: { in: petIds },
+        interaction_type: "blocked"
+      },
+      data: {
+        interaction_type: "pending"
+      }
+    });
+
+    return res.json({ success: true, message: "Usuario desbloqueado exitosamente" });
+  } catch (error) {
+    console.error("Error al desbloquear usuario:", error);
+    return res.status(500).json({ error: "Error interno al desbloquear usuario" });
   }
 });
 
@@ -888,28 +1054,38 @@ app.get("/api/pets-available", async (req, res) => {
       },
     });
 
-    const result = pets.map((pet) => ({
-      photos: (() => {
-        const parsed = parsePhotoUrlsFromImageField(pet.image_url);
-        return parsed.length > 0
-          ? parsed
-          : ["https://placedog.net/400/400?random"];
-      })(),
-      id: pet.id,
-      name: pet.name,
-      species:
-        pet.species === "dog" ? "dog" : pet.species === "cat" ? "cat" : "dog",
-      age: pet.birth_date
-        ? Math.floor(
-            (new Date() - new Date(pet.birth_date)) /
-              (365.25 * 24 * 60 * 60 * 1000),
-          )
-        : 1,
-      description: `${pet.name} es un/a ${pet.species} muy especial. ${pet.breed ? `Raza: ${pet.breed}.` : ""}`,
-      source: pet.shelters
-        ? { type: "shelter", name: pet.shelters.name, id: pet.shelters.id }
-        : { type: "vet", name: "Veterinaria", id: "" },
-    }));
+    const result = pets.map((pet) => {
+      // Normalize species from DB to frontend expected values
+      const raw = (pet.species || "").toLowerCase().trim();
+      let species = "other";
+      if (raw === "dog" || raw.includes("perro") || raw.includes("can")) species = "dog";
+      else if (raw === "cat" || raw.includes("gato") || raw.includes("felino")) species = "cat";
+      else if (raw === "bird" || raw.includes("pájaro") || raw.includes("pajaro") || raw.includes("ave")) species = "bird";
+      else if (raw === "rabbit" || raw.includes("conejo")) species = "rabbit";
+      else if (raw === "reptile" || raw.includes("reptil") || raw.includes("serpiente") || raw.includes("snake") || raw.includes("tortuga") || raw.includes("lagarto")) species = "reptile";
+
+      return ({
+        photos: (() => {
+          const parsed = parsePhotoUrlsFromImageField(pet.image_url);
+          return parsed.length > 0
+            ? parsed
+            : ["https://placedog.net/400/400?random"];
+        })(),
+        id: pet.id,
+        name: pet.name,
+        species,
+        age: pet.birth_date
+          ? Math.floor(
+              (new Date() - new Date(pet.birth_date)) /
+                (365.25 * 24 * 60 * 60 * 1000),
+            )
+          : 1,
+        description: `${pet.name} es un/a ${pet.species} muy especial. ${pet.breed ? `Raza: ${pet.breed}.` : ""}`,
+        source: pet.shelters
+          ? { type: "shelter", name: pet.shelters.name, id: pet.shelters.id }
+          : { type: "vet", name: "Veterinaria", id: "" },
+      });
+    });
 
     res.json({ pets: result });
   } catch (error) {
@@ -1110,7 +1286,24 @@ app.get("/api/matches", authenticateToken, async (req, res) => {
           select: { id: true, name: true },
         },
         adopters: {
-          select: { id: true, name: true },
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            email: true,
+            phone: true,
+            avatar_url: true,
+            photos: true,
+            description: true,
+            housing_type: true,
+            has_other_pets: true,
+            other_pets_desc: true,
+            pet_experience: true,
+            has_children: true,
+            hours_at_home: true,
+            work_from_home: true,
+            hobbies: true,
+          },
         },
       },
       orderBy: {
@@ -1135,6 +1328,26 @@ app.get("/api/matches", authenticateToken, async (req, res) => {
         created_at: match.created_at,
         pet_name: match.pets?.name ?? null,
         user_name: match.adopters?.name ?? null,
+        adopter: match.adopters
+          ? {
+              id: match.adopters.id,
+              name: match.adopters.name,
+              username: match.adopters.username,
+              email: match.adopters.email,
+              phone: match.adopters.phone,
+              avatar_url: match.adopters.avatar_url,
+              photos: match.adopters.photos,
+              description: match.adopters.description,
+              housing_type: match.adopters.housing_type,
+              has_other_pets: match.adopters.has_other_pets,
+              other_pets_desc: match.adopters.other_pets_desc,
+              pet_experience: match.adopters.pet_experience,
+              has_children: match.adopters.has_children,
+              hours_at_home: match.adopters.hours_at_home,
+              work_from_home: match.adopters.work_from_home,
+              hobbies: match.adopters.hobbies,
+            }
+          : null,
       };
     });
 
@@ -1208,7 +1421,23 @@ app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
           select: { shelter_id: true, id: true, name: true },
         },
         adopters: {
-          select: { id: true, name: true },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatar_url: true,
+            photos: true,
+            description: true,
+            housing_type: true,
+            has_other_pets: true,
+            other_pets_desc: true,
+            pet_experience: true,
+            has_children: true,
+            hours_at_home: true,
+            work_from_home: true,
+            hobbies: true,
+          },
         },
       },
     });
@@ -1229,7 +1458,23 @@ app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
           select: { id: true, name: true },
         },
         adopters: {
-          select: { id: true, name: true },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatar_url: true,
+            photos: true,
+            description: true,
+            housing_type: true,
+            has_other_pets: true,
+            other_pets_desc: true,
+            pet_experience: true,
+            has_children: true,
+            hours_at_home: true,
+            work_from_home: true,
+            hobbies: true,
+          },
         },
       },
     });
@@ -1277,6 +1522,25 @@ app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
       created_at: updated.created_at,
       pet_name: updated.pets?.name ?? null,
       user_name: updated.adopters?.name ?? null,
+      adopter: updated.adopters
+        ? {
+            id: updated.adopters.id,
+            name: updated.adopters.name,
+            email: updated.adopters.email,
+            phone: updated.adopters.phone,
+            avatar_url: updated.adopters.avatar_url,
+            photos: updated.adopters.photos,
+            description: updated.adopters.description,
+            housing_type: updated.adopters.housing_type,
+            has_other_pets: updated.adopters.has_other_pets,
+            other_pets_desc: updated.adopters.other_pets_desc,
+            pet_experience: updated.adopters.pet_experience,
+            has_children: updated.adopters.has_children,
+            hours_at_home: updated.adopters.hours_at_home,
+            work_from_home: updated.adopters.work_from_home,
+            hobbies: updated.adopters.hobbies,
+          }
+        : null,
       conversation_created: status === "accepted",
     });
   } catch (error) {
@@ -1468,7 +1732,7 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
       conversations = await prisma.conversations.findMany({
         where: { shelter_id: shelter.id },
         include: {
-          adopter: { select: { id: true, name: true, avatar_url: true } },
+          adopter: { select: { id: true, name: true, avatar_url: true, photos: true } },
           pet: { select: { id: true, name: true, image_url: true } },
           messages: {
             orderBy: { created_at: "desc" },
@@ -1502,10 +1766,11 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
             }
           : {
               type: "adopter",
-              id: conv.adopter.id,
-              name: conv.adopter.name,
-              avatar: conv.adopter.avatar_url,
-              avatar_url: conv.adopter.avatar_url,
+              id: conv.adopter?.id,
+              name: conv.adopter?.name,
+              avatar: (conv.adopter?.photos && conv.adopter.photos.length > 0) ? conv.adopter.photos[0] : (conv.adopter?.avatar_url ?? null),
+              avatar_url: (conv.adopter?.photos && conv.adopter.photos.length > 0) ? conv.adopter.photos[0] : (conv.adopter?.avatar_url ?? null),
+              photos: conv.adopter?.photos ?? [],
             },
       last_message: conv.messages[0]
         ? {
@@ -1917,9 +2182,11 @@ app.get("/api/adopter/profile", authenticateToken, async (req, res) => {
         username: true,
         email: true,
         description: true,
+        birth_date: true,
         avatar_url: true,
         photos: true,
         hobbies: true,
+        phone: true,
         housing_type: true,
         has_other_pets: true,
         other_pets_desc: true,
@@ -1927,6 +2194,8 @@ app.get("/api/adopter/profile", authenticateToken, async (req, res) => {
         has_children: true,
         hours_at_home: true,
         work_from_home: true,
+        looking_for_species: true,
+        preferred_size: true,
         created_at: true,
       },
     });
@@ -1956,9 +2225,12 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
     const {
       name,
       username,
+      email,
       description,
+      birth_date,
       avatar_url,
       photos,
+      phone,
       hobbies,
       housing_type,
       has_other_pets,
@@ -1967,6 +2239,8 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
       has_children,
       hours_at_home,
       work_from_home,
+      looking_for_species,
+      preferred_size,
     } = req.body;
 
     const adopter = await prisma.adopters.findFirst({
@@ -1984,7 +2258,7 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
     }
 
     if (typeof description === "string") {
-      data.description = description.trim();
+      data.description = description.trim() || null;
     }
 
     if (avatar_url === null || avatar_url === "") {
@@ -2007,7 +2281,7 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
     }
 
     if (typeof other_pets_desc === "string") {
-      data.other_pets_desc = other_pets_desc.trim();
+      data.other_pets_desc = other_pets_desc.trim() || null;
     }
 
     if (typeof pet_experience === "string" && ["none", "some", "lots"].includes(pet_experience)) {
@@ -2026,6 +2300,42 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
       data.work_from_home = work_from_home;
     }
 
+    // Email
+    if (typeof email === "string") {
+      data.email = email.trim() || null;
+    }
+
+    // Phone
+    if (typeof phone === "string") {
+      data.phone = phone.trim() || null;
+    }
+
+    // Birth date
+    if (typeof birth_date === "string" && birth_date.trim() && !isNaN(Date.parse(birth_date))) {
+      data.birth_date = new Date(birth_date);
+    } else if (birth_date === null || (typeof birth_date === "string" && !birth_date.trim())) {
+      data.birth_date = null;
+    }
+
+    // Looking for species (array of strings, max 10)
+    if (Array.isArray(looking_for_species)) {
+      const validSpecies = ['dog', 'cat', 'bird', 'rabbit', 'reptile', 'other', 'any'];
+      data.looking_for_species = looking_for_species
+        .filter(s => typeof s === 'string' && validSpecies.includes(s.toLowerCase()))
+        .map(s => s.toLowerCase())
+        .slice(0, 10);
+    } else if (looking_for_species === null) {
+      data.looking_for_species = [];
+    }
+
+    // Preferred size
+    const validSizes = ['small', 'medium', 'large', 'any'];
+    if (typeof preferred_size === "string" && validSizes.includes(preferred_size.toLowerCase())) {
+      data.preferred_size = preferred_size.toLowerCase();
+    } else if (preferred_size === null) {
+      data.preferred_size = null;
+    }
+
     if (Array.isArray(hobbies)) {
       data.hobbies = hobbies;
     }
@@ -2042,10 +2352,13 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
         user_id: true,
         name: true,
         username: true,
+        email: true,
         description: true,
+        birth_date: true,
         avatar_url: true,
         photos: true,
         hobbies: true,
+        phone: true,
         housing_type: true,
         has_other_pets: true,
         other_pets_desc: true,
@@ -2053,12 +2366,16 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
         has_children: true,
         hours_at_home: true,
         work_from_home: true,
+        looking_for_species: true,
+        preferred_size: true,
+        created_at: true,
       },
     });
 
     return res.json(updated);
   } catch (error) {
     console.error("Error al actualizar perfil de adoptante:", error);
+    console.error("Error details:", error?.message, error?.code, error?.meta);
     return res
       .status(500)
       .json({ error: "Error al actualizar perfil de adoptante" });
@@ -2365,6 +2682,9 @@ io.use(async (socket, next) => {
 io.on("connection", async (socket) => {
   console.log(`🔌 Usuario conectado: ${socket.user.sub} (${socket.user.role})`);
 
+  // Unir al socket a su sala personal para notificaciones directas
+  socket.join(`user:${socket.user.sub}`);
+
   const handleJoinConversation = async (conversationId) => {
     try {
       // Verificar acceso a la conversación
@@ -2520,6 +2840,6 @@ io.on("connection", async (socket) => {
 
 server.listen(PORT, () => {
   console.log(
-    `🚀 Servidor backend con WebSocket en http://10.143.148.253:${PORT}`,
+    `🚀 Servidor backend con WebSocket en http://10.245.90.253:${PORT}`,
   );
 });

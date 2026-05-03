@@ -1,3 +1,4 @@
+import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLogin } from '../hooks/useLogin';
@@ -14,6 +15,7 @@ export const AuthManager = () => {
   // Estados locales solo para lo que el usuario escribe
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [role, setRole] = useState<UserRole>('adopter');
 
@@ -44,7 +46,37 @@ export const AuthManager = () => {
       <form onSubmit={onLoginSubmit} style={{ border: '1px solid #ccc', padding: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <h4>Entrar</h4>
         <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <div style={{ position: 'relative' }}>
+          <input
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            style={{ paddingRight: '44px', width: '100%', boxSizing: 'border-box' }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((value) => !value)}
+            aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            style={{
+              position: 'absolute',
+              right: '10px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              border: 'none',
+              background: 'transparent',
+              padding: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#64748b',
+              cursor: 'pointer',
+            }}
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
         <button type="submit" disabled={loginLoading}>
           {loginLoading ? 'Entrando...' : 'Iniciar Sesión'}
         </button>
@@ -56,7 +88,37 @@ export const AuthManager = () => {
         <h4>Nuevo Registro</h4>
         <input type="text" placeholder="Tu Nombre / Clínica" value={name} onChange={(e) => setName(e.target.value)} required />
         <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <div style={{ position: 'relative' }}>
+          <input
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            style={{ paddingRight: '44px', width: '100%', boxSizing: 'border-box' }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((value) => !value)}
+            aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            style={{
+              position: 'absolute',
+              right: '10px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              border: 'none',
+              background: 'transparent',
+              padding: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#64748b',
+              cursor: 'pointer',
+            }}
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
         <select value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
           <option value="adopter">Adoptante</option>
           <option value="shelter">Protectora</option>

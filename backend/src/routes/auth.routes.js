@@ -6,6 +6,43 @@ const prisma   = require('../lib/prisma');
 
 const SALT_ROUNDS = 12;
 
+// ─── Función para enviar email de bienvenida vía Brevo API ─────────────────────
+async function sendWelcomeEmail(email, name) {
+  let apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) {
+    console.warn('[Brevo] BREVO_API_KEY no encontrada en las variables de entorno. Se omite el envío.');
+    return;
+  }
+  apiKey = apiKey.replace(/["']/g, '').trim();
+
+  try {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': apiKey,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        to: [{ email, name }],
+        templateId: 28,
+        params: {
+          NOMBRE: name
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('[Brevo Error payload]', errorData);
+    } else {
+      console.log(`[Brevo Success] Email de bienvenida enviado a ${email}`);
+    }
+  } catch (error) {
+    console.error('[Brevo Error exception]', error);
+  }
+}
+
 // ─── Registro ─────────────────────────────────────────────────────────────────
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -42,6 +79,11 @@ router.post('/register', async (req, res) => {
       vet:     () => prisma.vet_clinics.create({ data: { id: randomUUID(), user_id: user.id, name, email: user.email } }),
     };
     await roleInsert[role]();
+
+    // Disparar el mail de bienvenida usando la plantilla #28
+    sendWelcomeEmail(email.trim().toLowerCase(), name).catch(err => {
+      console.error('[sendWelcomeEmail background exception]', err);
+    });
 
     return res.status(201).json({ message: 'Usuario creado correctamente.' });
   } catch (err) {

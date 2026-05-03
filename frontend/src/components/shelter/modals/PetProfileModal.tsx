@@ -57,10 +57,41 @@ export function PetProfileModal({
   const [err, setErr] = useState<string | null>(null);
   const [newVaccine, setNewVaccine] = useState('');
   const [addingVaccine, setAddingVaccine] = useState(false);
+  const [vaccines, setVaccines] = useState<string[]>([]);
   const [newDisease, setNewDisease] = useState('');
   const [addingDisease, setAddingDisease] = useState(false);
+  const [medicalHistory, setMedicalHistory] = useState<string[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const normalizeStringList = (value: unknown): string[] => {
+    if (Array.isArray(value)) {
+      return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+    }
+
+    if (typeof value === 'string' && value.trim()) {
+      return [value.trim()];
+    }
+
+    return [];
+  };
+
+  const mergeAiProfile = (
+    baseProfile: Record<string, unknown> | undefined,
+    fallbackProfile: Record<string, unknown>
+  ) => ({
+    ...(baseProfile ?? {}),
+    vaccines: (() => {
+      const fromBackend = normalizeStringList(baseProfile?.vaccines);
+      if (fromBackend.length > 0) return fromBackend;
+      return normalizeStringList(fallbackProfile.vaccines);
+    })(),
+    medicalHistory: (() => {
+      const fromBackend = normalizeStringList(baseProfile?.medicalHistory);
+      if (fromBackend.length > 0) return fromBackend;
+      return normalizeStringList(fallbackProfile.medicalHistory);
+    })(),
+  });
 
   useEffect(() => {
     const rafId = window.requestAnimationFrame(() => setIsVisible(true));
@@ -82,6 +113,8 @@ export function PetProfileModal({
 
   useEffect(() => {
     setAi(pet.ai_profile ?? {});
+    setVaccines(normalizeStringList(pet.ai_profile?.vaccines));
+    setMedicalHistory(normalizeStringList(pet.ai_profile?.medicalHistory));
     setForm({
       name: pet.name,
       species: pet.species,
@@ -94,15 +127,24 @@ export function PetProfileModal({
     });
     setEditMode(false);
     setErr(null);
-  }, [pet]);
+  }, [pet.id]);
 
   const persistAi = async (updatedAi: Record<string, unknown>) => {
     const updated = await apiFetch<Pet>(`/api/pets/${pet.id}`, {
       method: 'PATCH',
       body: JSON.stringify({ ai_profile: updatedAi }),
     });
-    onUpdate(updated);
-    setAi(updated.ai_profile ?? updatedAi);
+
+    const mergedAiProfile = mergeAiProfile(updated.ai_profile, updatedAi);
+    const mergedPet: Pet = {
+      ...updated,
+      ai_profile: mergedAiProfile,
+    };
+
+    onUpdate(mergedPet);
+    setAi(mergedAiProfile);
+    setVaccines(normalizeStringList(mergedAiProfile.vaccines));
+    setMedicalHistory(normalizeStringList(mergedAiProfile.medicalHistory));
   };
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,17 +217,25 @@ export function PetProfileModal({
           ai_profile: nextAi,
         }),
       });
-      onUpdate(updated);
-      setAi(updated.ai_profile ?? nextAi);
+      const mergedAiProfile = mergeAiProfile(updated.ai_profile, nextAi);
+      const mergedPet: Pet = {
+        ...updated,
+        ai_profile: mergedAiProfile,
+      };
+
+      onUpdate(mergedPet);
+      setAi(mergedAiProfile);
+      setVaccines(normalizeStringList(mergedAiProfile.vaccines));
+      setMedicalHistory(normalizeStringList(mergedAiProfile.medicalHistory));
       setForm({
-        name: updated.name,
-        species: updated.species,
-        status: updated.status,
-        breed: updated.ai_profile?.breed ?? '',
-        birthDate: updated.ai_profile?.birthDate ?? '',
-        photoUrls: readPhotoUrls(updated.ai_profile),
-        inChargeEmployeeId: updated.ai_profile?.inChargeEmployeeId ?? '',
-        description: updated.description ?? '',
+        name: mergedPet.name,
+        species: mergedPet.species,
+        status: mergedPet.status,
+        breed: mergedPet.ai_profile?.breed ?? '',
+        birthDate: mergedPet.ai_profile?.birthDate ?? '',
+        photoUrls: readPhotoUrls(mergedPet.ai_profile),
+        inChargeEmployeeId: mergedPet.ai_profile?.inChargeEmployeeId ?? '',
+        description: mergedPet.description ?? '',
       });
       setEditMode(false);
     } catch (error: unknown) {
@@ -211,8 +261,9 @@ export function PetProfileModal({
   const saveVaccine = async () => {
     const v = newVaccine.trim();
     if (!v) return;
-    const vaccines = [...((ai.vaccines as string[]) ?? []), v];
-    const next = { ...ai, vaccines };
+    const nextVaccines = [...vaccines, v];
+    const next = { ...ai, vaccines: nextVaccines };
+    setVaccines(nextVaccines);
     setAi(next);
     try {
       await persistAi(next);
@@ -226,14 +277,9 @@ export function PetProfileModal({
   const saveDisease = async () => {
     const d = newDisease.trim();
     if (!d) return;
-    const currentHistory = ai.medicalHistory;
-    const medicalHistory = Array.isArray(currentHistory)
-      ? currentHistory
-      : currentHistory
-        ? [currentHistory]
-        : [];
-    const updatedHistory = [...medicalHistory, d];
-    const next = { ...ai, medicalHistory: updatedHistory };
+    const nextHistory = [...medicalHistory, d];
+    const next = { ...ai, medicalHistory: nextHistory };
+    setMedicalHistory(nextHistory);
     setAi(next);
     try {
       await persistAi(next);
@@ -244,12 +290,7 @@ export function PetProfileModal({
     }
   };
 
-  const vaccines: string[] = Array.isArray(ai.vaccines) ? ai.vaccines : [];
-  const diseases: string[] = Array.isArray(ai.medicalHistory)
-    ? ai.medicalHistory
-    : ai.medicalHistory
-      ? [String(ai.medicalHistory)]
-      : [];
+  const diseases: string[] = medicalHistory;
 
   return (
     <div className="fixed inset-0 z-50">
@@ -544,6 +585,7 @@ export function PetProfileModal({
               </p>
               {!addingVaccine && (
                 <button
+                  type="button"
                   onClick={() => setAddingVaccine(true)}
                   className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 text-sm transition-colors"
                 >
@@ -582,12 +624,14 @@ export function PetProfileModal({
                   className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-gray-400"
                 />
                 <button
+                  type="button"
                   onClick={saveVaccine}
                   className="px-2.5 py-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white text-xs transition-colors"
                 >
                   OK
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setAddingVaccine(false);
                     setNewVaccine('');
@@ -608,6 +652,7 @@ export function PetProfileModal({
               </p>
               {!addingDisease && (
                 <button
+                  type="button"
                   onClick={() => setAddingDisease(true)}
                   className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 text-sm transition-colors"
                 >
@@ -647,12 +692,14 @@ export function PetProfileModal({
                   className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-gray-400"
                 />
                 <button
+                  type="button"
                   onClick={saveDisease}
                   className="px-2.5 py-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white text-xs transition-colors"
                 >
                   OK
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setAddingDisease(false);
                     setNewDisease('');
