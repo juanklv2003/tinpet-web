@@ -59,6 +59,14 @@ cd tinpet-web
    PORT=3000
    FRONTEND_URL=""
    BREVO_API_KEY="tu_api_key_de_brevo"
+   GROQ_IA_API_KEY="tu_api_key_de_groq"
+   GROQ_MODEL="llama-3.3-70b-versatile"
+   GROQ_BASE_URL="https://api.groq.com/openai/v1"
+   GROQ_SYSTEM_PROMPT="Eres el asistente oficial de TinPet Web."
+   GROQ_TEMPERATURE=0.4
+   GROQ_MAX_TOKENS=700
+   GROQ_TIMEOUT_MS=15000
+   ASSISTANT_MAX_HISTORY_MESSAGES=12
    ```
 4. Corré las migraciones de Prisma y generá el cliente:
    ```bash

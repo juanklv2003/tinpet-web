@@ -1,6 +1,6 @@
 import { io, Socket } from "socket.io-client";
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || "http://10.245.90.253:3000";
+const SOCKET_URL = import.meta.env.VITE_API_URL || "http://192.168.5.103:3000";
 
 export interface Message {
   id: string;

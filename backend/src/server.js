@@ -17,6 +17,8 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // Swagger imports
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
+const assistantRoutes = require("./routes/assistant.routes");
+const knowledgeRoutes = require("./routes/knowledge.routes");
 
 const JWT_SECRET = process.env.JWT_SECRET || "tinpet-secret-key-2024";
 const MAX_JSON_PAYLOAD = process.env.MAX_JSON_PAYLOAD || "10mb";
@@ -114,7 +116,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: "http://10.245.90.253:3000",
+        url: "http://192.168.5.103:3000",
         description: "Servidor de desarrollo",
       },
     ],
@@ -208,6 +210,8 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: MAX_JSON_PAYLOAD }));
 app.use(express.urlencoded({ extended: true, limit: MAX_JSON_PAYLOAD }));
+app.use("/api/assistant", assistantRoutes);
+app.use("/api/knowledge", knowledgeRoutes);
 
 // Serve static files (uploaded images)
 app.use("/public", express.static(path.join(__dirname, "../../public")));
@@ -265,10 +269,12 @@ app.post("/api/uploads", authenticateToken, async (req, res) => {
     } else if (req.body?.image && typeof req.body.image === "string") {
       base64Data = req.body.image;
     } else {
-      return res.status(400).json({ error: "Se requiere campo 'image' o 'base64'" });
+      return res
+        .status(400)
+        .json({ error: "Se requiere campo 'image' o 'base64'" });
     }
 
-    if (base64Data.startsWith('data:')) {
+    if (base64Data.startsWith("data:")) {
       const match = base64Data.match(/^data:image\/(\w+);base64,(.+)$/);
       if (!match) {
         return res.status(400).json({ error: "Formato de imagen inválido" });
@@ -284,7 +290,8 @@ app.post("/api/uploads", authenticateToken, async (req, res) => {
     fs.writeFileSync(filepath, base64Data, "base64");
 
     // Return full URL (use env or construct from request host)
-    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
+    const baseUrl =
+      process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
     const url = `${baseUrl}/public/uploads/${filename}`;
 
     return res.json({ url, filename });
@@ -692,12 +699,10 @@ app.post("/api/swipe", authenticateToken, async (req, res) => {
     console.log("Adopter found:", adopter);
 
     if (!adopter) {
-      return res
-        .status(404)
-        .json({
-          error:
-            "Adoptante no encontrado. Asegurate de registrarte como adoptante.",
-        });
+      return res.status(404).json({
+        error:
+          "Adoptante no encontrado. Asegurate de registrarte como adoptante.",
+      });
     }
 
     // Verificar que la mascota existe
@@ -790,124 +795,154 @@ app.post("/api/swipe", authenticateToken, async (req, res) => {
 });
 
 // --- BLOCKING ENDPOINTS ---
-app.post("/api/conversations/:id/block", authenticateToken, async (req, res) => {
-  try {
-    if (req.user.role !== "shelter") {
-      return res.status(403).json({ error: "Solo los refugios pueden bloquear usuarios" });
-    }
+app.post(
+  "/api/conversations/:id/block",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      if (req.user.role !== "shelter") {
+        return res
+          .status(403)
+          .json({ error: "Solo los refugios pueden bloquear usuarios" });
+      }
 
-    const conversationId = req.params.id;
-    const conversation = await prisma.conversations.findUnique({
-      where: { id: conversationId },
-      include: { pet: true }
-    });
-
-    if (!conversation) {
-      return res.status(404).json({ error: "Conversación no encontrada" });
-    }
-
-    const shelter = await prisma.shelters.findFirst({
-      where: { user_id: req.user.sub }
-    });
-
-    if (!shelter || shelter.id !== conversation.shelter_id) {
-      return res.status(403).json({ error: "No tienes permiso para bloquear en esta conversación" });
-    }
-
-    // Encontramos todos los matches de este adoptante con cualquier mascota del shelter
-    // O si ya existe uno, lo actualizamos. Sino creamos uno nuevo con interaction_type = "blocked"
-    if (conversation.match_id) {
-      await prisma.matches.upsert({
-        where: { id: conversation.match_id },
-        update: { interaction_type: "blocked" },
-        create: {
-          id: conversation.match_id,
-          adopter_id: conversation.adopter_id,
-          pet_id: conversation.pet_id,
-          interaction_type: "blocked"
-        }
+      const conversationId = req.params.id;
+      const conversation = await prisma.conversations.findUnique({
+        where: { id: conversationId },
+        include: { pet: true },
       });
-    } else {
-      await prisma.matches.create({
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversación no encontrada" });
+      }
+
+      const shelter = await prisma.shelters.findFirst({
+        where: { user_id: req.user.sub },
+      });
+
+      if (!shelter || shelter.id !== conversation.shelter_id) {
+        return res
+          .status(403)
+          .json({
+            error: "No tienes permiso para bloquear en esta conversación",
+          });
+      }
+
+      // Encontramos todos los matches de este adoptante con cualquier mascota del shelter
+      // O si ya existe uno, lo actualizamos. Sino creamos uno nuevo con interaction_type = "blocked"
+      if (conversation.match_id) {
+        await prisma.matches.upsert({
+          where: { id: conversation.match_id },
+          update: { interaction_type: "blocked" },
+          create: {
+            id: conversation.match_id,
+            adopter_id: conversation.adopter_id,
+            pet_id: conversation.pet_id,
+            interaction_type: "blocked",
+          },
+        });
+      } else {
+        await prisma.matches.create({
+          data: {
+            adopter_id: conversation.adopter_id,
+            pet_id: conversation.pet_id,
+            interaction_type: "blocked",
+          },
+        });
+      }
+
+      const shelterPets = await prisma.pets.findMany({
+        where: { shelter_id: shelter.id },
+        select: { id: true },
+      });
+
+      const petIds = shelterPets.map((p) => p.id);
+
+      await prisma.matches.updateMany({
+        where: {
+          adopter_id: conversation.adopter_id,
+          pet_id: { in: petIds },
+        },
         data: {
-          adopter_id: conversation.adopter_id,
-          pet_id: conversation.pet_id,
-          interaction_type: "blocked"
-        }
+          interaction_type: "blocked",
+        },
       });
+
+      return res.json({
+        success: true,
+        message: "Usuario bloqueado exitosamente",
+      });
+    } catch (error) {
+      console.error("Error al bloquear usuario:", error);
+      return res
+        .status(500)
+        .json({ error: "Error interno al bloquear usuario" });
     }
+  },
+);
 
-    const shelterPets = await prisma.pets.findMany({
-      where: { shelter_id: shelter.id },
-      select: { id: true }
-    });
-
-    const petIds = shelterPets.map(p => p.id);
-
-    await prisma.matches.updateMany({
-      where: {
-        adopter_id: conversation.adopter_id,
-        pet_id: { in: petIds }
-      },
-      data: {
-        interaction_type: "blocked"
+app.post(
+  "/api/conversations/:id/unblock",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      if (req.user.role !== "shelter") {
+        return res
+          .status(403)
+          .json({ error: "Solo los refugios pueden desbloquear usuarios" });
       }
-    });
 
-    return res.json({ success: true, message: "Usuario bloqueado exitosamente" });
-  } catch (error) {
-    console.error("Error al bloquear usuario:", error);
-    return res.status(500).json({ error: "Error interno al bloquear usuario" });
-  }
-});
+      const conversationId = req.params.id;
+      const conversation = await prisma.conversations.findUnique({
+        where: { id: conversationId },
+      });
 
-app.post("/api/conversations/:id/unblock", authenticateToken, async (req, res) => {
-  try {
-    if (req.user.role !== "shelter") {
-      return res.status(403).json({ error: "Solo los refugios pueden desbloquear usuarios" });
-    }
-
-    const conversationId = req.params.id;
-    const conversation = await prisma.conversations.findUnique({
-      where: { id: conversationId }
-    });
-
-    if (!conversation) {
-      return res.status(404).json({ error: "Conversación no encontrada" });
-    }
-
-    const shelter = await prisma.shelters.findFirst({
-      where: { user_id: req.user.sub }
-    });
-
-    if (!shelter || shelter.id !== conversation.shelter_id) {
-      return res.status(403).json({ error: "No tienes permiso para desbloquear en esta conversación" });
-    }
-
-    const shelterPets = await prisma.pets.findMany({
-      where: { shelter_id: shelter.id },
-      select: { id: true }
-    });
-
-    const petIds = shelterPets.map(p => p.id);
-
-    await prisma.matches.updateMany({
-      where: {
-        adopter_id: conversation.adopter_id,
-        pet_id: { in: petIds },
-        interaction_type: "blocked"
-      },
-      data: {
-        interaction_type: "pending"
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversación no encontrada" });
       }
-    });
 
-    return res.json({ success: true, message: "Usuario desbloqueado exitosamente" });
-  } catch (error) {
-    console.error("Error al desbloquear usuario:", error);
-    return res.status(500).json({ error: "Error interno al desbloquear usuario" });
-  }
-});
+      const shelter = await prisma.shelters.findFirst({
+        where: { user_id: req.user.sub },
+      });
+
+      if (!shelter || shelter.id !== conversation.shelter_id) {
+        return res
+          .status(403)
+          .json({
+            error: "No tienes permiso para desbloquear en esta conversación",
+          });
+      }
+
+      const shelterPets = await prisma.pets.findMany({
+        where: { shelter_id: shelter.id },
+        select: { id: true },
+      });
+
+      const petIds = shelterPets.map((p) => p.id);
+
+      await prisma.matches.updateMany({
+        where: {
+          adopter_id: conversation.adopter_id,
+          pet_id: { in: petIds },
+          interaction_type: "blocked",
+        },
+        data: {
+          interaction_type: "pending",
+        },
+      });
+
+      return res.json({
+        success: true,
+        message: "Usuario desbloqueado exitosamente",
+      });
+    } catch (error) {
+      console.error("Error al desbloquear usuario:", error);
+      return res
+        .status(500)
+        .json({ error: "Error interno al desbloquear usuario" });
+    }
+  },
+);
 
 /**
  * @swagger
@@ -1058,13 +1093,29 @@ app.get("/api/pets-available", async (req, res) => {
       // Normalize species from DB to frontend expected values
       const raw = (pet.species || "").toLowerCase().trim();
       let species = "other";
-      if (raw === "dog" || raw.includes("perro") || raw.includes("can")) species = "dog";
-      else if (raw === "cat" || raw.includes("gato") || raw.includes("felino")) species = "cat";
-      else if (raw === "bird" || raw.includes("pájaro") || raw.includes("pajaro") || raw.includes("ave")) species = "bird";
+      if (raw === "dog" || raw.includes("perro") || raw.includes("can"))
+        species = "dog";
+      else if (raw === "cat" || raw.includes("gato") || raw.includes("felino"))
+        species = "cat";
+      else if (
+        raw === "bird" ||
+        raw.includes("pájaro") ||
+        raw.includes("pajaro") ||
+        raw.includes("ave")
+      )
+        species = "bird";
       else if (raw === "rabbit" || raw.includes("conejo")) species = "rabbit";
-      else if (raw === "reptile" || raw.includes("reptil") || raw.includes("serpiente") || raw.includes("snake") || raw.includes("tortuga") || raw.includes("lagarto")) species = "reptile";
+      else if (
+        raw === "reptile" ||
+        raw.includes("reptil") ||
+        raw.includes("serpiente") ||
+        raw.includes("snake") ||
+        raw.includes("tortuga") ||
+        raw.includes("lagarto")
+      )
+        species = "reptile";
 
-      return ({
+      return {
         photos: (() => {
           const parsed = parsePhotoUrlsFromImageField(pet.image_url);
           return parsed.length > 0
@@ -1084,7 +1135,7 @@ app.get("/api/pets-available", async (req, res) => {
         source: pet.shelters
           ? { type: "shelter", name: pet.shelters.name, id: pet.shelters.id }
           : { type: "vet", name: "Veterinaria", id: "" },
-      });
+      };
     });
 
     res.json({ pets: result });
@@ -1495,7 +1546,7 @@ app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
         await prisma.pets.update({
           where: { id: currentMatch.pet_id },
           data: {
-            status: 'adoptado',
+            status: "adoptado",
             adopter_id: currentMatch.adopter_id,
           },
         });
@@ -1505,12 +1556,12 @@ app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
           where: {
             pet_id: currentMatch.pet_id,
             id: { not: currentMatch.id },
-            interaction_type: 'pending',
+            interaction_type: "pending",
           },
-          data: { interaction_type: 'rejected' },
+          data: { interaction_type: "rejected" },
         });
       } catch (e) {
-        console.error('Error al marcar mascota como adoptada:', e);
+        console.error("Error al marcar mascota como adoptada:", e);
       }
     }
 
@@ -1732,7 +1783,9 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
       conversations = await prisma.conversations.findMany({
         where: { shelter_id: shelter.id },
         include: {
-          adopter: { select: { id: true, name: true, avatar_url: true, photos: true } },
+          adopter: {
+            select: { id: true, name: true, avatar_url: true, photos: true },
+          },
           pet: { select: { id: true, name: true, image_url: true } },
           messages: {
             orderBy: { created_at: "desc" },
@@ -1768,8 +1821,14 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
               type: "adopter",
               id: conv.adopter?.id,
               name: conv.adopter?.name,
-              avatar: (conv.adopter?.photos && conv.adopter.photos.length > 0) ? conv.adopter.photos[0] : (conv.adopter?.avatar_url ?? null),
-              avatar_url: (conv.adopter?.photos && conv.adopter.photos.length > 0) ? conv.adopter.photos[0] : (conv.adopter?.avatar_url ?? null),
+              avatar:
+                conv.adopter?.photos && conv.adopter.photos.length > 0
+                  ? conv.adopter.photos[0]
+                  : (conv.adopter?.avatar_url ?? null),
+              avatar_url:
+                conv.adopter?.photos && conv.adopter.photos.length > 0
+                  ? conv.adopter.photos[0]
+                  : (conv.adopter?.avatar_url ?? null),
               photos: conv.adopter?.photos ?? [],
             },
       last_message: conv.messages[0]
@@ -2201,7 +2260,9 @@ app.get("/api/adopter/profile", authenticateToken, async (req, res) => {
     });
 
     if (!adopter) {
-      return res.status(404).json({ error: "Perfil de adoptante no encontrado" });
+      return res
+        .status(404)
+        .json({ error: "Perfil de adoptante no encontrado" });
     }
 
     return res.json(adopter);
@@ -2272,7 +2333,10 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
       data.photos = photos.slice(0, 5);
     }
 
-    if (typeof housing_type === "string" && ["house", "apartment"].includes(housing_type)) {
+    if (
+      typeof housing_type === "string" &&
+      ["house", "apartment"].includes(housing_type)
+    ) {
       data.housing_type = housing_type;
     }
 
@@ -2284,7 +2348,10 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
       data.other_pets_desc = other_pets_desc.trim() || null;
     }
 
-    if (typeof pet_experience === "string" && ["none", "some", "lots"].includes(pet_experience)) {
+    if (
+      typeof pet_experience === "string" &&
+      ["none", "some", "lots"].includes(pet_experience)
+    ) {
       data.pet_experience = pet_experience;
     }
 
@@ -2292,7 +2359,10 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
       data.has_children = has_children;
     }
 
-    if (typeof hours_at_home === "string" && ["less4", "4to8", "more8", "always"].includes(hours_at_home)) {
+    if (
+      typeof hours_at_home === "string" &&
+      ["less4", "4to8", "more8", "always"].includes(hours_at_home)
+    ) {
       data.hours_at_home = hours_at_home;
     }
 
@@ -2311,26 +2381,47 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
     }
 
     // Birth date
-    if (typeof birth_date === "string" && birth_date.trim() && !isNaN(Date.parse(birth_date))) {
+    if (
+      typeof birth_date === "string" &&
+      birth_date.trim() &&
+      !isNaN(Date.parse(birth_date))
+    ) {
       data.birth_date = new Date(birth_date);
-    } else if (birth_date === null || (typeof birth_date === "string" && !birth_date.trim())) {
+    } else if (
+      birth_date === null ||
+      (typeof birth_date === "string" && !birth_date.trim())
+    ) {
       data.birth_date = null;
     }
 
     // Looking for species (array of strings, max 10)
     if (Array.isArray(looking_for_species)) {
-      const validSpecies = ['dog', 'cat', 'bird', 'rabbit', 'reptile', 'other', 'any'];
+      const validSpecies = [
+        "dog",
+        "cat",
+        "bird",
+        "rabbit",
+        "reptile",
+        "other",
+        "any",
+      ];
       data.looking_for_species = looking_for_species
-        .filter(s => typeof s === 'string' && validSpecies.includes(s.toLowerCase()))
-        .map(s => s.toLowerCase())
+        .filter(
+          (s) =>
+            typeof s === "string" && validSpecies.includes(s.toLowerCase()),
+        )
+        .map((s) => s.toLowerCase())
         .slice(0, 10);
     } else if (looking_for_species === null) {
       data.looking_for_species = [];
     }
 
     // Preferred size
-    const validSizes = ['small', 'medium', 'large', 'any'];
-    if (typeof preferred_size === "string" && validSizes.includes(preferred_size.toLowerCase())) {
+    const validSizes = ["small", "medium", "large", "any"];
+    if (
+      typeof preferred_size === "string" &&
+      validSizes.includes(preferred_size.toLowerCase())
+    ) {
       data.preferred_size = preferred_size.toLowerCase();
     } else if (preferred_size === null) {
       data.preferred_size = null;
@@ -2381,7 +2472,6 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
       .json({ error: "Error al actualizar perfil de adoptante" });
   }
 });
-
 
 // --- PUSH TOKEN ---
 /**
@@ -2591,7 +2681,7 @@ app.post("/api/auth/google", async (req, res) => {
           id: randomUUID(),
           email: normalizedEmail,
           password_hash: "", // sin contraseña para usuarios Google
-          role: "adopter",   // Google Sign-In siempre crea adoptantes
+          role: "adopter", // Google Sign-In siempre crea adoptantes
         },
       });
 
@@ -2642,7 +2732,9 @@ app.post("/api/auth/google", async (req, res) => {
     });
   } catch (error) {
     console.error("Error en Google Auth:", error);
-    return res.status(401).json({ error: "Error al verificar token de Google" });
+    return res
+      .status(401)
+      .json({ error: "Error al verificar token de Google" });
   }
 });
 
@@ -2840,6 +2932,6 @@ io.on("connection", async (socket) => {
 
 server.listen(PORT, () => {
   console.log(
-    `🚀 Servidor backend con WebSocket en http://10.245.90.253:${PORT}`,
+    `🚀 Servidor backend con WebSocket en http://192.168.5.103:${PORT}`,
   );
 });

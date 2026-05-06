@@ -69,7 +69,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
 
   // Shared input class
   const inputClass =
-    'w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-pink-400 focus:bg-white focus:ring-2 focus:ring-pink-500/15 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-pink-500 dark:focus:bg-slate-900';
+    'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm transition placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500';
 
   return (
     <div

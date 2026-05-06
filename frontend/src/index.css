@@ -4,11 +4,11 @@
 
 /* ── TinPet Brand Tokens ─────────────────────────────────────────── */
 :root {
-  --tp-pink:        #ec4899; /* pink-500  — color primario de marca */
-  --tp-pink-dark:   #db2777; /* pink-600  — hover/activo */
-  --tp-rose:        #f43f5e; /* rose-500  — acento secundario */
-  --tp-pink-light:  #fce7f3; /* pink-100  — fondos suaves */
-  --tp-pink-glow:   rgba(236, 72, 153, 0.25); /* sombras/glows */
+	--tp-pink:        #ce4998; /* tinpet brand pink */
+	--tp-pink-dark:   #b94188; /* darker tint for hover/active */
+	--tp-rose:        #f43f5e; /* rose-500  — acento secundario */
+	--tp-pink-light:  #fce7f3; /* pink-100  — fondos suaves */
+	--tp-pink-glow:   rgba(206, 73, 152, 0.25); /* sombras/glows */
 }
 
 /* ── Landing Animations ──────────────────────────────────────────── */

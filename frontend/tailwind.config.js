@@ -6,7 +6,18 @@ export default {
   ],
   darkMode: 'class',
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        brand: {
+          DEFAULT: 'var(--tp-pink)',
+          dark: 'var(--tp-pink-dark)',
+          light: 'var(--tp-pink-light)'
+        }
+      },
+      fontFamily: {
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial']
+      }
+    },
   },
   plugins: [],
 }

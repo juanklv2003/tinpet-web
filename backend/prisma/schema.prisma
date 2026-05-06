@@ -181,3 +181,19 @@ model vet_employees {
   medical_records medical_records[]
   vet_clinics     vet_clinics?      @relation(fields: [vet_clinic_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
+
+/// Knowledge base for assistant: FAQs, rules, features
+model assistant_knowledge {
+  id          String    @id @default(cuid())
+  title       String
+  content     String    @db.Text
+  category    String?   // 'faq', 'rules', 'features', etc.
+  shelter_id  String?   @db.Uuid
+  isPublished Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@unique([shelter_id, title])
+  @@index([shelter_id])
+  @@index([isPublished])
+}

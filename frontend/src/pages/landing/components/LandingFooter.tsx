@@ -7,8 +7,8 @@ export function LandingFooter() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center justify-between border-b border-slate-800 pb-12">
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-500">
-              <PawPrint className="h-5 w-5 text-white" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand">
+                <PawPrint className="h-5 w-5 text-white" />
             </div>
             <span className="text-2xl font-black tracking-tight text-white">tinpet</span>
           </div>
@@ -19,7 +19,7 @@ export function LandingFooter() {
               Contacto
             </p>
             <a href="mailto:hola@tinpet.es" className="flex items-center gap-2 hover:text-white transition-colors">
-              <Mail className="h-4 w-4 text-pink-500" />
+              <Mail className="h-4 w-4 text-brand" />
               hola@tinpet.es
             </a>
           </div>
@@ -28,7 +28,7 @@ export function LandingFooter() {
         <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-medium text-slate-500">
           <p>© {new Date().getFullYear()} TinPet. Todos los derechos reservados.</p>
           <p className="flex items-center gap-1.5">
-            Desarrollado con <Heart className="h-3 w-3 text-pink-500 fill-pink-500" /> para el bienestar animal
+            Desarrollado con <Heart className="h-3 w-3 text-brand fill-[color:var(--tp-pink)]" /> para el bienestar animal
           </p>
         </div>
       </div>

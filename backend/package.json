@@ -15,6 +15,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@cloudinary/react": "^1.14.4",
+    "@cloudinary/url-gen": "^1.22.0",
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.4.2",
     "bcrypt": "^6.0.0",
