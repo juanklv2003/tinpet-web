@@ -347,12 +347,11 @@ export function ChatView({ token }: ChatViewProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand" />
       </div>
     );
   }
 
-  console.log("Mensajes en el estado:", messages);
 
   return (
     <div className="flex h-[calc(100vh-180px)] bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -377,9 +376,9 @@ export function ChatView({ token }: ChatViewProps) {
           <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl gap-1 border border-gray-200/60 dark:border-gray-700/60 select-none">
             <button
               onClick={() => setActiveTab("active")}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-[color,background-color] duration-150 ${
                 activeTab === "active"
-                  ? "bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-300 shadow-sm"
+                  ? "bg-white dark:bg-gray-700 text-brand shadow-sm"
                   : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               }`}
             >
@@ -387,9 +386,9 @@ export function ChatView({ token }: ChatViewProps) {
             </button>
             <button
               onClick={() => setActiveTab("archived")}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-[color,background-color] duration-150 ${
                 activeTab === "archived"
-                  ? "bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-300 shadow-sm"
+                  ? "bg-white dark:bg-gray-700 text-brand shadow-sm"
                   : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               }`}
             >
@@ -397,9 +396,9 @@ export function ChatView({ token }: ChatViewProps) {
             </button>
             <button
               onClick={() => setActiveTab("blocked")}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-[color,background-color] duration-150 ${
                 activeTab === "blocked"
-                  ? "bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-300 shadow-sm"
+                  ? "bg-white dark:bg-gray-700 text-brand shadow-sm"
                   : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               }`}
             >
@@ -447,7 +446,7 @@ export function ChatView({ token }: ChatViewProps) {
                   onClick={() => setSelectedConversation(conv)}
                   className={`w-full p-4 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left ${
                     selectedConversation?.id === conv.id
-                      ? "bg-pink-50 dark:bg-pink-900/20"
+                      ? "bg-brand/5 dark:bg-brand/10"
                       : ""
                   }`}
                 >
@@ -586,7 +585,7 @@ export function ChatView({ token }: ChatViewProps) {
                     onClick={() => setShowSubMenu(!showSubMenu)}
                     className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400 transition-colors flex items-center justify-center ${
                       showSubMenu
-                        ? "bg-gray-100 dark:bg-gray-700 text-pink-500 dark:text-pink-400"
+                        ? "bg-gray-100 dark:bg-gray-700 text-brand"
                         : ""
                     }`}
                     title="Opciones de chat"
@@ -754,7 +753,7 @@ export function ChatView({ token }: ChatViewProps) {
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {loadingMessages ? (
                 <div className="flex items-center justify-center h-32">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-pink-500" />
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand" />
                 </div>
               ) : !messages || messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-32 text-center">
@@ -796,7 +795,7 @@ export function ChatView({ token }: ChatViewProps) {
                       <div
                         className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
                           isOwn
-                            ? "bg-pink-500 text-white rounded-br-sm"
+                            ? "bg-brand text-white rounded-br-sm"
                             : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-bl-sm"
                         }`}
                       >
@@ -814,7 +813,7 @@ export function ChatView({ token }: ChatViewProps) {
                         )}
                         <p
                           className={`text-xs mt-1 ${
-                            isOwn ? "text-pink-200" : "text-gray-400"
+                            isOwn ? "text-brand/40" : "text-gray-400"
                           }`}
                         >
                           {new Date(msg.created_at).toLocaleTimeString([], {
@@ -942,7 +941,7 @@ export function ChatView({ token }: ChatViewProps) {
                   type="button"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   className={`p-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-gray-600 dark:text-gray-300 ${
-                    showEmojiPicker ? "ring-2 ring-pink-500" : ""
+                    showEmojiPicker ? "ring-2 ring-brand" : ""
                   }`}
                   title="Emojis"
                 >
@@ -1027,7 +1026,7 @@ export function ChatView({ token }: ChatViewProps) {
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Escribe un mensaje..."
-                  className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 dark:text-white min-h-[44px]"
+                  className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand dark:text-white min-h-[44px]"
                   rows={1}
                 />
                 <button
@@ -1035,7 +1034,7 @@ export function ChatView({ token }: ChatViewProps) {
                   disabled={!newMessage.trim() || sending}
                   className={`p-2.5 rounded-xl ${
                     newMessage.trim()
-                      ? "bg-pink-500 hover:bg-pink-600 text-white"
+                      ? "bg-brand hover:bg-brand-dark text-white"
                       : "bg-gray-200 dark:bg-gray-600 text-gray-400"
                   } transition-colors flex items-center justify-center min-h-[44px] min-w-[44px]`}
                 >
@@ -1125,14 +1124,14 @@ export function ChatView({ token }: ChatViewProps) {
                       type="button"
                       className={`w-full px-4 py-3 text-left text-sm rounded-xl border transition-all flex justify-between items-center ${
                         reportReason === option
-                          ? "bg-pink-50 dark:bg-pink-900/10 border-pink-500 text-pink-700 dark:text-pink-300 ring-1 ring-pink-500"
+                          ? "bg-brand/10 dark:bg-brand/10 border-brand text-brand ring-1 ring-brand"
                           : "border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60 text-gray-700 dark:text-gray-300"
                       }`}
                     >
                       <span>{option}</span>
                       {reportReason === option && (
                         <svg
-                          className="w-4 h-4 text-pink-500"
+                          className="w-4 h-4 text-brand"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -1171,7 +1170,7 @@ export function ChatView({ token }: ChatViewProps) {
                     setReportReason("");
                   }}
                   disabled={!reportReason}
-                  className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-pink-500 hover:bg-pink-600 disabled:bg-gray-200 dark:disabled:bg-gray-700 disabled:text-gray-400 text-white shadow-lg shadow-pink-500/20 disabled:shadow-none transition-all active:scale-95 duration-100"
+                  className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-brand hover:bg-brand-dark disabled:bg-gray-200 dark:disabled:bg-gray-700 disabled:text-gray-400 text-white shadow-sm shadow-brand/20 disabled:shadow-none transition-[background-color] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   Enviar reporte
                 </button>
@@ -1267,7 +1266,7 @@ export function ChatView({ token }: ChatViewProps) {
                     setShowBlockModal(false);
                     setSelectedConversation(null);
                   }}
-                  className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-pink-500 hover:bg-pink-600 text-white shadow-lg shadow-pink-500/20 transition-all active:scale-95 duration-100"
+                  className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-brand hover:bg-brand-dark text-white shadow-sm shadow-brand/20 transition-[background-color] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   Bloquear usuario
                 </button>
@@ -1354,7 +1353,7 @@ export function ChatView({ token }: ChatViewProps) {
                     setShowArchiveModal(false);
                     setSelectedConversation(null);
                   }}
-                  className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-pink-500 hover:bg-pink-600 text-white shadow-lg shadow-pink-500/20 transition-all active:scale-95 duration-100"
+                  className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-brand hover:bg-brand-dark text-white shadow-sm shadow-brand/20 transition-[background-color] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   Archivar chat
                 </button>
@@ -1391,7 +1390,7 @@ export function ChatView({ token }: ChatViewProps) {
               </p>
               <button
                 onClick={() => setSuccessModal({ isOpen: false, message: "" })}
-                className="w-full py-3 text-sm font-bold rounded-xl bg-pink-500 hover:bg-pink-600 text-white shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 transition-all active:scale-95 duration-100"
+                className="w-full py-3 text-sm font-bold rounded-xl bg-brand hover:bg-brand-dark text-white shadow-sm shadow-brand/20 transition-[background-color] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               >
                 Aceptar
               </button>

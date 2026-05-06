@@ -220,11 +220,11 @@ export function StyledDatePicker({
                   }}
                   className={`h-7 rounded-md text-[0.9rem] transition-colors ${
                     isSelected
-                      ? 'bg-pink-500 text-white'
+                      ? 'bg-brand text-white'
                       : isCurrentMonth
                       ? 'text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800'
                       : 'text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-800'
-                  } ${isToday && !isSelected ? 'ring-1 ring-pink-300 dark:ring-pink-700' : ''}`}
+                  } ${isToday && !isSelected ? 'ring-1 ring-brand/50 dark:ring-brand/50' : ''}`}
                 >
                   {day.getDate()}
                 </button>
@@ -250,7 +250,7 @@ export function StyledDatePicker({
                 onChange(todayIso);
                 setOpen(false);
               }}
-              className="text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300"
+              className="text-brand hover:text-brand-dark dark:text-brand dark:hover:text-brand-dark"
             >
               Hoy
             </button>

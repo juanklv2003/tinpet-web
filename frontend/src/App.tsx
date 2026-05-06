@@ -1,26 +1,32 @@
+import { Loader2 } from 'lucide-react';
 import { usePets } from './hooks/usePets';
 import { AuthManager } from './components/AuthManager';
 
 function App() {
-  //  DEJARLO BONICO TAILWIND O MIUI
-  const { pets, loading, error } = usePets();
+  const { loading, error } = usePets();
 
-  if (loading) return <h2>Loading pets...</h2>;
-  if (error) return <h2 style={{ color: 'red' }}>Critical error: {error}</h2>;
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <Loader2 className="h-8 w-8 animate-spin text-brand" aria-label="Cargando…" />
+      </div>
+    );
+  }
 
-  return (
-    <div style={{ padding: '20px', fontFamily: 'system-ui' }}>
-      <h1>Pet Matchmaking Agency</h1>
-      
-      {/* AQUÍ ESTÁ LA MAGIA DEL LOGIN */}
-      <AuthManager />
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+        <div className="rounded-2xl border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20 p-6 text-center max-w-md">
+          <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+            Error de conexión: {error}
+          </p>
+          <p className="mt-1 text-xs text-red-500/70">Revisa que el backend esté activo y vuelve a cargar la página.</p>
+        </div>
+      </div>
+    );
+  }
 
-      <p>Pets processed in memory: {pets.length}</p>
-      <pre style={{ backgroundColor: '#1e1e1e', color: '#00ff00', padding: '15px', borderRadius: '8px', overflowX: 'auto' }}>
-        {JSON.stringify(pets, null, 2)}
-      </pre>
-    </div>
-  );
+  return <AuthManager />;
 }
 
 export default App;

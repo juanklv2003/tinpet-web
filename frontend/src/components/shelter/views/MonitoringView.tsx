@@ -63,9 +63,9 @@ export function MonitoringView({
     .slice(0, 6);
 
   const statusDistribution = [
-    { key: 'available', label: 'Disponibles', value: availablePets, color: 'bg-emerald-500' },
+    { key: 'available', label: 'Disponibles', value: availablePets, color: 'bg-brand' },
     { key: 'pending', label: 'Pendientes', value: pendingPets, color: 'bg-amber-500' },
-    { key: 'adopted', label: 'Adoptadas', value: adoptedPets, color: 'bg-sky-500' },
+    { key: 'adopted', label: 'Adoptadas', value: adoptedPets, color: 'bg-emerald-500' },
   ] as const;
 
   const dailyTasks = useMemo(() => {
@@ -290,18 +290,18 @@ export function MonitoringView({
               value={newTaskTitle}
               onChange={e => setNewTaskTitle(e.target.value)}
               placeholder="Nueva tarea (ej. Comprar comida)"
-              className="flex-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-sm text-gray-900 dark:text-white px-3.5 py-2 outline-none focus:border-pink-500"
+              className="flex-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-sm text-gray-900 dark:text-white px-3.5 py-2 focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
             <input
               type="text"
               value={newTaskDesc}
               onChange={e => setNewTaskDesc(e.target.value)}
               placeholder="Descripción (opcional)"
-              className="flex-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-sm text-gray-900 dark:text-white px-3.5 py-2 outline-none focus:border-pink-500"
+              className="flex-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-sm text-gray-900 dark:text-white px-3.5 py-2 focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-semibold rounded-xl bg-pink-500 hover:bg-pink-600 text-white shadow-lg shadow-pink-500/20 transition duration-100 shrink-0"
+              className="px-4 py-2 text-sm font-semibold rounded-xl bg-brand hover:bg-brand-dark text-white shadow-sm shadow-brand/20 transition-[background-color] duration-150 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
               Añadir
             </button>
@@ -323,7 +323,7 @@ export function MonitoringView({
                       const checked = e.target.checked;
                       setCompletedTasks(prev => ({ ...prev, [task.id]: checked }));
                     }}
-                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
                   />
                   <div className="min-w-0 flex-1">
                     <p className={`text-sm font-semibold ${done ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'}`}>

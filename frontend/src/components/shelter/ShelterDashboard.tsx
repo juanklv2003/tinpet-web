@@ -5,6 +5,7 @@ import { chatService } from '../../services/chatService';
 import type { NewMatchRequestPayload } from '../../services/chatService';
 
 import { PawPrint } from 'lucide-react';
+import { Button } from '../ui/Button';
 import { useShelterDashboardLogic } from './hooks/useShelterDashboardLogic';
 import { useTheme } from './hooks/useTheme';
 import { IconChart, IconChat, IconHeart, IconPaw, IconPlus, IconTeam, IconUser } from './Icons';
@@ -135,18 +136,19 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
           setUnreadMatchesCount(0);
         }
       }}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-base font-medium transition-colors
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-[background-color,color] duration-150
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1
         ${
           activeView === view
-            ? 'bg-gray-100 text-[#ec4899] dark:bg-gray-700 dark:text-[#ec4899]'
-            : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700/50'
+            ? 'bg-brand/10 text-brand dark:bg-brand/15'
+            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50'
         } [&_svg]:w-5 [&_svg]:h-5`}
     >
       {icon}
       {label}
       {showBadge && (
         <span
-          className="ml-auto inline-block h-2.5 w-2.5 rounded-full bg-pink-500"
+          className="ml-auto inline-block h-2.5 w-2.5 rounded-full bg-brand"
           aria-label="Mensajes nuevos"
           title="Mensajes nuevos"
         />
@@ -199,7 +201,8 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
       <button
         type="button"
         onClick={() => setSidebarOpen(true)}
-        className="xl:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700"
+        className="xl:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        aria-label="Abrir menú"
       >
         <svg className="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -226,9 +229,9 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full xl:translate-x-0'}
       `}>
         <div className="px-4 py-2 mb-2 flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
-            <PawPrint className="w-6 h-6 text-rose-500" />
-            TinPet
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+            <PawPrint className="w-5 h-5 text-brand" aria-hidden="true" />
+            <span><span className="text-brand">Tin</span>Pet</span>
           </h1>
           <button
             type="button"
@@ -315,15 +318,15 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
               </p>
             </div>
             {activeView === 'pets' && (
-              <button
-                type="button"
+              <Button
+                variant="solid"
                 onClick={() => setIsAddModalOpen(true)}
-                className="flex items-center gap-2 px-3 xl:px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+                className="gap-2"
               >
                 <IconPlus />
                 <span className="hidden sm:inline">Nueva mascota</span>
                 <span className="sm:hidden">Añadir</span>
-              </button>
+              </Button>
             )}
           </div>
 

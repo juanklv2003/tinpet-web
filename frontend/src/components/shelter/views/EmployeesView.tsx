@@ -86,28 +86,28 @@ export function EmployeesView({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Nombre"
-              className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-pink-500"
+              className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email"
-              className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-pink-500"
+              className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
             <input
               type="text"
               value={role}
               onChange={(e) => setRole(e.target.value)}
               placeholder="Rol (opcional)"
-              className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-pink-500"
+              className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
           </div>
           <div className="mt-3">
             <button
               type="submit"
               disabled={submitting || !name.trim() || !email.trim()}
-              className="px-5 py-2.5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-sm font-semibold shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-5 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-sm shadow-brand/20 transition-[background-color] duration-150 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
               {submitting ? 'Guardando...' : 'Añadir empleado'}
             </button>
@@ -135,7 +135,7 @@ export function EmployeesView({
                     onClick={() => {
                       setSelectedEmployee(employee);
                     }}
-                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60 transition duration-100"
+                    className="cursor-pointer hover:bg-brand/5 dark:hover:bg-brand/8 transition-[background-color] duration-150"
                   >
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
                       {employee.name}

@@ -26,10 +26,11 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#fdfaf8] text-slate-800 dark:bg-gray-900 dark:text-gray-100 selection:bg-pink-100 selection:text-pink-900 font-sans">
+    <div className="min-h-screen bg-[#fdfaf8] dark:bg-gray-900 text-gray-900 dark:text-gray-100 selection:bg-brand/10 selection:text-brand font-sans">
       <LandingHeader
         onLogin={() => setAuthMode('login')}
         onRegister={() => setAuthMode('register')}
+        scrolled={scrolled}
       />
 
       <main className="pt-28 lg:pt-36 flex flex-col">
@@ -47,7 +48,7 @@ export default function LandingPage() {
         </section>
 
         {/* STATS SECTION */}
-        <section className="w-full bg-gradient-to-br from-pink-50 via-[#fdfaf8] to-amber-50 dark:from-slate-800 dark:via-gray-900 dark:to-slate-900 py-24 border-y border-stone-200/50 dark:border-gray-800">
+        <section className="w-full bg-gradient-to-br from-brand/5 via-[#fdfaf8] to-amber-50/50 dark:from-brand/10 dark:via-gray-900 dark:to-gray-900 py-24 border-y border-stone-200/50 dark:border-gray-800">
           <LandingStats />
         </section>
       </main>

@@ -135,7 +135,7 @@ export function MatchesView({ matches, loading, error, onAccept, onReject }: Mat
                       setOpen(false);
                     }}
                     className={
-                      `w-full px-3 py-2 text-left text-sm transition-colors ${selected ? 'bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300' : 'text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700'}`
+                      `w-full px-3 py-2 text-left text-sm transition-colors ${selected ? 'bg-brand/10 text-brand dark:bg-brand/15 dark:text-brand' : 'text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700'}`
                     }
                   >
                     {opt.label}
@@ -227,7 +227,7 @@ export function MatchesView({ matches, loading, error, onAccept, onReject }: Mat
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 text-gray-500 text-sm gap-2">
-          <Heart className="w-8 h-8 text-rose-500 dark:text-rose-300" />
+          <Heart className="w-8 h-8 text-brand" />
           <p>No hay solicitudes pendientes ahora mismo.</p>
         </div>
       ) : (
@@ -264,8 +264,8 @@ export function MatchesView({ matches, loading, error, onAccept, onReject }: Mat
                           className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-md"
                     />
                   ) : (
-                        <div className="w-20 h-20 rounded-full bg-gray-300 dark:bg-gray-700 border-4 border-white shadow-md flex items-center justify-center">
-                          <span className="text-xl font-bold text-gray-600 dark:text-gray-400">
+                  <div className="w-20 h-20 rounded-full bg-brand/10 border-4 border-white dark:border-gray-800 shadow-md flex items-center justify-center">
+                          <span className="text-xl font-bold text-brand">
                         {userName?.charAt(0).toUpperCase() ?? '?'}
                       </span>
                     </div>
@@ -318,7 +318,7 @@ export function MatchesView({ matches, loading, error, onAccept, onReject }: Mat
                         e.stopPropagation();
                         void handleAccept(match.id);
                       }}
-                      className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold bg-[#ec4899] dark:bg-[#ec4899] text-white hover:bg-pink-600 dark:hover:bg-pink-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold bg-brand hover:bg-brand-dark text-white disabled:opacity-40 disabled:cursor-not-allowed transition-[background-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     >
                       {acceptingId === match.id ? 'Aceptando...' : 'Aceptar'}
                     </button>
@@ -329,7 +329,7 @@ export function MatchesView({ matches, loading, error, onAccept, onReject }: Mat
                         e.stopPropagation();
                         void handleReject(match.id);
                       }}
-                      className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold bg-transparent border border-[#ec4899] dark:border-[#ec4899] text-[#ec4899] dark:text-[#ec4899] hover:bg-[#fff0f6] dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold bg-transparent border border-brand text-brand hover:bg-brand/8 disabled:opacity-40 disabled:cursor-not-allowed transition-[background-color,border-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     >
                       {rejectingId === match.id ? 'Rechazando...' : 'Rechazar'}
                     </button>
@@ -348,7 +348,7 @@ export function MatchesView({ matches, loading, error, onAccept, onReject }: Mat
                 type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="px-3 py-1 rounded-lg border border-[#ec4899] text-[#ec4899] bg-white dark:bg-gray-800 dark:border-[#ec4899] dark:text-[#ec4899] disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1.5 rounded-lg border border-brand text-brand bg-white dark:bg-gray-800 dark:border-brand dark:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-[background-color] hover:bg-brand/8 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               >Anterior</button>
               <div className="flex items-center gap-1">
                 {Array.from({ length: totalPages }).map((_, i) => {
@@ -357,7 +357,7 @@ export function MatchesView({ matches, loading, error, onAccept, onReject }: Mat
                     <button
                       key={p}
                       onClick={() => setPage(p)}
-                      className={`px-3 py-1 rounded-lg ${p === page ? 'bg-[#ec4899] text-white dark:bg-[#ec4899] dark:text-white' : 'bg-white dark:bg-gray-800 dark:text-white'}`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${p === page ? 'bg-brand text-white' : 'bg-white dark:bg-gray-800 dark:text-white border border-gray-200 dark:border-gray-700 hover:border-brand hover:text-brand'}`}
                     >{p}</button>
                   );
                 })}
@@ -366,7 +366,7 @@ export function MatchesView({ matches, loading, error, onAccept, onReject }: Mat
                 type="button"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="px-3 py-1 rounded-lg border border-[#ec4899] text-[#ec4899] bg-white dark:bg-gray-800 dark:border-[#ec4899] dark:text-[#ec4899] disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1.5 rounded-lg border border-brand text-brand bg-white dark:bg-gray-800 dark:border-brand dark:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-[background-color] hover:bg-brand/8 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               >Siguiente</button>
             </div>
           </div>

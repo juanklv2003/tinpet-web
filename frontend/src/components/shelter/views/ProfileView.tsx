@@ -51,7 +51,7 @@ export function ProfileView({
               <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
                 {profileForm.email || 'Sin email'}
               </p>
-              <span className="inline-block mt-2 px-2.5 py-1 rounded-full text-[11px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 uppercase">
+              <span className="inline-block mt-2 px-2.5 py-1 rounded-full text-[11px] font-medium bg-brand/10 text-brand uppercase">
                 {user?.role || '—'}
               </span>
             </div>
@@ -84,7 +84,7 @@ export function ProfileView({
               </a>
             )}
             {profileForm.instagram && (
-              <a href={profileForm.instagram} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:text-pink-600 transition-colors shadow-sm">
+              <a href={profileForm.instagram} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:text-brand transition-colors shadow-sm">
                 <Instagram className="w-4 h-4" /> Instagram
               </a>
             )}
@@ -151,7 +151,7 @@ export function ProfileView({
               type="text"
               value={profileForm.displayName}
               onChange={e => onUpdateField('displayName', e.target.value)}
-              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-gray-400"
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
           </div>
 
@@ -163,7 +163,7 @@ export function ProfileView({
               type="email"
               value={profileForm.email}
               onChange={e => onUpdateField('email', e.target.value)}
-              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-gray-400"
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
           </div>
 
@@ -176,7 +176,7 @@ export function ProfileView({
               value={profileForm.location}
               onChange={e => onUpdateField('location', e.target.value)}
               placeholder="Ciudad, provincia"
-              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-gray-400"
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
           </div>
 
@@ -189,7 +189,7 @@ export function ProfileView({
               value={profileForm.phone}
               onChange={e => onUpdateField('phone', e.target.value)}
               placeholder="+34 ..."
-              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-gray-400"
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
           </div>
 
@@ -202,7 +202,7 @@ export function ProfileView({
               value={profileForm.website}
               onChange={e => onUpdateField('website', e.target.value)}
               placeholder="https://..."
-              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-gray-400"
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
           </div>
 
@@ -217,7 +217,7 @@ export function ProfileView({
               value={profileForm.instagram}
               onChange={e => onUpdateField('instagram', e.target.value)}
               placeholder="https://instagram.com/..."
-              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-gray-400"
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
           </div>
 
@@ -230,7 +230,7 @@ export function ProfileView({
               value={profileForm.tiktok}
               onChange={e => onUpdateField('tiktok', e.target.value)}
               placeholder="https://tiktok.com/@..."
-              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-gray-400"
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
           </div>
 
@@ -243,7 +243,7 @@ export function ProfileView({
               value={profileForm.facebook}
               onChange={e => onUpdateField('facebook', e.target.value)}
               placeholder="https://facebook.com/..."
-              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-gray-400"
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
           </div>
 
@@ -256,7 +256,7 @@ export function ProfileView({
               value={profileForm.youtube}
               onChange={e => onUpdateField('youtube', e.target.value)}
               placeholder="https://youtube.com/..."
-              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-gray-400"
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
           </div>
 
@@ -269,7 +269,7 @@ export function ProfileView({
               value={profileForm.description}
               onChange={e => onUpdateField('description', e.target.value)}
               placeholder="Cuenta brevemente la mision del refugio"
-              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-gray-400 resize-y"
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand resize-y"
             />
           </div>
         </div>
@@ -286,7 +286,7 @@ export function ProfileView({
             type="button"
             onClick={onSave}
             disabled={!profileDirty}
-            className="px-4 py-2 rounded-lg bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-5 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-sm shadow-brand/20 transition-[background-color] duration-150 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >
             Guardar cambios
           </button>

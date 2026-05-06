@@ -106,27 +106,27 @@ export function FloatingAssistant() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="group flex items-center gap-2 rounded-full border border-white/70 bg-[#111827] px-4 py-3 text-white shadow-[0_20px_40px_rgba(15,23,42,0.25)] ring-1 ring-black/5 transition hover:scale-[1.02] hover:bg-[#0f172a]"
+        className="group flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 text-gray-900 dark:text-white shadow-md ring-1 ring-black/5 transition-[transform,box-shadow] duration-150 hover:scale-[1.02] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
         aria-label="Abrir asistente de TinPet"
       >
-        <Sparkles className="h-4 w-4 text-pink-300" />
+        <Sparkles className="h-4 w-4 text-brand" aria-hidden="true" />
         <span className="text-sm font-semibold tracking-wide">AI TinPet</span>
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 bg-slate-950/35 backdrop-blur-[2px]" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-[2px]" onClick={() => setOpen(false)}>
           <div
-            className="fixed bottom-5 left-5 w-[min(92vw,420px)] overflow-hidden rounded-[28px] border border-white/60 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.28)]"
+            className="fixed bottom-5 left-5 w-[min(92vw,420px)] overflow-hidden rounded-[28px] border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-[0_30px_80px_rgba(15,23,42,0.20)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
               <div className="pr-4">
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-pink-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-pink-700">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-brand/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
                   <MessageCircleMore className="h-3.5 w-3.5" />
                   Groq powered
                 </div>
-                <h2 className="text-lg font-extrabold text-slate-900">Asistente TinPet Web</h2>
-                <p className="mt-1 text-sm leading-5 text-slate-500">
+                <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">Asistente TinPet Web</h2>
+                <p className="mt-1 text-sm leading-5 text-gray-500 dark:text-gray-400">
                   Preguntame sobre mascotas, adopción, chats o cómo usar el panel.
                 </p>
               </div>
@@ -134,7 +134,7 @@ export function FloatingAssistant() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 transition-[background-color] duration-150 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 aria-label="Cerrar asistente"
               >
                 <X className="h-4 w-4" />
@@ -147,8 +147,8 @@ export function FloatingAssistant() {
                   key={message.id}
                   className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-6 ${
                     message.role === 'user'
-                      ? 'ml-auto rounded-br-md bg-pink-500 text-white'
-                      : 'mr-auto rounded-bl-md bg-slate-100 text-slate-800'
+                      ? 'ml-auto rounded-br-md bg-brand text-white'
+                      : 'mr-auto rounded-bl-md bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
                   }`}
                 >
                   {message.content}
@@ -156,8 +156,8 @@ export function FloatingAssistant() {
               ))}
 
               {sending && (
-                <div className="mr-auto inline-flex items-center gap-2 rounded-2xl rounded-bl-md bg-slate-100 px-4 py-3 text-sm text-slate-500">
-                  <Loader2 className="h-4 w-4 animate-spin text-pink-500" />
+                <div className="mr-auto inline-flex items-center gap-2 rounded-2xl rounded-bl-md bg-gray-100 dark:bg-gray-800 px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                  <Loader2 className="h-4 w-4 animate-spin text-brand" />
                   Pensando...
                 </div>
               )}
@@ -169,7 +169,7 @@ export function FloatingAssistant() {
                   key={prompt}
                   type="button"
                   onClick={() => void sendMessage(prompt)}
-                  className="rounded-full border border-pink-100 bg-pink-50 px-3 py-2 text-xs font-semibold text-pink-700 transition hover:bg-pink-100"
+                  className="rounded-full border border-brand/20 bg-brand/8 px-3 py-2 text-xs font-semibold text-brand transition-[background-color] duration-150 hover:bg-brand/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   {prompt}
                 </button>
@@ -197,7 +197,7 @@ export function FloatingAssistant() {
                   type="button"
                   onClick={() => void sendMessage(input)}
                   disabled={sending || !input.trim()}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-pink-500 text-white transition hover:bg-pink-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand text-white transition-[background-color] duration-150 hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                   aria-label="Enviar pregunta"
                 >
                   <Send className="h-4 w-4" />

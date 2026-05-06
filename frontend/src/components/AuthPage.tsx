@@ -373,7 +373,7 @@ export default function AuthPage() {
                     placeholder="Tu nombre o refugio"
                     value={regName}
                     onChange={(e) => setRegName(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-base font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-pink-500 focus:bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-pink-400"
+                    className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-base font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand focus:bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-brand"
                   />
                 </div>
 
@@ -386,7 +386,7 @@ export default function AuthPage() {
                     placeholder="usuario@ejemplo.com"
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-base font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-pink-500 focus:bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-pink-400"
+                    className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-base font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand focus:bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-brand"
                   />
                 </div>
 
@@ -399,7 +399,7 @@ export default function AuthPage() {
                     placeholder="••••••"
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-base font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-pink-500 focus:bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-pink-400"
+                    className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-base font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand focus:bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-brand"
                   />
                 </div>
 
@@ -413,7 +413,7 @@ export default function AuthPage() {
                       { value: 'shelter', label: 'Refugio' },
                       { value: 'vet', label: 'Veterinario' },
                     ]}
-                    className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-base font-medium text-slate-900 outline-none transition focus:border-pink-500 focus:bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-pink-400"
+                    className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-base font-medium text-slate-900 outline-none transition focus:border-brand focus:bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-brand"
                   />
                 </div>
 
@@ -432,7 +432,7 @@ export default function AuthPage() {
                   <button
                     type="button"
                     onClick={() => setMode('login')}
-                    className="font-semibold text-pink-600 hover:text-pink-500 dark:text-pink-400"
+                    className="font-semibold text-brand hover:text-brand-dark dark:text-brand"
                   >
                     Inicia sesion
                   </button>

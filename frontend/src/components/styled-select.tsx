@@ -107,7 +107,7 @@ export function StyledSelect({
                   }}
                   className={`w-full px-3 py-2 text-left text-sm transition-colors ${
                     isSelected
-                      ? 'bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'
+                      ? 'bg-brand/10 text-brand dark:bg-brand/15 dark:text-brand'
                       : 'text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >

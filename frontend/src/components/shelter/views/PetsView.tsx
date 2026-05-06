@@ -128,7 +128,7 @@ export function PetsView({
             value={searchTerm}
             onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             placeholder="Buscar por nombre, especie o raza"
-            className="md:col-span-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white px-3 py-2 outline-none focus:border-gray-400"
+            className="md:col-span-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white px-3 py-2 focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
           />
 
           <StyledSelect
@@ -230,7 +230,7 @@ export function PetsView({
                 <tr
                   key={pet.id}
                   onClick={() => onSelectPet(pet)}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors cursor-pointer group"
+                  className="hover:bg-brand/5 dark:hover:bg-brand/10 transition-colors cursor-pointer group"
                 >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -387,7 +387,7 @@ export function PetsView({
                   onDeletePet(petToDelete.id);
                   setPetToDelete(null);
                 }}
-                className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-pink-500 hover:bg-pink-600 text-white shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 transition-all active:scale-95 duration-100"
+                className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-brand hover:bg-brand-dark text-white shadow-sm shadow-brand/20 hover:shadow-brand/30 transition-[background-color] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               >
                 Eliminar mascota
               </button>

@@ -69,7 +69,10 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
 
   // Shared input class
   const inputClass =
-    'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm transition placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500';
+    'w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 ' +
+    'px-3 py-2.5 text-sm transition-[border-color,box-shadow] duration-150 ' +
+    'placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-900 dark:text-white ' +
+    'focus:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1';
 
   return (
     <div
@@ -112,17 +115,17 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
           </div>
 
           {/* Mode tabs */}
-          <div className="mb-6 flex gap-1 border-b border-stone-200 dark:border-slate-800">
+          <div className="mb-6 flex gap-1 border-b border-stone-200 dark:border-gray-700">
             {(['login', 'register'] as const).map((m) => (
               <button
                 key={m}
                 type="button"
                 id={`modal-tab-${m}`}
                 onClick={() => setMode(m)}
-                className={`px-4 pb-3 text-sm font-semibold transition-all ${
+                className={`px-4 pb-3 text-sm font-semibold transition-[color,border-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-t ${
                   mode === m
-                    ? 'border-b-2 border-pink-500 text-pink-500'
-                    : 'text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300'
+                    ? 'border-b-2 border-brand text-brand'
+                    : 'text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300'
                 }`}
               >
                 {m === 'login' ? 'Iniciar sesión' : 'Registrarse'}
@@ -186,7 +189,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
                 id="login-submit-btn"
                 type="submit"
                 disabled={loginLoading}
-                className="w-full rounded-xl bg-pink-500 py-3.5 text-sm font-bold text-white transition hover:bg-pink-600 disabled:opacity-50 active:scale-[0.98]"
+                className="w-full rounded-xl bg-brand py-3.5 text-sm font-bold text-white transition-[background-color] duration-150 hover:bg-brand-dark disabled:opacity-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
               >
                 {loginLoading ? 'Entrando...' : 'Entrar'}
               </button>
@@ -196,7 +199,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
                 <button
                   type="button"
                   onClick={() => setMode('register')}
-                  className="font-semibold text-pink-600 hover:text-pink-500 dark:text-pink-400"
+                  className="font-semibold text-brand hover:text-brand-dark dark:text-brand"
                 >
                   Regístrate aquí
                 </button>
@@ -284,7 +287,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
                 id="register-submit-btn"
                 type="submit"
                 disabled={regLoading}
-                className="w-full rounded-xl bg-pink-500 py-3.5 text-sm font-bold text-white transition hover:bg-pink-600 disabled:opacity-50 active:scale-[0.98]"
+                className="w-full rounded-xl bg-brand py-3.5 text-sm font-bold text-white transition-[background-color] duration-150 hover:bg-brand-dark disabled:opacity-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
               >
                 {regLoading ? 'Creando cuenta...' : 'Crear cuenta'}
               </button>
@@ -294,7 +297,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
                 <button
                   type="button"
                   onClick={() => setMode('login')}
-                  className="font-semibold text-pink-600 hover:text-pink-500 dark:text-pink-400"
+                  className="font-semibold text-brand hover:text-brand-dark dark:text-brand"
                 >
                   Inicia sesión
                 </button>

@@ -191,7 +191,7 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
                       setActivePhotoIndex(i);
                     }}
                     className={`w-2.5 h-2.5 rounded-full transition-colors ${
-                      i === activePhotoIndex ? 'bg-[#ec4899] shadow' : 'bg-white/60 hover:bg-white/80'
+                      i === activePhotoIndex ? 'bg-brand shadow' : 'bg-white/60 hover:bg-white/80'
                     }`}
                   />
                 ))}

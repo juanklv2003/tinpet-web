@@ -241,7 +241,7 @@ export function AddPetModal({ onClose, onAdd, employees }: AddPetModalProps) {
                 >
                   <div className="w-full h-full min-h-[12rem] xl:min-h-[15rem] mx-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex items-center justify-center overflow-hidden">
                     <div className="flex flex-col items-center text-center px-4">
-                      <ImagePlus className="w-10 h-10 mb-3 text-pink-500" strokeWidth={1.5} />
+                      <ImagePlus className="w-10 h-10 mb-3 text-brand" strokeWidth={1.5} />
                       <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
                         Haz click para subir fotos
                       </p>
