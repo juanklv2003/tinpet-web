@@ -1,6 +1,6 @@
 import { useAuth } from '../../context/AuthContext';
 import { assistantApi, type AssistantChatMessage } from '../../services/assistant';
-import { MessageCircleMore, Sparkles, X, Send, Loader2 } from 'lucide-react';
+import { Sparkles, X, Send, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -9,7 +9,7 @@ type UiMessage = AssistantChatMessage & { id: string };
 const quickPrompts = [
   '¿Cómo funciona TinPet Web?',
   '¿Qué datos puedo ver de una mascota?',
-  '¿Cómo contacto a un refugio?',
+  '¿Qué solicitudes tengo pendientes?',
 ];
 
 function createMessage(role: AssistantChatMessage['role'], content: string): UiMessage {
@@ -39,6 +39,7 @@ export function FloatingAssistant() {
   const [input, setInput] = useState('');
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [messages, setMessages] = useState<UiMessage[]>(() => buildInitialMessages());
+  const hasUserMessages = messages.some((message) => message.role === 'user');
 
   const context = useMemo(
     () => ({
@@ -121,10 +122,6 @@ export function FloatingAssistant() {
           >
             <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
               <div className="pr-4">
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-brand/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
-                  <MessageCircleMore className="h-3.5 w-3.5" />
-                  Groq powered
-                </div>
                 <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">Asistente TinPet Web</h2>
                 <p className="mt-1 text-sm leading-5 text-gray-500 dark:text-gray-400">
                   Preguntame sobre mascotas, adopción, chats o cómo usar el panel.
@@ -163,18 +160,20 @@ export function FloatingAssistant() {
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2 px-5 pb-4">
-              {quickPrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => void sendMessage(prompt)}
-                  className="rounded-full border border-brand/20 bg-brand/8 px-3 py-2 text-xs font-semibold text-brand transition-[background-color] duration-150 hover:bg-brand/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
+            {!hasUserMessages && (
+              <div className="flex flex-wrap gap-2 px-5 pb-4">
+                {quickPrompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => void sendMessage(prompt)}
+                    className="rounded-full border border-brand/20 bg-brand/8 px-3 py-2 text-xs font-semibold text-brand transition-[background-color] duration-150 hover:bg-brand/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="border-t border-slate-100 px-5 py-4">
               <div className="flex items-end gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">

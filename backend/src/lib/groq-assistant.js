@@ -85,6 +85,10 @@ function buildContextText(context) {
     lines.push(`Usuario: ${context.userName.trim()}`);
   }
 
+  if (typeof context.userRole === "string" && context.userRole.trim()) {
+    lines.push(`Rol del usuario: ${context.userRole.trim()}`);
+  }
+
   if (typeof context.platform === "string" && context.platform.trim()) {
     lines.push(`Plataforma: ${context.platform.trim()}`);
   }
@@ -96,6 +100,39 @@ function buildContextText(context) {
     if (pet.species) lines.push(`Especie: ${pet.species}`);
     if (pet.description) lines.push(`Descripción: ${pet.description}`);
     if (pet.sourceName) lines.push(`Origen: ${pet.sourceName}`);
+  }
+
+  if (context.organization && typeof context.organization === "object") {
+    const organization = context.organization;
+    lines.push(`Organizacion: ${organization.name || "desconocida"}`);
+    if (organization.role) lines.push(`Tipo de organizacion: ${organization.role}`);
+  }
+
+  if (Array.isArray(context.organizationPets)) {
+    lines.push(`Mascotas de la organizacion (${context.organizationPets.length}):`);
+    context.organizationPets.slice(0, 30).forEach((pet, index) => {
+      const parts = [
+        `${index + 1}. ${pet.name || "Sin nombre"}`,
+        pet.species ? `especie: ${pet.species}` : null,
+        pet.breed ? `raza: ${pet.breed}` : null,
+        pet.status ? `estado: ${pet.status}` : null,
+        pet.description ? `descripcion: ${String(pet.description).slice(0, 180)}` : null,
+      ].filter(Boolean);
+      lines.push(parts.join(" | "));
+    });
+  }
+
+  if (Array.isArray(context.organizationMatches)) {
+    lines.push(`Solicitudes de la organizacion (${context.organizationMatches.length}):`);
+    context.organizationMatches.slice(0, 30).forEach((match, index) => {
+      const parts = [
+        `${index + 1}. ${match.petName || "Mascota desconocida"}`,
+        match.petSpecies ? `especie: ${match.petSpecies}` : null,
+        match.adopterName ? `adoptante: ${match.adopterName}` : null,
+        match.status ? `estado: ${match.status}` : null,
+      ].filter(Boolean);
+      lines.push(parts.join(" | "));
+    });
   }
 
   return lines.join("\n");

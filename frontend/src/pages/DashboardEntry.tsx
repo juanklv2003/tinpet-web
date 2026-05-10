@@ -1,9 +1,5 @@
-import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import ShelterDashboard from '../components/shelter/ShelterDashboard';
-import AdopterDashboard from '../components/adopter/AdopterDashboard';
-import AdminDashboard from '../components/admin/AdminDashboard';
 
 export default function DashboardEntry() {
   const { user, loading } = useAuth();
@@ -14,6 +10,7 @@ export default function DashboardEntry() {
   // Redirect to role-scoped dashboard paths so the URL reflects the role
   switch (user.role) {
     case 'shelter':
+    case 'vet':
       return <Navigate to="/shelter/pets" replace />;
     case 'adopter':
       return <Navigate to="/adopter/dashboard" replace />;

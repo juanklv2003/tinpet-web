@@ -1,5 +1,5 @@
 //solo puede haber estos valores exactos
-export type UserRole = 'adopter' | 'shelter' | 'vet';
+export type UserRole = 'adopter' | 'shelter' | 'vet' | 'admin';
 export type PetStatus = 'available' | 'pending' | 'adopted';
 
 // Usuario autenticado: payload del JWT

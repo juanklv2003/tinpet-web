@@ -14,6 +14,7 @@ export interface MatchRequest {
   adopter?: {
     id: string;
     name: string;
+    user_name?: string;
     username?: string;
     email?: string;
     phone?: string;

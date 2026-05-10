@@ -767,7 +767,7 @@ export function ChatView({ token }: ChatViewProps) {
                 </div>
               ) : (
                 (messages as Message[]).map((msg) => {
-                  const isOwn = msg.sender_role === "shelter";
+                  const isOwn = msg.sender_role === "shelter" || msg.sender_role === "vet";
                   const incomingAvatar = getAdopterAvatar(selectedConversation);
                   return (
                     <div

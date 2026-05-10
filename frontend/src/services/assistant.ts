@@ -47,11 +47,17 @@ export interface AssistantHealthResponse {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL?.trim() || '';
 
+function getStoredToken(): string | null {
+  return localStorage.getItem('token') || sessionStorage.getItem('token');
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getStoredToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers || {}),
     },
   });

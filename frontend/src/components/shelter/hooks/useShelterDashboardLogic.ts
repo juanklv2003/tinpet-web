@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react';
 import { useShelterEmployees } from '../../../hooks/useShelterEmployees';
 import { useShelterMatches } from '../../../hooks/useShelterMatches';
 import { useShelterStats } from '../../../hooks/useShelterStats';
-import { apiFetch } from '../../../services/api';
+import { API_BASE_URL, apiFetch } from '../../../services/api';
 import type { AuthUser, Pet } from '../../../types';
-import { fileToDataUrl } from '../helpers';
 import type { ActiveView, AddPetForm, ShelterProfileForm } from '../types';
 
 interface UseShelterDashboardLogicResult {
@@ -89,6 +88,39 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
   const [profileDirty, setProfileDirty] = useState(false);
   const [profileSaveMsg, setProfileSaveMsg] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+
+  const uploadProfileImage = async (file: File): Promise<string> => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No hay sesión activa para subir la imagen.');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message =
+        typeof payload?.error === 'string'
+          ? payload.error
+          : 'No se pudo subir la imagen a Cloudinary.';
+      throw new Error(message);
+    }
+
+    if (typeof payload?.url !== 'string' || !payload.url.trim()) {
+      throw new Error('La subida no devolvió una URL válida.');
+    }
+
+    return payload.url;
+  };
 
   const {
     stats,
@@ -216,10 +248,17 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
     }
 
     try {
-      const dataUrl = await fileToDataUrl(file);
-      updateProfileField('avatarUrl', dataUrl);
-    } catch {
-      setProfileError('No se pudo cargar la foto de perfil.');
+      setProfileSaveMsg('Subiendo foto...');
+      const cloudinaryUrl = await uploadProfileImage(file);
+      updateProfileField('avatarUrl', cloudinaryUrl);
+      setProfileSaveMsg('Foto subida. Pulsa "Guardar cambios" para confirmar.');
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : 'No se pudo subir la foto de perfil.';
+      setProfileError(message);
+      setProfileSaveMsg(null);
     }
   };
 
@@ -232,7 +271,8 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
       setProfileSaveMsg('Perfil guardado correctamente.');
       setProfileError(null);
     } catch {
-      setProfileError('No se pudo guardar el perfil en este navegador.');
+      setProfileError('No se pudo guardar el perfil en este navegador. Prueba con otra foto o borra datos del sitio.');
+      setProfileSaveMsg(null);
     }
   };
 

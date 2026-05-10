@@ -1,6 +1,131 @@
 const router = require("express").Router();
 const { randomUUID } = require("crypto");
+const jwt = require("jsonwebtoken");
+const prisma = require("../lib/prisma");
 const { DEFAULT_SYSTEM_PROMPT, sendGroqChatCompletion } = require("../lib/groq-assistant");
+
+const JWT_SECRET = process.env.JWT_SECRET || "tinpet-secret-key-2024";
+
+function getAuthUser(req) {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) return null;
+
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch {
+    return null;
+  }
+}
+
+function isProfessionalRole(role) {
+  return role === "shelter" || role === "vet";
+}
+
+async function getProfessionalProfile(user) {
+  if (!user || !isProfessionalRole(user.role)) return null;
+
+  const shelter = await prisma.shelters.findFirst({
+    where: { user_id: user.sub },
+  });
+  if (shelter) return shelter;
+
+  if (user.role !== "vet") return null;
+
+  const vetClinic = await prisma.vet_clinics.findFirst({
+    where: { user_id: user.sub },
+  });
+  if (!vetClinic) return null;
+
+  return prisma.shelters.create({
+    data: {
+      id: randomUUID(),
+      user_id: user.sub,
+      name: vetClinic.name,
+      email: vetClinic.email,
+      phone: vetClinic.phone,
+      location: vetClinic.location,
+    },
+  });
+}
+
+async function buildAuthenticatedContext(req) {
+  const user = getAuthUser(req);
+  if (!user || !isProfessionalRole(user.role)) return {};
+
+  const profile = await getProfessionalProfile(user);
+  if (!profile) return {};
+
+  const pets = await prisma.pets.findMany({
+    where: { shelter_id: profile.id },
+    select: {
+      id: true,
+      name: true,
+      species: true,
+      breed: true,
+      status: true,
+      description: true,
+      birth_date: true,
+      created_at: true,
+    },
+    orderBy: { created_at: "desc" },
+    take: 30,
+  });
+
+  const matches = await prisma.matches.findMany({
+    where: {
+      pets: {
+        shelter_id: profile.id,
+      },
+    },
+    select: {
+      id: true,
+      interaction_type: true,
+      created_at: true,
+      pets: {
+        select: {
+          id: true,
+          name: true,
+          species: true,
+        },
+      },
+      adopters: {
+        select: {
+          id: true,
+          name: true,
+          username: true,
+        },
+      },
+    },
+    orderBy: { created_at: "desc" },
+    take: 30,
+  });
+
+  return {
+    organization: {
+      id: profile.id,
+      name: profile.name,
+      role: user.role,
+    },
+    organizationPets: pets.map((pet) => ({
+      id: pet.id,
+      name: pet.name,
+      species: pet.species,
+      breed: pet.breed,
+      status: pet.status,
+      description: pet.description,
+      birthDate: pet.birth_date,
+    })),
+    organizationMatches: matches.map((match) => ({
+      id: match.id,
+      status: match.interaction_type,
+      createdAt: match.created_at,
+      petName: match.pets?.name,
+      petSpecies: match.pets?.species,
+      adopterName: match.adopters?.username || match.adopters?.name,
+    })),
+  };
+}
 
 function validateChatBody(body) {
   if (!body || typeof body !== "object") {
@@ -53,7 +178,14 @@ router.post("/chat", async (req, res) => {
       : randomUUID();
 
   try {
-    const result = await sendGroqChatCompletion(req.body);
+    const authenticatedContext = await buildAuthenticatedContext(req);
+    const result = await sendGroqChatCompletion({
+      ...req.body,
+      context: {
+        ...(req.body.context || {}),
+        ...authenticatedContext,
+      },
+    });
 
     return res.json({
       conversationId,

@@ -10,7 +10,9 @@ const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { Pool } = require("pg");
 const { Server } = require("socket.io");
+const { Expo } = require("expo-server-sdk");
 const { OAuth2Client } = require("google-auth-library");
+const { haversineDistance } = require("./lib/haversine");
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -19,6 +21,7 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
 const assistantRoutes = require("./routes/assistant.routes");
 const knowledgeRoutes = require("./routes/knowledge.routes");
+const uploadRoutes = require("../routes/upload.ts");
 
 const JWT_SECRET = process.env.JWT_SECRET || "tinpet-secret-key-2024";
 const MAX_JSON_PAYLOAD = process.env.MAX_JSON_PAYLOAD || "10mb";
@@ -62,6 +65,46 @@ function toStoredImageField(photoUrls) {
   if (!Array.isArray(photoUrls) || photoUrls.length === 0) return null;
   if (photoUrls.length === 1) return photoUrls[0];
   return JSON.stringify(photoUrls);
+}
+
+// ── Push Notification Helper ─────────────────────────────────────
+const expo = new Expo();
+
+async function sendPushNotification(userId, title, body, data = {}) {
+  try {
+    const user = await prisma.users.findUnique({ where: { id: userId } });
+    if (!user?.push_token) {
+      console.log(`[Push] No push token for user ${userId}`);
+      return;
+    }
+
+    if (!Expo.isExpoPushToken(user.push_token)) {
+      console.error(`[Push] Invalid Expo push token for user ${userId}: ${user.push_token}`);
+      return;
+    }
+
+    const message = {
+      to: user.push_token,
+      sound: { volume: 1 },
+      title,
+      body,
+      data: {
+        type: data.type || 'chat',
+        conversationId: data.conversationId || null,
+        matchId: data.matchId || null,
+        petId: data.petId || null,
+        petName: data.petName || null,
+      },
+      priority: 'high',
+      channelId: data.channelId || 'messages',
+    };
+
+    const ticket = await expo.sendPushNotificationsAsync([message]);
+    console.log(`[Push] Sent to user ${userId}:`, JSON.stringify(ticket));
+    return ticket;
+  } catch (error) {
+    console.error(`[Push] Error sending to user ${userId}:`, error);
+  }
 }
 
 function normalizeIncomingPhotoUrls(aiProfile) {
@@ -116,7 +159,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: "http://192.168.5.103:3000",
+        url: "http://10.13.30.253:3000",
         description: "Servidor de desarrollo",
       },
     ],
@@ -249,6 +292,40 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
+function isProfessionalRole(role) {
+  return role === "shelter" || role === "vet";
+}
+
+async function getProfessionalShelterProfile(user) {
+  if (!user || !isProfessionalRole(user.role)) return null;
+
+  const shelter = await prisma.shelters.findFirst({
+    where: { user_id: user.sub },
+  });
+  if (shelter) return shelter;
+
+  if (user.role !== "vet") return null;
+
+  const vetClinic = await prisma.vet_clinics.findFirst({
+    where: { user_id: user.sub },
+  });
+  if (!vetClinic) return null;
+
+  return prisma.shelters.create({
+    data: {
+      id: randomUUID(),
+      user_id: user.sub,
+      name: vetClinic.name,
+      email: vetClinic.email,
+      phone: vetClinic.phone,
+      location: vetClinic.location,
+    },
+  });
+}
+
+// Cloudinary upload endpoint for authenticated web clients
+app.use("/api/upload", authenticateToken, uploadRoutes);
 
 // --- UPLOAD IMAGE (base64) ---
 app.post("/api/uploads", authenticateToken, async (req, res) => {
@@ -412,20 +489,16 @@ app.get("/api/pets", async (req, res) => {
  */
 app.get("/api/pets/mine", authenticateToken, async (req, res) => {
   try {
-    // Solo shelters pueden tener mascotas
-    if (req.user.role !== "shelter") {
+    if (!isProfessionalRole(req.user.role)) {
       return res
         .status(403)
-        .json({ error: "Solo los refugios pueden gestionar mascotas" });
+        .json({ error: "Solo refugios y veterinarias pueden gestionar mascotas" });
     }
 
-    // Buscar el shelter del usuario
-    const shelter = await prisma.shelters.findFirst({
-      where: { user_id: req.user.sub },
-    });
+    const shelter = await getProfessionalShelterProfile(req.user);
 
     if (!shelter) {
-      return res.status(404).json({ error: "Refugio no encontrado" });
+      return res.status(404).json({ error: "Perfil profesional no encontrado" });
     }
 
     const myPets = await prisma.pets.findMany({
@@ -474,10 +547,10 @@ app.get("/api/pets/mine", authenticateToken, async (req, res) => {
  */
 app.post("/api/pets", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== "shelter") {
+    if (!isProfessionalRole(req.user.role)) {
       return res
         .status(403)
-        .json({ error: "Solo los refugios pueden crear mascotas" });
+        .json({ error: "Solo refugios y veterinarias pueden crear mascotas" });
     }
 
     const { name, species, status, ai_profile } = req.body;
@@ -492,13 +565,10 @@ app.post("/api/pets", authenticateToken, async (req, res) => {
       return res.status(413).json({ error: validationError });
     }
 
-    // Buscar el shelter del usuario
-    const shelter = await prisma.shelters.findFirst({
-      where: { user_id: req.user.sub },
-    });
+    const shelter = await getProfessionalShelterProfile(req.user);
 
     if (!shelter) {
-      return res.status(404).json({ error: "Refugio no encontrado" });
+      return res.status(404).json({ error: "Perfil profesional no encontrado" });
     }
 
     // Mapear status al formato de la DB
@@ -551,10 +621,10 @@ app.get("/api/pets/:id", authenticateToken, async (req, res) => {
 // PATCH /api/pets/:id - actualizar mascota
 app.patch("/api/pets/:id", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== "shelter") {
+    if (!isProfessionalRole(req.user.role)) {
       return res
         .status(403)
-        .json({ error: "Solo los refugios pueden actualizar mascotas" });
+        .json({ error: "Solo refugios y veterinarias pueden actualizar mascotas" });
     }
 
     const { ai_profile, status, name, species, description } = req.body;
@@ -622,10 +692,10 @@ app.patch("/api/pets/:id", authenticateToken, async (req, res) => {
 // DELETE /api/pets/:id - eliminar mascota
 app.delete("/api/pets/:id", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== "shelter") {
+    if (!isProfessionalRole(req.user.role)) {
       return res
         .status(403)
-        .json({ error: "Solo los refugios pueden eliminar mascotas" });
+        .json({ error: "Solo refugios y veterinarias pueden eliminar mascotas" });
     }
 
     await prisma.pets.delete({
@@ -773,6 +843,12 @@ app.post("/api/swipe", authenticateToken, async (req, res) => {
             petName: pet.name,
             adopterName: adopter.name,
           });
+          void sendPushNotification(
+            shelter.user_id,
+            "¡Nueva solicitud de adopción!",
+            `${adopter.name || "Un adoptante"} está interesado en ${pet.name || "tu mascota"}`,
+            { type: "match_request", matchId: match.id, petName: pet.name }
+          );
         }
       } catch (notifyErr) {
         // No bloqueamos la respuesta si falla la notificación
@@ -800,10 +876,10 @@ app.post(
   authenticateToken,
   async (req, res) => {
     try {
-      if (req.user.role !== "shelter") {
+      if (!isProfessionalRole(req.user.role)) {
         return res
           .status(403)
-          .json({ error: "Solo los refugios pueden bloquear usuarios" });
+          .json({ error: "Solo refugios y veterinarias pueden bloquear usuarios" });
       }
 
       const conversationId = req.params.id;
@@ -816,9 +892,7 @@ app.post(
         return res.status(404).json({ error: "Conversación no encontrada" });
       }
 
-      const shelter = await prisma.shelters.findFirst({
-        where: { user_id: req.user.sub },
-      });
+      const shelter = await getProfessionalShelterProfile(req.user);
 
       if (!shelter || shelter.id !== conversation.shelter_id) {
         return res
@@ -886,10 +960,10 @@ app.post(
   authenticateToken,
   async (req, res) => {
     try {
-      if (req.user.role !== "shelter") {
+      if (!isProfessionalRole(req.user.role)) {
         return res
           .status(403)
-          .json({ error: "Solo los refugios pueden desbloquear usuarios" });
+          .json({ error: "Solo refugios y veterinarias pueden desbloquear usuarios" });
       }
 
       const conversationId = req.params.id;
@@ -901,9 +975,7 @@ app.post(
         return res.status(404).json({ error: "Conversación no encontrada" });
       }
 
-      const shelter = await prisma.shelters.findFirst({
-        where: { user_id: req.user.sub },
-      });
+      const shelter = await getProfessionalShelterProfile(req.user);
 
       if (!shelter || shelter.id !== conversation.shelter_id) {
         return res
@@ -1079,18 +1151,36 @@ app.get("/api/pets-available", async (req, res) => {
       }
     }
 
-    // Obtener mascotas disponibles
+    let userLat = null;
+    let userLng = null;
+    const rawLat = req.query.lat;
+    const rawLng = req.query.lng;
+
+    if (rawLat != null && rawLng != null) {
+      const parsedLat = parseFloat(rawLat);
+      const parsedLng = parseFloat(rawLng);
+      if (
+        !isNaN(parsedLat) && !isNaN(parsedLng) &&
+        parsedLat >= -90 && parsedLat <= 90 &&
+        parsedLng >= -180 && parsedLng <= 180
+      ) {
+        userLat = parsedLat;
+        userLng = parsedLng;
+      }
+    }
+
+    const hasLocation = userLat !== null && userLng !== null;
+
     const pets = await prisma.pets.findMany({
       where: whereClause,
       include: {
         shelters: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, latitude: true, longitude: true },
         },
       },
     });
 
     const result = pets.map((pet) => {
-      // Normalize species from DB to frontend expected values
       const raw = (pet.species || "").toLowerCase().trim();
       let species = "other";
       if (raw === "dog" || raw.includes("perro") || raw.includes("can"))
@@ -1115,6 +1205,13 @@ app.get("/api/pets-available", async (req, res) => {
       )
         species = "reptile";
 
+      let distanceKm = null;
+      if (hasLocation && pet.shelters && pet.shelters.latitude != null && pet.shelters.longitude != null) {
+        distanceKm = Math.round(
+          haversineDistance(userLat, userLng, pet.shelters.latitude, pet.shelters.longitude) * 100
+        ) / 100;
+      }
+
       return {
         photos: (() => {
           const parsed = parsePhotoUrlsFromImageField(pet.image_url);
@@ -1135,8 +1232,18 @@ app.get("/api/pets-available", async (req, res) => {
         source: pet.shelters
           ? { type: "shelter", name: pet.shelters.name, id: pet.shelters.id }
           : { type: "vet", name: "Veterinaria", id: "" },
+        distance_km: distanceKm,
       };
     });
+
+    if (hasLocation) {
+      result.sort((a, b) => {
+        if (a.distance_km === null && b.distance_km === null) return 0;
+        if (a.distance_km === null) return 1;
+        if (b.distance_km === null) return -1;
+        return a.distance_km - b.distance_km;
+      });
+    }
 
     res.json({ pets: result });
   } catch (error) {
@@ -1201,18 +1308,16 @@ app.get("/api/pets/:id", authenticateToken, async (req, res) => {
  */
 app.get("/api/employees", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== "shelter") {
+    if (!isProfessionalRole(req.user.role)) {
       return res
         .status(403)
-        .json({ error: "Solo los refugios pueden gestionar empleados" });
+        .json({ error: "Solo refugios y veterinarias pueden gestionar empleados" });
     }
 
-    const shelter = await prisma.shelters.findFirst({
-      where: { user_id: req.user.sub },
-    });
+    const shelter = await getProfessionalShelterProfile(req.user);
 
     if (!shelter) {
-      return res.status(404).json({ error: "Refugio no encontrado" });
+      return res.status(404).json({ error: "Perfil profesional no encontrado" });
     }
 
     const employees = await prisma.shelter_employees.findMany({
@@ -1229,10 +1334,10 @@ app.get("/api/employees", authenticateToken, async (req, res) => {
 // POST /api/employees - crear empleado
 app.post("/api/employees", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== "shelter") {
+    if (!isProfessionalRole(req.user.role)) {
       return res
         .status(403)
-        .json({ error: "Solo los refugios pueden gestionar empleados" });
+        .json({ error: "Solo refugios y veterinarias pueden gestionar empleados" });
     }
 
     const { name, email, phone, birth_date, role } = req.body;
@@ -1241,12 +1346,10 @@ app.post("/api/employees", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "El nombre es requerido" });
     }
 
-    const shelter = await prisma.shelters.findFirst({
-      where: { user_id: req.user.sub },
-    });
+    const shelter = await getProfessionalShelterProfile(req.user);
 
     if (!shelter) {
-      return res.status(404).json({ error: "Refugio no encontrado" });
+      return res.status(404).json({ error: "Perfil profesional no encontrado" });
     }
 
     const employee = await prisma.shelter_employees.create({
@@ -1270,10 +1373,10 @@ app.post("/api/employees", authenticateToken, async (req, res) => {
 // DELETE /api/employees/:id - eliminar empleado
 app.delete("/api/employees/:id", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== "shelter") {
+    if (!isProfessionalRole(req.user.role)) {
       return res
         .status(403)
-        .json({ error: "Solo los refugios pueden gestionar empleados" });
+        .json({ error: "Solo refugios y veterinarias pueden gestionar empleados" });
     }
 
     await prisma.shelter_employees.delete({
@@ -1312,18 +1415,16 @@ app.delete("/api/employees/:id", authenticateToken, async (req, res) => {
  */
 app.get("/api/matches", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== "shelter") {
+    if (!isProfessionalRole(req.user.role)) {
       return res
         .status(403)
-        .json({ error: "Solo los refugios pueden gestionar solicitudes" });
+        .json({ error: "Solo refugios y veterinarias pueden gestionar solicitudes" });
     }
 
-    const shelter = await prisma.shelters.findFirst({
-      where: { user_id: req.user.sub },
-    });
+    const shelter = await getProfessionalShelterProfile(req.user);
 
     if (!shelter) {
-      return res.status(404).json({ error: "Refugio no encontrado" });
+      return res.status(404).json({ error: "Perfil profesional no encontrado" });
     }
 
     const matches = await prisma.matches.findMany({
@@ -1444,10 +1545,10 @@ app.get("/api/matches", authenticateToken, async (req, res) => {
  */
 app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== "shelter") {
+    if (!isProfessionalRole(req.user.role)) {
       return res
         .status(403)
-        .json({ error: "Solo los refugios pueden gestionar solicitudes" });
+        .json({ error: "Solo refugios y veterinarias pueden gestionar solicitudes" });
     }
 
     const { status } = req.body;
@@ -1457,12 +1558,10 @@ app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
         .json({ error: "Estado no válido. Usa accepted o rejected." });
     }
 
-    const shelter = await prisma.shelters.findFirst({
-      where: { user_id: req.user.sub },
-    });
+    const shelter = await getProfessionalShelterProfile(req.user);
 
     if (!shelter) {
-      return res.status(404).json({ error: "Refugio no encontrado" });
+      return res.status(404).json({ error: "Perfil profesional no encontrado" });
     }
 
     const currentMatch = await prisma.matches.findUnique({
@@ -1529,6 +1628,44 @@ app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
         },
       },
     });
+
+    // ── Notificar al adoptante por socket ─────────────────────────
+    try {
+      const adopterWithUser = await prisma.adopters.findUnique({
+        where: { id: currentMatch.adopter_id },
+        include: { users: true },
+      });
+
+      if (adopterWithUser?.users?.id) {
+        const adopterUserId = adopterWithUser.users.id;
+
+        if (status === "accepted") {
+          global.io.to(`user:${adopterUserId}`).emit("match_approved", {
+            matchId: currentMatch.id,
+            petName: currentMatch.pets?.name || null,
+          });
+          void sendPushNotification(
+            adopterUserId,
+            "¡Nuevo Match! 🎉",
+            `${currentMatch.pets?.name || "Una mascota"} aceptó tu solicitud de adopción`,
+            { type: "match_approved", matchId: currentMatch.id, petName: currentMatch.pets?.name }
+          );
+        } else if (status === "rejected") {
+          global.io.to(`user:${adopterUserId}`).emit("like_rejected", {
+            petId: currentMatch.pet_id,
+            petName: currentMatch.pets?.name || null,
+          });
+          void sendPushNotification(
+            adopterUserId,
+            "Solicitud no aceptada",
+            `Tu solicitud para ${currentMatch.pets?.name || "una mascota"} no fue aceptada`,
+            { type: "like_rejected", petId: currentMatch.pet_id, petName: currentMatch.pets?.name }
+          );
+        }
+      }
+    } catch (notifyErr) {
+      console.error("Error al notificar al adoptante:", notifyErr);
+    }
 
     // Si se acepta, crear conversación automáticamente
     if (status === "accepted") {
@@ -1773,12 +1910,10 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
         },
         orderBy: { last_message_at: "desc" },
       });
-    } else if (role === "shelter") {
-      const shelter = await prisma.shelters.findFirst({
-        where: { user_id: userId },
-      });
+    } else if (isProfessionalRole(role)) {
+      const shelter = await getProfessionalShelterProfile(req.user);
       if (!shelter)
-        return res.status(404).json({ error: "Refugio no encontrado" });
+        return res.status(404).json({ error: "Perfil profesional no encontrado" });
 
       conversations = await prisma.conversations.findMany({
         where: { shelter_id: shelter.id },
@@ -1885,7 +2020,11 @@ app.get(
         hasAccess = true;
       if (role === "shelter" && conversation.shelter?.user_id === userId)
         hasAccess = true;
-      if (role === "vet" && conversation.vet_clinic?.user_id === userId)
+      if (
+        role === "vet" &&
+        (conversation.vet_clinic?.user_id === userId ||
+          conversation.shelter?.user_id === userId)
+      )
         hasAccess = true;
 
       if (!hasAccess)
@@ -1969,6 +2108,12 @@ app.post(
           });
           senderId = vetEmployee?.id ?? conversation.vet_clinic.id;
           hasAccess = true;
+        } else if (conversation.shelter?.user_id === userId) {
+          const employee = await prisma.shelter_employees.findFirst({
+            where: { shelter_id: conversation.shelter.id },
+          });
+          senderId = employee?.id ?? conversation.shelter.id;
+          hasAccess = true;
         }
       }
 
@@ -1998,6 +2143,33 @@ app.post(
       if (global.io) {
         global.io.to(`conversation:${id}`).emit("new_message", message);
         global.io.to(`conversation:${id}`).emit("receive_message", message);
+      }
+
+      // Enviar push al otro participante si no está conectado
+      try {
+        let otherUserId = null;
+        let senderName = "";
+
+        if (role === "adopter") {
+          otherUserId = conversation.shelter?.user_id || conversation.vet_clinic?.user_id;
+          senderName = conversation.adopter?.name || "Adoptante";
+        } else if (role === "shelter" || role === "vet") {
+          otherUserId = conversation.adopter?.users?.id;
+          senderName = role === "shelter"
+            ? (conversation.shelter?.name || "Refugio")
+            : (conversation.vet_clinic?.name || "Veterinaria");
+        }
+
+        if (otherUserId) {
+          void sendPushNotification(
+            otherUserId,
+            senderName,
+            content.trim(),
+            { type: "chat", conversationId: id }
+          );
+        }
+      } catch (pushErr) {
+        console.error("Error sending push notification for message:", pushErr);
       }
 
       res.status(201).json(message);
@@ -2098,18 +2270,16 @@ app.post("/api/conversations", authenticateToken, async (req, res) => {
 // GET /api/stats - resumen del dashboard del refugio autenticado
 app.get("/api/stats", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== "shelter") {
+    if (!isProfessionalRole(req.user.role)) {
       return res
         .status(403)
         .json({ error: "Solo los refugios pueden ver estadísticas" });
     }
 
-    const shelter = await prisma.shelters.findFirst({
-      where: { user_id: req.user.sub },
-    });
+    const shelter = await getProfessionalShelterProfile(req.user);
 
     if (!shelter) {
-      return res.status(404).json({ error: "Refugio no encontrado" });
+      return res.status(404).json({ error: "Perfil profesional no encontrado" });
     }
 
     const [totalPets, totalLikesReceived, closedAdoptions] = await Promise.all([
@@ -2249,11 +2419,15 @@ app.get("/api/adopter/profile", authenticateToken, async (req, res) => {
         housing_type: true,
         has_other_pets: true,
         other_pets_desc: true,
+        kids_count: true,
+        kids_ages: true,
         pet_experience: true,
         has_children: true,
         hours_at_home: true,
         work_from_home: true,
         looking_for_species: true,
+        latitude: true,
+        longitude: true,
         preferred_size: true,
         created_at: true,
       },
@@ -2296,12 +2470,16 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
       housing_type,
       has_other_pets,
       other_pets_desc,
+      kids_count,
+      kids_ages,
       pet_experience,
       has_children,
       hours_at_home,
       work_from_home,
       looking_for_species,
       preferred_size,
+      latitude,
+      longitude,
     } = req.body;
 
     const adopter = await prisma.adopters.findFirst({
@@ -2344,8 +2522,16 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
       data.has_other_pets = has_other_pets;
     }
 
-    if (typeof other_pets_desc === "string") {
-      data.other_pets_desc = other_pets_desc.trim() || null;
+    if (Array.isArray(other_pets_desc)) {
+      data.other_pets_desc = other_pets_desc
+        .map((pet) => String(pet).trim())
+        .filter(Boolean);
+    } else if (typeof other_pets_desc === "string") {
+      data.other_pets_desc = other_pets_desc.trim()
+        ? [other_pets_desc.trim()]
+        : [];
+    } else if (other_pets_desc === null) {
+      data.other_pets_desc = [];
     }
 
     if (
@@ -2357,6 +2543,20 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
 
     if (typeof has_children === "boolean") {
       data.has_children = has_children;
+    }
+
+    if (Number.isInteger(kids_count) && kids_count >= 0) {
+      data.kids_count = kids_count;
+    } else if (kids_count === null) {
+      data.kids_count = null;
+    }
+
+    if (Array.isArray(kids_ages)) {
+      data.kids_ages = kids_ages
+        .map((age) => Number(age))
+        .filter((age) => Number.isInteger(age) && age >= 0);
+    } else if (kids_ages === null) {
+      data.kids_ages = [];
     }
 
     if (
@@ -2427,6 +2627,20 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
       data.preferred_size = null;
     }
 
+    // Location coordinates
+    if (typeof latitude === 'number' && !isNaN(latitude)) {
+      if (latitude < -90 || latitude > 90) {
+        return res.status(400).json({ error: 'Latitud debe estar entre -90 y 90' });
+      }
+      data.latitude = latitude;
+    }
+    if (typeof longitude === 'number' && !isNaN(longitude)) {
+      if (longitude < -180 || longitude > 180) {
+        return res.status(400).json({ error: 'Longitud debe estar entre -180 y 180' });
+      }
+      data.longitude = longitude;
+    }
+
     if (Array.isArray(hobbies)) {
       data.hobbies = hobbies;
     }
@@ -2453,12 +2667,16 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
         housing_type: true,
         has_other_pets: true,
         other_pets_desc: true,
+        kids_count: true,
+        kids_ages: true,
         pet_experience: true,
         has_children: true,
         hours_at_home: true,
         work_from_home: true,
         looking_for_species: true,
         preferred_size: true,
+        latitude: true,
+        longitude: true,
         created_at: true,
       },
     });
@@ -2738,6 +2956,115 @@ app.post("/api/auth/google", async (req, res) => {
   }
 });
 
+// ── Push Token ───────────────────────────────────────────────────
+/**
+ * @swagger
+ * /api/users/push-token:
+ *   patch:
+ *     summary: Actualizar el push token del usuario
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               pushToken:
+ *                 type: string
+ *                 nullable: true
+ *     responses:
+ *       200:
+ *         description: Token actualizado
+ */
+app.patch("/api/users/push-token", authenticateToken, async (req, res) => {
+  try {
+    const { pushToken } = req.body;
+    const userId = req.user.sub;
+
+    await prisma.users.update({
+      where: { id: userId },
+      data: { push_token: pushToken || null },
+    });
+
+    console.log(`[PushToken] ${pushToken ? "Registered" : "Unregistered"} for user ${userId}`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error updating push token:", error);
+    res.status(500).json({ error: "Error al actualizar push token" });
+  }
+});
+
+// ── Mark Conversation as Read ────────────────────────────────────
+/**
+ * @swagger
+ * /api/conversations/{id}/read:
+ *   patch:
+ *     summary: Marcar conversación como leída
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Conversación marcada como leída
+ */
+app.patch("/api/conversations/:id/read", authenticateToken, async (req, res) => {
+  try {
+    const conversationId = req.params.id;
+    const userId = req.user.sub;
+
+    // Verify access to the conversation
+    const conversation = await prisma.conversations.findUnique({
+      where: { id: conversationId },
+      include: {
+        adopter: { include: { users: true } },
+        shelter: true,
+        vet_clinic: true,
+      },
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversación no encontrada" });
+    }
+
+    let hasAccess = false;
+    if (req.user.role === "adopter" && conversation.adopter?.users?.id === userId) hasAccess = true;
+    if (req.user.role === "shelter" && conversation.shelter?.user_id === userId) hasAccess = true;
+    if (
+      req.user.role === "vet" &&
+      (conversation.vet_clinic?.user_id === userId ||
+        conversation.shelter?.user_id === userId)
+    ) hasAccess = true;
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: "No tienes acceso a esta conversación" });
+    }
+
+    // Mark all unread messages as read
+    await prisma.messages.updateMany({
+      where: {
+        conversation_id: conversationId,
+        sender_role: { not: req.user.role },
+        read: false,
+      },
+      data: { read: true },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error marking conversation as read:", error);
+    res.status(500).json({ error: "Error al marcar conversación como leída" });
+  }
+});
+
 // --- ARRANCAR SERVIDOR CON SOCKET.IO ---
 const PORT = 3000;
 const server = http.createServer(app);
@@ -2918,6 +3245,33 @@ io.on("connection", async (socket) => {
       // Emitir a todos en la sala
       io.to(`conversation:${conversation_id}`).emit("new_message", message);
       io.to(`conversation:${conversation_id}`).emit("receive_message", message);
+
+      // Enviar push al otro participante
+      try {
+        let otherUserId = null;
+        let senderName = "";
+
+        if (socket.user.role === "adopter") {
+          otherUserId = conversation.shelter?.user_id || conversation.vet_clinic?.user_id;
+          senderName = conversation.adopter?.name || "Adoptante";
+        } else if (socket.user.role === "shelter" || socket.user.role === "vet") {
+          otherUserId = conversation.adopter?.users?.id;
+          senderName = socket.user.role === "shelter"
+            ? (conversation.shelter?.name || "Refugio")
+            : (conversation.vet_clinic?.name || "Veterinaria");
+        }
+
+        if (otherUserId) {
+          void sendPushNotification(
+            otherUserId,
+            senderName,
+            content.trim(),
+            { type: "chat", conversationId: conversation_id }
+          );
+        }
+      } catch (pushErr) {
+        console.error("Error sending push via socket:", pushErr);
+      }
     } catch (error) {
       console.error("Error al enviar mensaje por socket:", error);
       socket.emit("error", { message: "Error al enviar mensaje" });

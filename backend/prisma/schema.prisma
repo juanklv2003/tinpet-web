@@ -21,9 +21,13 @@ model adopters {
   phone           String?
   housing_type    String?         // 'house' | 'apartment'
   has_other_pets  Boolean?
-  other_pets_desc String?
+  other_pets_desc String[]        @default([])
   pet_experience  String?         // 'none' | 'some' | 'lots'
   has_children    Boolean?
+  kids_count      Int?
+  kids_ages       Int[]           @default([])
+  latitude        Float?
+  longitude       Float?
   hours_at_home   String?         // 'less4' | '4to8' | 'more8' | 'always'
   work_from_home  Boolean?
   looking_for_species String[]    @default([])  // 'dog' | 'cat' | 'bird' | 'rabbit' | 'reptile' | 'other' | 'any'
@@ -132,6 +136,8 @@ model shelters {
   name              String
   email             String?
   location          String?
+  latitude          Float?
+  longitude         Float?
   phone             String?
   created_at        DateTime?           @default(now()) @db.Timestamptz(6)
   conversations     conversations[]

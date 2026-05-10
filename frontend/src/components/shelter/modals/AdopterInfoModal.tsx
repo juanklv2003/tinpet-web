@@ -33,26 +33,6 @@ const extractStringFromCandidate = (candidate: unknown): string | null => {
   return null;
 };
 
-const getAdopterPhoto = (adopter: any): string | null => {
-  const photos = Array.isArray(adopter?.photos) ? adopter.photos : [];
-  for (const candidateRaw of photos) {
-    const candidate = extractStringFromCandidate(candidateRaw);
-    const normalized = normalizeImageUrl(candidate);
-    if (normalized) return normalized;
-  }
-  const avatar = normalizeImageUrl(extractStringFromCandidate(adopter?.avatar_url) ?? adopter?.avatar_url);
-  if (avatar) return avatar;
-  for (const field of ['photo', 'image_url', 'picture', 'avatar']) {
-    const val = extractStringFromCandidate(adopter?.[field]) ?? adopter?.[field];
-    const n = normalizeImageUrl(val);
-    if (n) return n;
-  }
-  if (typeof adopter?.avatar_url === 'string' && adopter.avatar_url.length > 100 && !adopter.avatar_url.startsWith('data:')) {
-    return `data:image/jpeg;base64,${adopter.avatar_url}`;
-  }
-  return null;
-};
-
 export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
   const adopter = match.adopter ?? {
     id: match.adopter_id,

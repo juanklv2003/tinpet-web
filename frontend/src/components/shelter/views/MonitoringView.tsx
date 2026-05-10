@@ -11,6 +11,14 @@ interface MonitoringViewProps {
   statsError?: string | null;
 }
 
+type DashboardTask = {
+  id: string;
+  title: string;
+  description?: string;
+  count?: number;
+  details?: string[];
+};
+
 export function MonitoringView({
   pets,
   error,
@@ -104,7 +112,7 @@ export function MonitoringView({
   }, [incompleteProfiles, staleAvailablePets, longPendingPets, pets, recentActivity]);
 
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
-  const [customTasks, setCustomTasks] = useState<Array<{ id: string; title: string; description?: string }>>([]);
+  const [customTasks, setCustomTasks] = useState<DashboardTask[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDesc, setNewTaskDesc] = useState('');
   const customTasksStorageKey = `tinpet-custom-tasks-${todayKey}`;
@@ -149,7 +157,7 @@ export function MonitoringView({
     }
   }, [customTasks, customTasksStorageKey]);
 
-  const allTasks = customTasks;
+  const allTasks: DashboardTask[] = [...dailyTasks, ...customTasks];
   const completedCount = allTasks.filter(task => completedTasks[task.id]).length;
 
   return (
@@ -334,7 +342,7 @@ export function MonitoringView({
                         {task.description}
                       </p>
                     )}
-                    {('details' in task) && task.details.length > 0 && (
+                    {task.details && task.details.length > 0 && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
                         Ejemplos: {task.details.join(', ')}
                       </p>
