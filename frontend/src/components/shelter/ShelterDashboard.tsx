@@ -77,38 +77,38 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
   // ─── Cerrar sesión ────────────────────────────────────────────────────────
   const handleLogout = () => {
     logout();
-    navigate('/auth');
+    navigate('/');
   };
 
   // ─── Nav item helper ──────────────────────────────────────────────────────
   const viewToPath = (v: ActiveView) => {
     switch (v) {
       case 'pets':
-        return '/shelter/pets';
+        return '/pets';
       case 'monitoring':
-        return '/shelter/dashboard';
+        return '/dashboard';
       case 'employees':
-        return '/shelter/employees';
+        return '/employees';
       case 'matches':
-        return '/shelter/requests';
+        return '/requests';
       case 'chat':
-        return '/shelter/chat';
+        return '/chat';
       case 'profile':
-        return '/shelter/profile';
+        return '/profile';
       default:
-        return '/shelter/pets';
+        return '/pets';
     }
   };
 
   const location = useLocation();
 
   const pathToView = (path: string): ActiveView | null => {
-    if (path.startsWith('/shelter/pets')) return 'pets';
-    if (path.startsWith('/shelter/dashboard')) return 'monitoring';
-    if (path.startsWith('/shelter/employees')) return 'employees';
-    if (path.startsWith('/shelter/requests')) return 'matches';
-    if (path.startsWith('/shelter/chat')) return 'chat';
-    if (path.startsWith('/shelter/profile')) return 'profile';
+    if (path.startsWith('/pets')) return 'pets';
+    if (path.startsWith('/dashboard')) return 'monitoring';
+    if (path.startsWith('/employees')) return 'employees';
+    if (path.startsWith('/requests')) return 'matches';
+    if (path.startsWith('/chat')) return 'chat';
+    if (path.startsWith('/profile')) return 'profile';
     return null;
   };
   const renderNavItem = ({
@@ -144,15 +144,16 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
             : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50'
         } [&_svg]:w-5 [&_svg]:h-5`}
     >
-      {icon}
+      <div className="relative">
+        {icon}
+        {showBadge && (
+          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#B94188] opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-[#B94188] border-2 border-white dark:border-gray-800"></span>
+          </span>
+        )}
+      </div>
       {label}
-      {showBadge && (
-        <span
-          className="ml-auto inline-block h-2.5 w-2.5 rounded-full bg-brand"
-          aria-label="Mensajes nuevos"
-          title="Mensajes nuevos"
-        />
-      )}
     </button>
   );
 

@@ -1,10 +1,11 @@
 import { Eye, EyeOff, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLogin } from '../../../hooks/useLogin';
 import { useRegister } from '../../../hooks/useRegister';
 import { StyledSelect } from '../../../components/styled-select';
 import type { UserRole } from '../../../types';
+import { useAuth } from '../../../context/AuthContext';
 
 type AuthMode = 'login' | 'register';
 
@@ -15,6 +16,7 @@ interface AuthModalProps {
 
 export function AuthModal({ initialMode, onClose }: AuthModalProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [mode, setMode] = useState<AuthMode>(initialMode);
 
   // Login state
@@ -31,6 +33,18 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
 
   const { login, loading: loginLoading, error: loginError } = useLogin();
   const { register, loading: regLoading, error: regError } = useRegister();
+
+  // Track whether we triggered a login so we don't react to pre-existing sessions
+  const pendingRedirect = useRef(false);
+
+  // Navigate once the auth context actually has the user (avoids race condition
+  // where navigate fires before React propagates setAuth to RequireAuth)
+  useEffect(() => {
+    if (pendingRedirect.current && user) {
+      pendingRedirect.current = false;
+      navigate('/login-gateway');
+    }
+  }, [user, navigate]);
 
   // Sync mode if parent changes initialMode
   useEffect(() => {
@@ -55,8 +69,12 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const success = await login(loginEmail, loginPassword);
-    if (success) navigate('/dashboard');
+    if (success) {
+      // Mark that we want to navigate once user is in context
+      pendingRedirect.current = true;
+    }
   };
+
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

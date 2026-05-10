@@ -7,12 +7,13 @@ import {
     PawPrint,
     ShieldCheck,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLogin } from '../hooks/useLogin';
 import { useRegister } from '../hooks/useRegister';
 import type { UserRole } from '../types';
 import { StyledSelect } from './styled-select';
+import { useAuth } from '../context/AuthContext';
 
 type AuthMode = 'login' | 'register';
 
@@ -37,6 +38,19 @@ export default function AuthPage() {
   // --- Hooks de autenticación ---
   const { login, loading: loginLoading, error: loginError } = useLogin();
   const { register, loading: regLoading, error: regError } = useRegister();
+  const { user } = useAuth();
+
+  // Track whether we triggered a login (avoids reacting to pre-existing sessions)
+  const pendingRedirect = useRef(false);
+
+  // Navigate once auth context has the user — avoids the race condition where
+  // navigate fires before React propagates setAuth to RequireAuth
+  useEffect(() => {
+    if (pendingRedirect.current && user) {
+      pendingRedirect.current = false;
+      navigate('/login-gateway');
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     const onEsc = (event: KeyboardEvent) => {
@@ -58,7 +72,7 @@ export default function AuthPage() {
     e.preventDefault();
     const success = await login(loginEmail, loginPassword, rememberMe);
     if (success) {
-      navigate('/dashboard');
+      pendingRedirect.current = true;
     }
   };
 

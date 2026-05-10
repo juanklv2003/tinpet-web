@@ -70,6 +70,15 @@ export function FloatingAssistant() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open]);
 
+  // Reiniciar el asistente por completo cuando cambia la cuenta
+  useEffect(() => {
+    setMessages(buildInitialMessages());
+    setConversationId(undefined);
+    setSending(false);
+    setInput('');
+    setOpen(false);
+  }, [user?.id]);
+
   const sendMessage = async (rawText: string) => {
     const text = rawText.trim();
     if (!text || sending) return;
@@ -102,110 +111,128 @@ export function FloatingAssistant() {
     }
   };
 
-  return (
-    <div className="fixed bottom-5 left-5 z-50">
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="group flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 text-gray-900 dark:text-white shadow-md ring-1 ring-black/5 transition-[transform,box-shadow] duration-150 hover:scale-[1.02] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-        aria-label="Abrir asistente de TinPet"
-      >
-        <Sparkles className="h-4 w-4 text-brand" aria-hidden="true" />
-        <span className="text-sm font-semibold tracking-wide">AI TinPet</span>
-      </button>
+  const isHiddenRoute = location.pathname === '/' || location.pathname === '/auth';
+  if (!user || isHiddenRoute) {
+    return null;
+  }
 
-      {open && (
-        <div className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-[2px]" onClick={() => setOpen(false)}>
-          <div
-            className="fixed bottom-5 left-5 w-[min(92vw,420px)] overflow-hidden rounded-[28px] border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-[0_30px_80px_rgba(15,23,42,0.20)]"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
-              <div className="pr-4">
-                <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">Asistente TinPet Web</h2>
-                <p className="mt-1 text-sm leading-5 text-gray-500 dark:text-gray-400">
-                  Preguntame sobre mascotas, adopción, chats o cómo usar el panel.
-                </p>
+  return (
+    <>
+      <div className="fixed bottom-5 left-5 z-50">
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          className="group flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 text-gray-900 dark:text-white shadow-md ring-1 ring-black/5 transition-[transform,box-shadow] duration-150 hover:scale-[1.02] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          aria-label="Abrir asistente de TinPet"
+        >
+          <Sparkles className="h-4 w-4 text-brand" aria-hidden="true" />
+          <span className="text-sm font-semibold tracking-wide">AI TinPet</span>
+        </button>
+      </div>
+
+      <div
+        className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-[2px]"
+        style={{
+          transition: 'opacity 300ms ease-out',
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none'
+        }}
+        onClick={() => setOpen(false)}
+      >
+        <div
+          className="fixed bottom-5 left-5 w-[min(92vw,420px)] overflow-hidden rounded-[28px] border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-[0_30px_80px_rgba(15,23,42,0.20)] origin-bottom-left"
+          style={{
+            transition: 'all 400ms cubic-bezier(0.16, 1, 0.3, 1)',
+            opacity: open ? 1 : 0,
+            transform: open ? 'translateY(0) scale(1)' : 'translateY(24px) scale(0.92)'
+          }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
+            <div className="pr-4">
+              <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">Asistente TinPet Web</h2>
+              <p className="mt-1 text-sm leading-5 text-gray-500 dark:text-gray-400">
+                Preguntame sobre mascotas, adopción, chats o cómo usar el panel.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 transition-[background-color] duration-150 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              aria-label="Cerrar asistente"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="max-h-[58vh] space-y-3 overflow-y-auto px-5 py-4">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-6 ${
+                  message.role === 'user'
+                    ? 'ml-auto rounded-br-md bg-brand text-white'
+                    : 'mr-auto rounded-bl-md bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
+                }`}
+              >
+                {message.content}
               </div>
+            ))}
+
+            {sending && (
+              <div className="mr-auto inline-flex items-center gap-2 rounded-2xl rounded-bl-md bg-gray-100 dark:bg-gray-800 px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                <Loader2 className="h-4 w-4 animate-spin text-brand" />
+                Pensando...
+              </div>
+            )}
+          </div>
+
+          {!hasUserMessages && (
+            <div className="flex flex-wrap gap-2 px-5 pb-4">
+              {quickPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => void sendMessage(prompt)}
+                  className="rounded-full border border-brand/20 bg-brand/8 px-3 py-2 text-xs font-semibold text-brand transition-[background-color] duration-150 hover:bg-brand/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="border-t border-slate-100 dark:border-gray-800 px-5 py-4">
+            <div className="flex items-end gap-3 rounded-2xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-sm">
+              <textarea
+                ref={inputRef}
+                rows={2}
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    void sendMessage(input);
+                  }
+                }}
+                placeholder="Preguntale algo a TinPet..."
+                className="max-h-32 flex-1 resize-none border-none bg-transparent text-sm text-slate-900 dark:text-white outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
+              />
 
               <button
                 type="button"
-                onClick={() => setOpen(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 transition-[background-color] duration-150 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                aria-label="Cerrar asistente"
+                onClick={() => void sendMessage(input)}
+                disabled={sending || !input.trim()}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand text-white transition-[background-color] duration-150 hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                aria-label="Enviar pregunta"
               >
-                <X className="h-4 w-4" />
+                <Send className="h-4 w-4" />
               </button>
-            </div>
-
-            <div className="max-h-[58vh] space-y-3 overflow-y-auto px-5 py-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-6 ${
-                    message.role === 'user'
-                      ? 'ml-auto rounded-br-md bg-brand text-white'
-                      : 'mr-auto rounded-bl-md bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
-                  }`}
-                >
-                  {message.content}
-                </div>
-              ))}
-
-              {sending && (
-                <div className="mr-auto inline-flex items-center gap-2 rounded-2xl rounded-bl-md bg-gray-100 dark:bg-gray-800 px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                  <Loader2 className="h-4 w-4 animate-spin text-brand" />
-                  Pensando...
-                </div>
-              )}
-            </div>
-
-            {!hasUserMessages && (
-              <div className="flex flex-wrap gap-2 px-5 pb-4">
-                {quickPrompts.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => void sendMessage(prompt)}
-                    className="rounded-full border border-brand/20 bg-brand/8 px-3 py-2 text-xs font-semibold text-brand transition-[background-color] duration-150 hover:bg-brand/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="border-t border-slate-100 px-5 py-4">
-              <div className="flex items-end gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                <textarea
-                  ref={inputRef}
-                  rows={2}
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' && !event.shiftKey) {
-                      event.preventDefault();
-                      void sendMessage(input);
-                    }
-                  }}
-                  placeholder="Preguntale algo a TinPet..."
-                  className="max-h-32 flex-1 resize-none border-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                />
-
-                <button
-                  type="button"
-                  onClick={() => void sendMessage(input)}
-                  disabled={sending || !input.trim()}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand text-white transition-[background-color] duration-150 hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                  aria-label="Enviar pregunta"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
-              </div>
             </div>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }

@@ -172,7 +172,12 @@ export function MatchesView({ matches, loading, error, onAccept, onReject }: Mat
     const q = query.trim().toLowerCase();
     return matches.filter((m) => {
       const adopterName = String(m.user_name ?? (m.adopter as any)?.name ?? '').toLowerCase();
-      if (q && !adopterName.includes(q)) return false;
+      const adopterUser = String(m.adopter?.username ?? (m.adopter as any)?.user_name ?? '').toLowerCase();
+      const petName = String(m.pet_name ?? '').toLowerCase();
+      
+      const matchesQuery = !q || adopterName.includes(q) || adopterUser.includes(q) || petName.includes(q);
+      if (!matchesQuery) return false;
+      
       if (statusFilter !== 'all' && String(m.status) !== statusFilter) return false;
       return true;
     });
@@ -202,7 +207,7 @@ export function MatchesView({ matches, loading, error, onAccept, onReject }: Mat
           <input
             value={query}
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Buscar por nombre..."
+            placeholder="Buscar por nombre o mascota..."
             className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 py-2 pl-9 pr-3 text-sm dark:placeholder-gray-300 dark:text-gray-300"
           />
         </div>

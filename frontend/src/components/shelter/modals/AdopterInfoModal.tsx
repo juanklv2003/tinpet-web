@@ -275,10 +275,19 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
                   <span className="font-medium">Tiene otras mascotas:</span> {adopter.has_other_pets ? 'Sí' : 'No'}
                 </p>
               )}
-              {adopter.other_pets_desc && (
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Descripción:</span> {adopter.other_pets_desc}
-                </p>
+              {adopter.has_other_pets && adopter.other_pets_desc && (
+                <div className="mt-1 pl-3 border-l-2 border-pink-200 dark:border-pink-800/40">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Detalles de mascotas:</p>
+                  {Array.isArray(adopter.other_pets_desc) ? (
+                    <ul className="list-disc list-inside pl-1 text-sm text-gray-700 dark:text-gray-300 space-y-0.5">
+                      {adopter.other_pets_desc.map((pet, idx) => (
+                        <li key={idx}>{pet}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{adopter.other_pets_desc}</p>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -292,6 +301,26 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
               <p className="text-sm text-gray-700 dark:text-gray-300">
                 <span className="font-medium">Tiene hijos:</span> {adopter.has_children ? 'Sí' : 'No'}
               </p>
+              
+              {adopter.has_children && (adopter.kids_count !== undefined || (adopter.kids_ages && adopter.kids_ages.length > 0)) && (
+                <div className="mt-2 pl-3 border-l-2 border-blue-200 dark:border-blue-800/40 space-y-1.5">
+                  {adopter.kids_count !== undefined && adopter.kids_count > 0 && (
+                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      Cantidad de hijos: <span className="font-bold">{adopter.kids_count}</span>
+                    </p>
+                  )}
+                  {Array.isArray(adopter.kids_ages) && adopter.kids_ages.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 items-center mt-1">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Edades:</span>
+                      {adopter.kids_ages.map((age, i) => (
+                        <span key={i} className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-100 dark:border-blue-800">
+                          {age} {age === 1 ? 'año' : 'años'}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -305,7 +334,7 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
                 {adopter.hobbies.map((hobby, idx) => (
                   <span
                     key={idx}
-                    className="px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 text-xs font-medium"
+                    className="px-3 py-1 rounded-full bg-[#B94188]/10 dark:bg-[#B94188]/20 text-[#B94188] text-xs font-medium"
                   >
                     {hobby}
                   </span>

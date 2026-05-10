@@ -764,6 +764,7 @@ app.post("/api/swipe", authenticateToken, async (req, res) => {
     // Buscar el adoptante
     const adopter = await prisma.adopters.findFirst({
       where: { user_id: req.user.sub },
+      orderBy: { created_at: "desc" },
     });
 
     console.log("Adopter found:", adopter);
@@ -1016,6 +1017,101 @@ app.post(
   },
 );
 
+// --- ARCHIVE / UNARCHIVE ENDPOINTS ---
+app.patch(
+  "/api/conversations/:id/archive",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const conversationId = req.params.id;
+      const userId = req.user.userId || req.user.sub;
+      const { role } = req.user;
+
+      const conversation = await prisma.conversations.findUnique({
+        where: { id: conversationId },
+      });
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversación no encontrada" });
+      }
+
+      // Verify the user belongs to this conversation
+      if (role === "adopter") {
+        const adopter = await prisma.adopters.findFirst({
+          where: { user_id: userId },
+        });
+        if (!adopter || adopter.id !== conversation.adopter_id) {
+          return res.status(403).json({ error: "No tienes permiso para archivar esta conversación" });
+        }
+      } else if (isProfessionalRole(role)) {
+        const shelter = await getProfessionalShelterProfile(req.user);
+        if (!shelter || shelter.id !== conversation.shelter_id) {
+          return res.status(403).json({ error: "No tienes permiso para archivar esta conversación" });
+        }
+      } else {
+        return res.status(403).json({ error: "Rol no autorizado" });
+      }
+
+      await prisma.conversations.update({
+        where: { id: conversationId },
+        data: { archived: true },
+      });
+
+      return res.json({ success: true, message: "Conversación archivada" });
+    } catch (error) {
+      console.error("Error al archivar conversación:", error);
+      return res.status(500).json({ error: "Error interno al archivar conversación" });
+    }
+  },
+);
+
+app.patch(
+  "/api/conversations/:id/unarchive",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const conversationId = req.params.id;
+      const userId = req.user.userId || req.user.sub;
+      const { role } = req.user;
+
+      const conversation = await prisma.conversations.findUnique({
+        where: { id: conversationId },
+      });
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversación no encontrada" });
+      }
+
+      // Verify the user belongs to this conversation
+      if (role === "adopter") {
+        const adopter = await prisma.adopters.findFirst({
+          where: { user_id: userId },
+        });
+        if (!adopter || adopter.id !== conversation.adopter_id) {
+          return res.status(403).json({ error: "No tienes permiso para desarchivar esta conversación" });
+        }
+      } else if (isProfessionalRole(role)) {
+        const shelter = await getProfessionalShelterProfile(req.user);
+        if (!shelter || shelter.id !== conversation.shelter_id) {
+          return res.status(403).json({ error: "No tienes permiso para desarchivar esta conversación" });
+        }
+      } else {
+        return res.status(403).json({ error: "Rol no autorizado" });
+      }
+
+      await prisma.conversations.update({
+        where: { id: conversationId },
+        data: { archived: false },
+      });
+
+      return res.json({ success: true, message: "Conversación desarchivada" });
+    } catch (error) {
+      console.error("Error al desarchivar conversación:", error);
+      return res.status(500).json({ error: "Error interno al desarchivar conversación" });
+    }
+  },
+);
+
 /**
  * @swagger
  * /api/likes:
@@ -1059,6 +1155,7 @@ app.get("/api/likes", authenticateToken, async (req, res) => {
 
     const adopter = await prisma.adopters.findFirst({
       where: { user_id: req.user.sub },
+      orderBy: { created_at: "desc" },
     });
 
     if (!adopter) {
@@ -1452,6 +1549,8 @@ app.get("/api/matches", authenticateToken, async (req, res) => {
             other_pets_desc: true,
             pet_experience: true,
             has_children: true,
+            kids_count: true,
+            kids_ages: true,
             hours_at_home: true,
             work_from_home: true,
             hobbies: true,
@@ -1495,6 +1594,8 @@ app.get("/api/matches", authenticateToken, async (req, res) => {
               other_pets_desc: match.adopters.other_pets_desc,
               pet_experience: match.adopters.pet_experience,
               has_children: match.adopters.has_children,
+              kids_count: match.adopters.kids_count,
+              kids_ages: match.adopters.kids_ages,
               hours_at_home: match.adopters.hours_at_home,
               work_from_home: match.adopters.work_from_home,
               hobbies: match.adopters.hobbies,
@@ -1678,28 +1779,9 @@ app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
           match_id: currentMatch.id,
         },
       });
-      // Marcar la mascota como adoptada y asignar adopter_id
-      try {
-        await prisma.pets.update({
-          where: { id: currentMatch.pet_id },
-          data: {
-            status: "adoptado",
-            adopter_id: currentMatch.adopter_id,
-          },
-        });
-
-        // Rechazar otras solicitudes pendientes para la misma mascota
-        await prisma.matches.updateMany({
-          where: {
-            pet_id: currentMatch.pet_id,
-            id: { not: currentMatch.id },
-            interaction_type: "pending",
-          },
-          data: { interaction_type: "rejected" },
-        });
-      } catch (e) {
-        console.error("Error al marcar mascota como adoptada:", e);
-      }
+      // El estado de la mascota NO se cambia automáticamente.
+      // El usuario (refugio/vet) debe actualizarlo manualmente desde el panel de mascotas
+      // o desde el menú de 3 puntos en el chat.
     }
 
     res.json({
@@ -1796,6 +1878,7 @@ app.get("/api/adopter/matches", authenticateToken, async (req, res) => {
 
     const adopter = await prisma.adopters.findFirst({
       where: { user_id: req.user.sub },
+      orderBy: { created_at: "desc" },
     });
 
     if (!adopter) {
@@ -1886,6 +1969,14 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
     const { role } = req.user;
     let conversations = [];
 
+    // Parse ?archived query param
+    const archivedFilter =
+      req.query.archived === "true"
+        ? true
+        : req.query.archived === "false"
+          ? false
+          : undefined;
+
     if (role === "adopter") {
       const adopter = await prisma.adopters.findFirst({
         where: { user_id: userId },
@@ -1894,7 +1985,10 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
         return res.status(404).json({ error: "Adoptante no encontrado" });
 
       conversations = await prisma.conversations.findMany({
-        where: { adopter_id: adopter.id },
+        where: {
+          adopter_id: adopter.id,
+          ...(archivedFilter !== undefined ? { archived: archivedFilter } : {}),
+        },
         include: {
           shelter: {
             select: { id: true, name: true, phone: true, location: true },
@@ -1916,7 +2010,10 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
         return res.status(404).json({ error: "Perfil profesional no encontrado" });
 
       conversations = await prisma.conversations.findMany({
-        where: { shelter_id: shelter.id },
+        where: {
+          shelter_id: shelter.id,
+          ...(archivedFilter !== undefined ? { archived: archivedFilter } : {}),
+        },
         include: {
           adopter: {
             select: { id: true, name: true, avatar_url: true, photos: true },
@@ -1936,6 +2033,7 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
       pet_id: conv.pet_id,
       pet_name: conv.pet?.name ?? null,
       pet_image: parsePhotoUrlsFromImageField(conv.pet?.image_url)[0] ?? null,
+      archived: conv.archived,
       other_party: conv.shelter
         ? {
             type: "shelter",
@@ -2404,6 +2502,7 @@ app.get("/api/adopter/profile", authenticateToken, async (req, res) => {
 
     const adopter = await prisma.adopters.findFirst({
       where: { user_id: req.user.sub },
+      orderBy: { created_at: "desc" },
       select: {
         id: true,
         user_id: true,
@@ -2484,6 +2583,7 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
 
     const adopter = await prisma.adopters.findFirst({
       where: { user_id: req.user.sub },
+      orderBy: { created_at: "desc" },
     });
 
     if (!adopter) {
@@ -2918,17 +3018,20 @@ app.post("/api/auth/google", async (req, res) => {
       if (user.role === "adopter") {
         const profile = await prisma.adopters.findFirst({
           where: { user_id: user.id },
+          orderBy: { created_at: "desc" },
         });
         profileName = profile?.name || googleName || "";
         avatarUrl = profile?.avatar_url || picture || null;
       } else if (user.role === "shelter") {
         const profile = await prisma.shelters.findFirst({
           where: { user_id: user.id },
+          orderBy: { created_at: "desc" },
         });
         profileName = profile?.name || googleName || "";
       } else if (user.role === "vet") {
         const profile = await prisma.vet_clinics.findFirst({
           where: { user_id: user.id },
+          orderBy: { created_at: "desc" },
         });
         profileName = profile?.name || googleName || "";
       }

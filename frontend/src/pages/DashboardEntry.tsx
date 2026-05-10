@@ -5,18 +5,18 @@ export default function DashboardEntry() {
   const { user, loading } = useAuth();
 
   if (loading) return <div className="p-6">Cargando...</div>;
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/" replace />;
 
   // Redirect to role-scoped dashboard paths so the URL reflects the role
   switch (user.role) {
     case 'shelter':
     case 'vet':
-      return <Navigate to="/shelter/pets" replace />;
+      return <Navigate to="/pets" replace />;
     case 'adopter':
       return <Navigate to="/adopter/dashboard" replace />;
     case 'admin':
       return <Navigate to="/admin/dashboard" replace />;
     default:
-      return <Navigate to="/shelter/dashboard" replace />;
+      return <Navigate to="/dashboard" replace />;
   }
 }

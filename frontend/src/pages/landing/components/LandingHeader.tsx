@@ -1,5 +1,6 @@
-import { PawPrint } from 'lucide-react';
+import { PawPrint, Sun, Moon } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
+import { useTheme } from '../../../components/shelter/hooks/useTheme';
 
 interface LandingHeaderProps {
   onLogin: () => void;
@@ -8,6 +9,8 @@ interface LandingHeaderProps {
 }
 
 export function LandingHeader({ onLogin, onRegister, scrolled = false }: LandingHeaderProps) {
+  const { isDarkMode, toggleDarkMode } = useTheme();
+
   return (
     <header
       className={`sticky top-0 z-10 transition-[background-color,border-color,box-shadow] duration-200
@@ -33,6 +36,16 @@ export function LandingHeader({ onLogin, onRegister, scrolled = false }: Landing
 
         {/* Nav */}
         <nav className="flex items-center gap-1" aria-label="Navegación principal">
+          <button
+            onClick={toggleDarkMode}
+            type="button"
+            className="mr-1 flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 transition-[background-color,color] duration-200 hover:bg-stone-100 dark:hover:bg-gray-800 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+            title={isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            aria-label="Cambiar tema"
+          >
+            {isDarkMode ? <Moon className="h-[1.15rem] w-[1.15rem]" /> : <Sun className="h-[1.15rem] w-[1.15rem]" />}
+          </button>
+
           <Button variant="ghost" onClick={onLogin} className="rounded-lg">
             Iniciar sesión
           </Button>

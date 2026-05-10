@@ -18,7 +18,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route
-            path="/dashboard"
+            path="/login-gateway"
             element={
               <RequireAuth>
                 <DashboardEntry />
@@ -26,7 +26,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             }
           />
           <Route
-            path="/shelter/pets"
+            path="/pets"
             element={
               <RequireAuth>
                 <ShelterDashboard initialView="pets" />
@@ -34,7 +34,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             }
           />
           <Route
-            path="/shelter/dashboard"
+            path="/dashboard"
             element={
               <RequireAuth>
                 <ShelterDashboard initialView="monitoring" />
@@ -42,7 +42,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             }
           />
           <Route
-            path="/shelter/employees"
+            path="/employees"
             element={
               <RequireAuth>
                 <ShelterDashboard initialView="employees" />
@@ -50,7 +50,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             }
           />
           <Route
-            path="/shelter/requests"
+            path="/requests"
             element={
               <RequireAuth>
                 <ShelterDashboard initialView="matches" />
@@ -58,7 +58,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             }
           />
           <Route
-            path="/shelter/chat"
+            path="/chat"
             element={
               <RequireAuth>
                 <ShelterDashboard initialView="chat" />
@@ -66,7 +66,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             }
           />
           <Route
-            path="/shelter/profile"
+            path="/profile"
             element={
               <RequireAuth>
                 <ShelterDashboard initialView="profile" />

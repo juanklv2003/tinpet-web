@@ -1,5 +1,5 @@
-import { Building2, MessageCircle, Stethoscope, UserRound } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Archive, Ban, Building2, ChevronLeft, MessageCircle, Stethoscope, UserRound } from "lucide-react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import type { Conversation, Message } from "../../../services/chatService";
 import { chatService } from "../../../services/chatService";
 import { IconPaw, IconPhone, IconSend } from "../Icons";
@@ -151,6 +151,8 @@ export function ChatView({ token }: ChatViewProps) {
   const [reportReason, setReportReason] = useState("");
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [showPetStatusModal, setShowPetStatusModal] = useState(false);
+  const [petStatusUpdating, setPetStatusUpdating] = useState(false);
   const [successModal, setSuccessModal] = useState<{
     isOpen: boolean;
     message: string;
@@ -337,6 +339,40 @@ export function ChatView({ token }: ChatViewProps) {
     }
   };
 
+  // Change pet status from chat
+  const handleChangePetStatus = async (newStatus: "available" | "pending" | "adopted") => {
+    if (!selectedConversation?.pet_id) return;
+    setPetStatusUpdating(true);
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://192.168.5.103:3000"}/api/pets/${selectedConversation.pet_id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: newStatus }),
+        },
+      );
+      if (!res.ok) throw new Error("Error al actualizar estado");
+      setShowPetStatusModal(false);
+      const statusLabels: Record<string, string> = {
+        available: "Disponible",
+        pending: "En proceso",
+        adopted: "Adoptado",
+      };
+      setSuccessModal({
+        isOpen: true,
+        message: `Estado de ${selectedConversation.pet_name || "la mascota"} actualizado a "${statusLabels[newStatus]}".`,
+      });
+    } catch (err) {
+      console.error("Error cambiando estado de mascota:", err);
+    } finally {
+      setPetStatusUpdating(false);
+    }
+  };
+
   // Call contact
   const handleCall = (phone?: string | null) => {
     if (phone) {
@@ -360,50 +396,51 @@ export function ChatView({ token }: ChatViewProps) {
         className={`${selectedConversation ? "hidden md:flex" : "flex"} flex-col w-full md:w-80 border-r border-gray-200 dark:border-gray-700`}
       >
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex justify-between items-center mb-3">
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">
-                Conversaciones
-              </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {conversations.length} conversación
-                {conversations.length !== 1 ? "es" : ""}
-              </p>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2.5">
+              {activeTab !== "active" && (
+                <button
+                  onClick={() => setActiveTab("active")}
+                  title="Volver a chats principales"
+                  className="p-1.5 -ml-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+              )}
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  {activeTab === "active" ? "Conversaciones" : activeTab === "archived" ? "Archivados" : "Bloqueados"}
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {conversations.length} conversación{conversations.length !== 1 ? "es" : ""}
+                </p>
+              </div>
             </div>
-          </div>
 
-          {/* Subtabs de chat */}
-          <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl gap-1 border border-gray-200/60 dark:border-gray-700/60 select-none">
-            <button
-              onClick={() => setActiveTab("active")}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-[color,background-color] duration-150 ${
-                activeTab === "active"
-                  ? "bg-white dark:bg-gray-700 text-brand shadow-sm"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-              }`}
-            >
-              Activos
-            </button>
-            <button
-              onClick={() => setActiveTab("archived")}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-[color,background-color] duration-150 ${
-                activeTab === "archived"
-                  ? "bg-white dark:bg-gray-700 text-brand shadow-sm"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-              }`}
-            >
-              Archivados
-            </button>
-            <button
-              onClick={() => setActiveTab("blocked")}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-[color,background-color] duration-150 ${
-                activeTab === "blocked"
-                  ? "bg-white dark:bg-gray-700 text-brand shadow-sm"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-              }`}
-            >
-              Bloqueados
-            </button>
+            <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-700/50 p-1 rounded-xl border border-gray-200/50 dark:border-gray-600/50">
+              <button
+                onClick={() => setActiveTab(activeTab === "archived" ? "active" : "archived")}
+                title="Ver archivados"
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  activeTab === "archived"
+                    ? "bg-white dark:bg-gray-600 text-brand shadow-sm scale-105 ring-1 ring-black/5"
+                    : "text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <Archive className="w-[18px] h-[18px]" />
+              </button>
+              <button
+                onClick={() => setActiveTab(activeTab === "blocked" ? "active" : "blocked")}
+                title="Ver bloqueados"
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  activeTab === "blocked"
+                    ? "bg-white dark:bg-gray-600 text-red-500 shadow-sm scale-105 ring-1 ring-black/5"
+                    : "text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <Ban className="w-[18px] h-[18px]" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -553,15 +590,8 @@ export function ChatView({ token }: ChatViewProps) {
                   </h4>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     <span className="inline-flex items-center gap-1.5">
-                      {
-                        otherPartyBadge(selectedConversation.other_party.type)
-                          .icon
-                      }
-                      {
-                        otherPartyBadge(selectedConversation.other_party.type)
-                          .label
-                      }
-                      : {selectedConversation.other_party.name}
+                      {otherPartyBadge(selectedConversation.other_party.type).icon}
+                      {selectedConversation.other_party.name}
                     </span>
                   </p>
                 </div>
@@ -702,6 +732,37 @@ export function ChatView({ token }: ChatViewProps) {
 
                           <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
 
+                          {/* Cambiar estado mascota */}
+                          <button
+                            onClick={() => {
+                              setShowSubMenu(false);
+                              setShowPetStatusModal(true);
+                            }}
+                            className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3"
+                          >
+                            <svg
+                              className="w-5 h-5 text-brand flex-shrink-0"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a2 2 0 012-2z"
+                              />
+                            </svg>
+                            <span>
+                              Cambiar estado de{" "}
+                              <strong className="font-semibold">
+                                {selectedConversation.pet_name || "la mascota"}
+                              </strong>
+                            </span>
+                          </button>
+
+                          <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+
                           <button
                             onClick={() => {
                               setShowSubMenu(false);
@@ -766,63 +827,88 @@ export function ChatView({ token }: ChatViewProps) {
                   </p>
                 </div>
               ) : (
-                (messages as Message[]).map((msg) => {
+                (messages as Message[]).map((msg, idx, arr) => {
                   const isOwn = msg.sender_role === "shelter" || msg.sender_role === "vet";
                   const incomingAvatar = getAdopterAvatar(selectedConversation);
+
+                  const msgDate = new Date(msg.created_at);
+                  const prevMsg = idx > 0 ? arr[idx - 1] : null;
+                  const prevDate = prevMsg ? new Date(prevMsg.created_at) : null;
+                  const showDateHeader = !prevDate || msgDate.toDateString() !== prevDate.toDateString();
+
+                  const formatGroupDate = (d) => {
+                    const today = new Date();
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    if (d.toDateString() === today.toDateString()) return "Hoy";
+                    if (d.toDateString() === yesterday.toDateString()) return "Ayer";
+                    return d.toLocaleDateString("es-ES", {
+                      day: "numeric",
+                      month: "long",
+                      year: d.getFullYear() === today.getFullYear() ? undefined : "numeric"
+                    });
+                  };
+
                   return (
-                    <div
-                      key={msg.id}
-                      className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
-                    >
-                      {!isOwn && (
-                        <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden flex-shrink-0 mr-2 self-end">
-                          {incomingAvatar ? (
-                            <img
-                              src={incomingAvatar}
-                              alt={
-                                selectedConversation.other_party.name ||
-                                "Avatar"
-                              }
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-sm text-gray-500 dark:text-gray-300">
-                              <UserRound className="w-4 h-4" />
-                            </div>
-                          )}
+                    <Fragment key={msg.id}>
+                      {showDateHeader && (
+                        <div className="flex justify-center my-5 select-none">
+                          <span className="bg-gray-100 dark:bg-gray-700/70 text-gray-500 dark:text-gray-300 text-[11px] font-semibold px-3 py-1 rounded-full border border-gray-200/30 dark:border-gray-600/30 uppercase tracking-wide shadow-sm">
+                            {formatGroupDate(msgDate)}
+                          </span>
                         </div>
                       )}
                       <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                          isOwn
-                            ? "bg-brand text-white rounded-br-sm"
-                            : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-bl-sm"
-                        }`}
+                        className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
                       >
-                        {msg.content.startsWith("data:image/") ||
-                        msg.content.startsWith("http://") ||
-                        msg.content.startsWith("https://") ? (
-                          <img
-                            src={msg.content}
-                            alt="Attachment"
-                            className="max-w-xs max-h-48 rounded-lg object-contain cursor-pointer select-none"
-                            onClick={() => window.open(msg.content, "_blank")}
-                          />
-                        ) : (
-                          <p className="text-sm break-words">{msg.content}</p>
+                        {!isOwn && (
+                          <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden flex-shrink-0 mr-2 self-end">
+                            {incomingAvatar ? (
+                              <img
+                                src={incomingAvatar}
+                                alt={
+                                  selectedConversation.other_party.name ||
+                                  "Avatar"
+                                }
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-sm text-gray-500 dark:text-gray-300">
+                                <UserRound className="w-4 h-4" />
+                              </div>
+                            )}
+                          </div>
                         )}
-                        <p
-                          className={`text-xs mt-1 ${
-                            isOwn ? "text-brand/40" : "text-gray-400"
-                          }`}
-                        >
-                          {new Date(msg.created_at).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
+                        <div className={`flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
+                          <div
+                            className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
+                              isOwn
+                                ? "bg-brand text-white rounded-br-sm"
+                                : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-bl-sm"
+                            }`}
+                          >
+                            {msg.content.startsWith("data:image/") ||
+                            msg.content.startsWith("http://") ||
+                            msg.content.startsWith("https://") ? (
+                              <img
+                                src={msg.content}
+                                alt="Attachment"
+                                className="max-w-xs max-h-48 rounded-lg object-contain cursor-pointer select-none"
+                                onClick={() => window.open(msg.content, "_blank")}
+                              />
+                            ) : (
+                              <p className="text-sm break-words">{msg.content}</p>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 px-1">
+                            {new Date(msg.created_at).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    </Fragment>
                   );
                 })
               )}
@@ -1356,6 +1442,81 @@ export function ChatView({ token }: ChatViewProps) {
                   className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-brand hover:bg-brand-dark text-white shadow-sm shadow-brand/20 transition-[background-color] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   Archivar chat
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Cambiar estado de mascota */}
+        {showPetStatusModal && selectedConversation && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 select-none animate-fadeIn">
+            <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 w-full max-w-md rounded-2xl shadow-2xl p-6 relative">
+              <button
+                onClick={() => setShowPetStatusModal(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 bg-brand/10 dark:bg-brand/20 rounded-xl flex items-center justify-center text-brand">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a2 2 0 012-2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    Estado de {selectedConversation.pet_name || "la mascota"}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Seleccioná el nuevo estado
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2 mb-5">
+                {(
+                  [
+                    { value: "available" as const, label: "Disponible", desc: "La mascota sigue buscando hogar", color: "green" },
+                    { value: "pending" as const, label: "En proceso", desc: "Adopción en trámite", color: "amber" },
+                    { value: "adopted" as const, label: "Adoptado", desc: "La mascota ya tiene hogar", color: "blue" },
+                  ] as const
+                ).map(({ value, label, desc, color }) => (
+                  <button
+                    key={value}
+                    onClick={() => handleChangePetStatus(value)}
+                    disabled={petStatusUpdating}
+                    className={`w-full flex items-center gap-4 p-3.5 rounded-xl border transition-all duration-150 text-left disabled:opacity-60
+                      ${color === "green" ? "border-green-200 dark:border-green-800/50 hover:bg-green-50 dark:hover:bg-green-900/20" : ""}
+                      ${color === "amber" ? "border-amber-200 dark:border-amber-800/50 hover:bg-amber-50 dark:hover:bg-amber-900/20" : ""}
+                      ${color === "blue" ? "border-blue-200 dark:border-blue-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/20" : ""}
+                    `}
+                  >
+                    <span className={`w-3 h-3 rounded-full flex-shrink-0
+                      ${color === "green" ? "bg-green-500" : ""}
+                      ${color === "amber" ? "bg-amber-500" : ""}
+                      ${color === "blue" ? "bg-blue-500" : ""}
+                    `} />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{label}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{desc}</p>
+                    </div>
+                    {petStatusUpdating && (
+                      <div className="ml-auto w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex justify-end border-t border-gray-100 dark:border-gray-700 pt-4">
+                <button
+                  onClick={() => setShowPetStatusModal(false)}
+                  className="px-4 py-2.5 text-sm rounded-xl font-medium border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-all active:scale-95 duration-100"
+                >
+                  Cancelar
                 </button>
               </div>
             </div>

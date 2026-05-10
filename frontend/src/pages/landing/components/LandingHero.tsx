@@ -48,9 +48,9 @@ export function LandingHero({ entered, onRegister }: LandingHeroProps) {
         {/* Inline stats */}
         <div className="flex flex-wrap gap-6 text-sm">
           {[
-            { value: '+2.400', label: 'adopciones' },
-            { value: '500+', label: 'refugios' },
-            { value: '4.9★', label: 'valoración' },
+            { value: '+1.200', label: 'animales' },
+            { value: '150+', label: 'refugios' },
+            { value: '98%', label: 'éxito' },
           ].map(stat => (
             <div key={stat.label}>
               <p className="font-black text-gray-900 dark:text-white text-lg leading-none">{stat.value}</p>

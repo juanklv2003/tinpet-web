@@ -1,8 +1,8 @@
 const stats = [
-  { value: '+2.400', label: 'Adopciones gestionadas' },
-  { value: '38%', label: 'Menos tiempo de gestión' },
-  { value: '4.9/5', label: 'Valoración media' },
-  { value: '500+', label: 'Refugios conectados' },
+  { value: '+1.200', label: 'Animales ayudados' },
+  { value: '98%', label: 'Índice de éxito' },
+  { value: '24/7', label: 'Asistente inteligente' },
+  { value: '150+', label: 'Refugios registrados' },
 ];
 
 export function LandingStats() {

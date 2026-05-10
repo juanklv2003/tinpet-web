@@ -110,7 +110,10 @@ router.post('/login', async (req, res) => {
 
     // Obtener nombre del perfil según el rol
     const profileModel = { adopter: 'adopters', shelter: 'shelters', vet: 'vet_clinics' }[user.role];
-    const profileData = await prisma[profileModel].findFirst({ where: { user_id: user.id } });
+    const profileData = await prisma[profileModel].findFirst({ 
+      where: { user_id: user.id },
+      orderBy: { created_at: 'desc' }
+    });
     const name = profileData?.name ?? '';
 
     const token = jwt.sign(

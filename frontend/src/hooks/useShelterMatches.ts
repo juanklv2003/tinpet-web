@@ -23,9 +23,11 @@ export interface MatchRequest {
     description?: string;
     housing_type?: string;
     has_other_pets?: boolean;
-    other_pets_desc?: string;
+    other_pets_desc?: string[] | string;
     pet_experience?: string;
     has_children?: boolean;
+    kids_count?: number;
+    kids_ages?: number[];
     hours_at_home?: string;
     work_from_home?: boolean;
     hobbies?: string[];
