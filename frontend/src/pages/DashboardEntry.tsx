@@ -10,8 +10,9 @@ export default function DashboardEntry() {
   // Redirect to role-scoped dashboard paths so the URL reflects the role
   switch (user.role) {
     case 'shelter':
-    case 'vet':
       return <Navigate to="/pets" replace />;
+    case 'vet':
+      return <Navigate to="/vet/pets" replace />;
     case 'adopter':
       return <Navigate to="/adopter/dashboard" replace />;
     case 'admin':

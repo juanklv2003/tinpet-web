@@ -5,6 +5,7 @@ import './index.css'
 import LandingPage from './pages/landing/LandingPage.tsx'
 import DashboardEntry from './pages/DashboardEntry'
 import ShelterDashboard from './components/shelter/ShelterDashboard.tsx'
+import VetDashboard from './components/VetDashboard.tsx'
 import AdopterDashboard from './components/adopter/AdopterDashboard'
 import AdminDashboard from './components/admin/AdminDashboard'
 import { AuthProvider } from './context/AuthContext.tsx'
@@ -70,6 +71,54 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             element={
               <RequireAuth>
                 <ShelterDashboard initialView="profile" />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/vet/pets"
+            element={
+              <RequireAuth>
+                <VetDashboard initialView="pets" />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/vet/dashboard"
+            element={
+              <RequireAuth>
+                <VetDashboard initialView="monitoring" />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/vet/employees"
+            element={
+              <RequireAuth>
+                <VetDashboard initialView="employees" />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/vet/requests"
+            element={
+              <RequireAuth>
+                <VetDashboard initialView="matches" />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/vet/chat"
+            element={
+              <RequireAuth>
+                <VetDashboard initialView="chat" />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/vet/profile"
+            element={
+              <RequireAuth>
+                <VetDashboard initialView="profile" />
               </RequireAuth>
             }
           />

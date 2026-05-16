@@ -836,7 +836,7 @@ export function ChatView({ token }: ChatViewProps) {
                   const prevDate = prevMsg ? new Date(prevMsg.created_at) : null;
                   const showDateHeader = !prevDate || msgDate.toDateString() !== prevDate.toDateString();
 
-                  const formatGroupDate = (d) => {
+                  const formatGroupDate = (d: Date) => {
                     const today = new Date();
                     const yesterday = new Date();
                     yesterday.setDate(yesterday.getDate() - 1);

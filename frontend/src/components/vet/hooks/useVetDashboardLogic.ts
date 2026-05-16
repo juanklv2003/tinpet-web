@@ -1,16 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useShelterEmployees } from '../../../hooks/useShelterEmployees';
 import { useShelterMatches } from '../../../hooks/useShelterMatches';
 import { useShelterStats } from '../../../hooks/useShelterStats';
 import { API_BASE_URL, apiFetch } from '../../../services/api';
 import type { AuthUser, Pet } from '../../../types';
-import type { ActiveView, AddPetForm, ShelterProfileForm } from '../types';
+import type { AddPetForm } from '../../shelter/types';
+import type { VetActiveView, VetProfileForm } from '../types';
 
-interface UseShelterDashboardLogicResult {
-  activeView: ActiveView;
-  setActiveView: React.Dispatch<React.SetStateAction<ActiveView>>;
-  sidebarOpen: boolean;
-  setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
+interface UseVetDashboardLogicResult {
+  activeView: VetActiveView;
+  setActiveView: React.Dispatch<React.SetStateAction<VetActiveView>>;
   pets: Pet[];
   setPets: React.Dispatch<React.SetStateAction<Pet[]>>;
   loading: boolean;
@@ -19,12 +18,12 @@ interface UseShelterDashboardLogicResult {
   setIsAddModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   selectedPet: Pet | null;
   setSelectedPet: React.Dispatch<React.SetStateAction<Pet | null>>;
-  profileForm: ShelterProfileForm;
+  profileForm: VetProfileForm;
   profileDirty: boolean;
   profileSaveMsg: string | null;
   profileError: string | null;
   fetchMyPets: () => Promise<void>;
-  updateProfileField: (field: keyof ShelterProfileForm, value: string) => void;
+  updateProfileField: (field: keyof VetProfileForm, value: string) => void;
   handleProfilePhotoSelect: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
   saveProfile: () => Promise<void>;
   handleAddPet: (form: AddPetForm) => Promise<void>;
@@ -32,7 +31,6 @@ interface UseShelterDashboardLogicResult {
   stats: { totalPets: number; totalLikesReceived: number; closedAdoptions: number };
   statsLoading: boolean;
   statsError: string | null;
-  fetchStats: () => Promise<void>;
   matches: Array<{
     id: string;
     pet_id: string;
@@ -59,35 +57,126 @@ interface UseShelterDashboardLogicResult {
   handleAddEmployee: (payload: { name: string; email: string; role?: string }) => Promise<unknown>;
 }
 
-export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashboardLogicResult {
-  const [activeView, setActiveView] = useState<ActiveView>('pets');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
+export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogicResult {
+  const [activeView, setActiveView] = useState<VetActiveView>('pets');
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
 
-  const profileStorageKey = user?.id ? `tinpet-profile-${user.id}` : null;
-  const [profileForm, setProfileForm] = useState<ShelterProfileForm>({
+  const profileStorageKey = user?.id ? `tinpet-vet-profile-${user.id}` : null;
+  const [profileForm, setProfileForm] = useState<VetProfileForm>({
     displayName: user?.name ?? '',
     email: user?.email ?? '',
     location: '',
     phone: '',
-    website: '',
     description: '',
     avatarUrl: '',
-    googleMaps: '',
-    instagram: '',
-    tiktok: '',
-    facebook: '',
-    youtube: '',
   });
   const [profileDirty, setProfileDirty] = useState(false);
   const [profileSaveMsg, setProfileSaveMsg] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+
+  const {
+    stats,
+    loading: statsLoading,
+    error: statsError,
+    fetchStats,
+  } = useShelterStats({ autoFetch: false });
+
+  const {
+    matches,
+    loading: matchesLoading,
+    error: matchesError,
+    fetchMatches,
+    handleAcceptMatch,
+    handleRejectMatch,
+  } = useShelterMatches({ autoFetch: false });
+
+  const {
+    employees,
+    loading: employeesLoading,
+    error: employeesError,
+    fetchEmployees,
+    handleAddEmployee,
+  } = useShelterEmployees({ autoFetch: false });
+
+  const fetchMyPets = useCallback(async () => {
+    if (!user?.id) return;
+    if (pets.length === 0) {
+      setLoading(true);
+    }
+    setError(null);
+    try {
+      const data = await apiFetch<Pet[]>('/api/pets/mine');
+      setPets(data);
+    } catch (err: unknown) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [pets.length, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    if (activeView === 'pets' || activeView === 'monitoring') {
+      void fetchMyPets();
+    }
+    if (activeView === 'monitoring') {
+      void fetchStats();
+    }
+    if (activeView === 'matches') {
+      void fetchMatches();
+    }
+    if (activeView === 'employees' || activeView === 'pets' || isAddModalOpen) {
+      void fetchEmployees();
+    }
+  }, [user?.id, activeView, isAddModalOpen, fetchMyPets, fetchStats, fetchMatches, fetchEmployees]);
+
+  // Restore from localStorage on mount
+  useEffect(() => {
+    if (!user?.id || !profileStorageKey) return;
+
+    const fallback: VetProfileForm = {
+      displayName: user.name ?? '',
+      email: user.email ?? '',
+      location: '',
+      phone: '',
+      description: '',
+      avatarUrl: '',
+    };
+
+    try {
+      const raw = localStorage.getItem(profileStorageKey);
+      if (!raw) {
+        setProfileForm(fallback);
+      } else {
+        const parsed = JSON.parse(raw) as Partial<VetProfileForm>;
+        setProfileForm({
+          displayName: parsed.displayName ?? fallback.displayName,
+          email: parsed.email ?? fallback.email,
+          location: parsed.location ?? '',
+          phone: parsed.phone ?? '',
+          description: parsed.description ?? '',
+          avatarUrl: parsed.avatarUrl ?? '',
+        });
+      }
+    } catch {
+      setProfileForm(fallback);
+    }
+
+    setProfileDirty(false);
+    setProfileSaveMsg(null);
+    setProfileError(null);
+  }, [user?.id, user?.name, user?.email, profileStorageKey]);
+
+  const updateProfileField = (field: keyof VetProfileForm, value: string) => {
+    setProfileForm((prev) => ({ ...prev, [field]: value }));
+    setProfileDirty(true);
+    setProfileSaveMsg(null);
+    setProfileError(null);
+  };
 
   const uploadProfileImage = async (file: File): Promise<string> => {
     const token = localStorage.getItem('token');
@@ -120,117 +209,6 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
     }
 
     return payload.url;
-  };
-
-  const {
-    stats,
-    loading: statsLoading,
-    error: statsError,
-    fetchStats,
-  } = useShelterStats({ autoFetch: false });
-
-  const {
-    matches,
-    loading: matchesLoading,
-    error: matchesError,
-    fetchMatches,
-    handleAcceptMatch,
-    handleRejectMatch,
-  } = useShelterMatches({ autoFetch: false });
-
-  const {
-    employees,
-    loading: employeesLoading,
-    error: employeesError,
-    fetchEmployees,
-    handleAddEmployee,
-  } = useShelterEmployees({ autoFetch: false });
-
-  const fetchMyPets = async () => {
-    if (!user?.id) return;
-    if (pets.length === 0) {
-      setLoading(true);
-    }
-    setError(null);
-    try {
-      const data = await apiFetch<Pet[]>('/api/pets/mine');
-      setPets(data);
-    } catch (err: unknown) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!user?.id) return;
-    if (activeView === 'pets' || activeView === 'monitoring') {
-      void fetchMyPets();
-    }
-    if (activeView === 'monitoring') {
-      void fetchStats();
-    }
-    if (activeView === 'matches') {
-      void fetchMatches();
-    }
-    if (activeView === 'employees' || activeView === 'pets' || isAddModalOpen) {
-      void fetchEmployees();
-    }
-  }, [user?.id, activeView, isAddModalOpen, fetchStats, fetchMatches, fetchEmployees]);
-
-  useEffect(() => {
-    if (!user?.id || !profileStorageKey) return;
-
-    const fallback: ShelterProfileForm = {
-      displayName: user.name ?? '',
-      email: user.email ?? '',
-      location: '',
-      phone: '',
-      website: '',
-      description: '',
-      avatarUrl: '',
-      googleMaps: '',
-      instagram: '',
-      tiktok: '',
-      facebook: '',
-      youtube: '',
-    };
-
-    try {
-      const raw = localStorage.getItem(profileStorageKey);
-      if (!raw) {
-        setProfileForm(fallback);
-      } else {
-        const parsed = JSON.parse(raw) as Partial<ShelterProfileForm>;
-        setProfileForm({
-          displayName: parsed.displayName ?? fallback.displayName,
-          email: parsed.email ?? fallback.email,
-          location: parsed.location ?? '',
-          phone: parsed.phone ?? '',
-          website: parsed.website ?? '',
-          description: parsed.description ?? '',
-          avatarUrl: parsed.avatarUrl ?? '',
-          googleMaps: parsed.googleMaps ?? '',
-          instagram: parsed.instagram ?? '',
-          tiktok: parsed.tiktok ?? '',
-          facebook: parsed.facebook ?? '',
-          youtube: parsed.youtube ?? '',
-        });
-      }
-    } catch {
-      setProfileForm(fallback);
-    }
-
-    setProfileDirty(false);
-    setProfileSaveMsg(null);
-    setProfileError(null);
-  }, [user?.id, user?.name, user?.email, profileStorageKey]);
-
-  const updateProfileField = (field: keyof ShelterProfileForm, value: string) => {
-    setProfileForm((prev) => ({ ...prev, [field]: value }));
-    setProfileDirty(true);
-    setProfileSaveMsg(null);
-    setProfileError(null);
   };
 
   const handleProfilePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -267,10 +245,10 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
 
     try {
       localStorage.setItem(profileStorageKey, JSON.stringify(profileForm));
-      
-      // Save avatar to backend
+
+      // Save avatar to backend via vet-clinics endpoint
       if (profileForm.avatarUrl) {
-        await apiFetch('/api/shelters/profile', {
+        await apiFetch('/api/vet-clinics/profile', {
           method: 'PUT',
           body: JSON.stringify({ avatar_url: profileForm.avatarUrl }),
         });
@@ -323,8 +301,6 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
   return {
     activeView,
     setActiveView,
-    sidebarOpen,
-    setSidebarOpen,
     pets,
     setPets,
     loading,
@@ -346,7 +322,6 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
     stats,
     statsLoading,
     statsError,
-    fetchStats,
     matches,
     matchesLoading,
     matchesError,
