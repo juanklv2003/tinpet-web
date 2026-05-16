@@ -106,6 +106,7 @@ async function sendPushNotification(userId, title, body, data = {}) {
     console.error(`[Push] Error sending to user ${userId}:`, error);
   }
 }
+global.sendPushNotification = sendPushNotification;
 
 function normalizeIncomingPhotoUrls(aiProfile) {
   const fromArray = Array.isArray(aiProfile?.photoUrls)
@@ -312,6 +313,7 @@ async function getProfessionalShelterProfile(user) {
   });
   if (!vetClinic) return null;
 
+  // DEFERRED: add description, website, instagram, facebook here once shelters schema has those columns
   return prisma.shelters.create({
     data: {
       id: randomUUID(),
@@ -553,7 +555,7 @@ app.post("/api/pets", authenticateToken, async (req, res) => {
         .json({ error: "Solo refugios y veterinarias pueden crear mascotas" });
     }
 
-    const { name, species, status, ai_profile } = req.body;
+    const { name, species, status, description, ai_profile } = req.body;
 
     if (!name || !species) {
       return res.status(400).json({ error: "Nombre y especie son requeridos" });
@@ -584,6 +586,7 @@ app.post("/api/pets", authenticateToken, async (req, res) => {
       name,
       species,
       status: dbStatus,
+      description: description || null,
       shelter_id: shelter.id,
       breed: ai_profile?.breed || null,
       image_url: toStoredImageField(photoUrls),
@@ -679,9 +682,42 @@ app.patch("/api/pets/:id", authenticateToken, async (req, res) => {
 
     const updatedPet = await prisma.pets.update({
       where: { id: req.params.id },
-      include: { shelters: { include: { users: true } }, shelter_employees: true, medical_records: { orderBy: { created_at: 'desc' } } },
+      include: {
+        shelters: { include: { users: true } },
+        shelter_employees: true,
+        medical_records: { orderBy: { created_at: "desc" } },
+      },
       data: updateData,
     });
+
+    // ── Emitir por Socket ──────────────────────────────────────────
+    if (global.io) {
+      global.io.emit("pet_status_updated", {
+        petId: updatedPet.id,
+        status: updatedPet.status,
+      });
+
+      // Si se marca como adoptado y tiene un adoptante asignado, notificar
+      if (updatedPet.status === "adoptado" && updatedPet.adopter_id) {
+        const adopter = await prisma.adopters.findUnique({
+          where: { id: updatedPet.adopter_id },
+          include: { users: true },
+        });
+
+        if (adopter?.users?.id) {
+          void sendPushNotification(
+            adopter.users.id,
+            "¡Adopción completada! 🐾",
+            `La adopción de ${updatedPet.name} ha sido confirmada. ¡Valorá tu experiencia!`,
+            {
+              type: "adoption_completed",
+              petId: updatedPet.id,
+              petName: updatedPet.name,
+            }
+          );
+        }
+      }
+    }
 
     res.json(mapPetToFrontend(updatedPet));
   } catch (error) {
@@ -1290,7 +1326,7 @@ app.get("/api/pets-available", async (req, res) => {
     if (shelterUserIds.length > 0) {
       const vetClinics = await prisma.vet_clinics.findMany({
         where: { user_id: { in: [...new Set(shelterUserIds)] } },
-        select: { user_id: true, avatar_url: true },
+        select: { user_id: true, description: true, website: true, instagram: true, facebook: true, avatar_url: true },
       });
       for (const vc of vetClinics) {
         vetClinicAvatarMap[vc.user_id] = vc.avatar_url;
@@ -1314,7 +1350,9 @@ app.get("/api/pets-available", async (req, res) => {
 
     let result = pets.map((pet) => {
       const raw = (pet.species || "").toLowerCase().trim();
-      let species = "other";
+      // originalSpecies preserves the exact value stored in DB (for display when not a known canonical)
+      const originalSpecies = (pet.species || "").trim();
+      let species = originalSpecies || "other"; // fallback: keep original name, not collapse to "other"
       if (raw === "dog" || raw.includes("perro") || raw.includes("can"))
         species = "dog";
       else if (raw === "cat" || raw.includes("gato") || raw.includes("felino"))
@@ -1993,6 +2031,7 @@ app.get("/api/adopter/matches", authenticateToken, async (req, res) => {
         pet_image:
           parsePhotoUrlsFromImageField(match.pets?.image_url)[0] ?? null,
         contact,
+        shelter_id: match.pets?.shelters?.id ?? null,  // for reviews
         created_at: match.created_at,
       };
     });
@@ -2046,9 +2085,9 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
             select: { id: true, name: true, phone: true, location: true, avatar_url: true },
           },
           vet_clinic: {
-            select: { id: true, name: true, phone: true, location: true, avatar_url: true },
+            select: { id: true, name: true, phone: true, location: true, description: true, website: true, instagram: true, facebook: true, avatar_url: true },
           },
-          pet: { select: { id: true, name: true, image_url: true } },
+          pet: { select: { id: true, name: true, image_url: true, status: true } },
           messages: {
             orderBy: { created_at: "desc" },
             take: 1,
@@ -2070,7 +2109,7 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
           adopter: {
             select: { id: true, name: true, avatar_url: true, photos: true },
           },
-          pet: { select: { id: true, name: true, image_url: true } },
+          pet: { select: { id: true, name: true, image_url: true, status: true } },
           messages: {
             orderBy: { created_at: "desc" },
             take: 1,
@@ -2082,9 +2121,11 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
 
     const payload = conversations.map((conv) => ({
       id: conv.id,
+      match_id: conv.match_id,
       pet_id: conv.pet_id,
       pet_name: conv.pet?.name ?? null,
       pet_image: parsePhotoUrlsFromImageField(conv.pet?.image_url)[0] ?? null,
+      pet_status: conv.pet?.status ?? null,
       archived: conv.archived,
       other_party: conv.shelter
         ? {
@@ -2102,6 +2143,10 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
               name: conv.vet_clinic.name,
               phone: conv.vet_clinic.phone,
               location: conv.vet_clinic.location,
+              description: conv.vet_clinic.description,
+              website: conv.vet_clinic.website,
+              instagram: conv.vet_clinic.instagram,
+              facebook: conv.vet_clinic.facebook,
               avatar: conv.vet_clinic.avatar_url ?? null,
             }
           : {
@@ -2513,6 +2558,12 @@ app.post("/api/auth/login", async (req, res) => {
     let name = "";
     let avatar = null;
     let description = null;
+    let vetEmail = null;
+    let vetLocation = null;
+    let vetPhone = null;
+    let vetWebsite = null;
+    let vetInstagram = null;
+    let vetFacebook = null;
     if (user.role === "adopter") {
       const profile = await prisma.adopters.findFirst({
         where: { user_id: user.id },
@@ -2530,6 +2581,14 @@ app.post("/api/auth/login", async (req, res) => {
         where: { user_id: user.id },
       });
       name = profile?.name || "";
+      avatar = profile?.avatar_url || null;
+      description = profile?.description || null;
+      vetEmail = profile?.email || null;
+      vetLocation = profile?.location || null;
+      vetPhone = profile?.phone || null;
+      vetWebsite = profile?.website || null;
+      vetInstagram = profile?.instagram || null;
+      vetFacebook = profile?.facebook || null;
     }
 
     const token = jwt.sign(
@@ -2538,7 +2597,17 @@ app.post("/api/auth/login", async (req, res) => {
       { expiresIn: "7d" },
     );
 
-    res.json({ token, role: user.role, name, avatar, description });
+    const response = { token, role: user.role, name, avatar, description };
+    if (user.role === "vet") {
+      response.email = vetEmail ?? null;
+      response.location = vetLocation ?? null;
+      response.phone = vetPhone ?? null;
+      response.website = vetWebsite ?? null;
+      response.instagram = vetInstagram ?? null;
+      response.facebook = vetFacebook ?? null;
+      response.avatar_url = avatar;
+    }
+    res.json(response);
   } catch (error) {
     console.error("Error en login:", error);
     res.status(500).json({ error: "Error al iniciar sesión" });
@@ -3043,6 +3112,7 @@ app.post("/api/auth/google", async (req, res) => {
 
     let profileName = googleName || "";
     let avatarUrl = picture || null;
+    let description = null;
     let isNewUser = false;
 
     if (!user) {
@@ -3088,6 +3158,8 @@ app.post("/api/auth/google", async (req, res) => {
           orderBy: { created_at: "desc" },
         });
         profileName = profile?.name || googleName || "";
+        avatarUrl = profile?.avatar_url || picture || null;
+        description = profile?.description || null;
       }
     }
 
@@ -3098,13 +3170,18 @@ app.post("/api/auth/google", async (req, res) => {
       { expiresIn: "7d" },
     );
 
-    return res.json({
+    const response = {
       token,
       role: user.role,
       name: profileName,
       avatar: avatarUrl,
       isNewUser,
-    });
+    };
+    if (user.role === "vet") {
+      response.description = description ?? null;
+      response.avatar_url = avatarUrl;
+    }
+    return res.json(response);
   } catch (error) {
     console.error("Error en Google Auth:", error);
     return res
@@ -3453,15 +3530,157 @@ app.put('/api/shelters/profile', authenticateToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.get('/api/vet-clinics/profile', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'vet') return res.status(403).json({ error: 'Acceso denegado' });
+    const profile = await prisma.vet_clinics.findFirst({
+      where: { user_id: req.user.sub },
+    });
+    if (!profile) return res.status(404).json({ error: 'Veterinaria no encontrada' });
+    res.json(profile);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.put('/api/vet-clinics/profile', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'vet') return res.status(403).json({ error: 'Acceso denegado' });
-    const { avatar_url } = req.body;
+    const { name, email, location, phone, description, avatar_url, website, instagram, facebook } = req.body;
     const vetClinic = await prisma.vet_clinics.findFirst({ where: { user_id: req.user.sub } });
     if (!vetClinic) return res.status(404).json({ error: 'Veterinaria no encontrada' });
-    const updated = await prisma.vet_clinics.update({ where: { id: vetClinic.id }, data: { avatar_url } });
+
+    const data = {};
+    if (name !== undefined) data.name = name;
+    if (email !== undefined) data.email = email;
+    if (location !== undefined) data.location = location;
+    if (phone !== undefined) data.phone = phone;
+    if (description !== undefined) data.description = description;
+    if (avatar_url !== undefined) data.avatar_url = avatar_url;
+    if (website !== undefined) data.website = website;
+    if (instagram !== undefined) data.instagram = instagram;
+    if (facebook !== undefined) data.facebook = facebook;
+
+    const updated = await prisma.vet_clinics.update({
+      where: { id: vetClinic.id },
+      data,
+    });
     res.json(updated);
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REVIEWS — Sistema de valoraciones estilo Wallapop
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /api/reviews/me/received  — must be BEFORE /:targetId to avoid conflict
+app.get("/api/reviews/me/received", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const role   = req.user.role;
+    let targetId;
+    if (role === "adopter") {
+      const adopter = await prisma.adopters.findFirst({ where: { user_id: userId } });
+      if (!adopter) return res.status(404).json({ error: "Adoptante no encontrado." });
+      targetId = adopter.id;
+    } else {
+      const shelter = await getProfessionalShelterProfile(req.user);
+      if (!shelter) return res.status(404).json({ error: "Perfil no encontrado." });
+      targetId = shelter.id;
+    }
+    const reviews = await prisma.reviews.findMany({ where: { target_id: targetId }, orderBy: { created_at: "desc" } });
+    const enriched = await Promise.all(reviews.map(async (r) => {
+      let reviewerName = "Usuario", reviewerAvatar = null;
+      if (r.reviewer_role === "adopter") {
+        const a = await prisma.adopters.findUnique({ where: { id: r.reviewer_id }, select: { name: true, username: true, avatar_url: true } });
+        reviewerName = a?.username || a?.name || "Adoptante"; 
+        reviewerAvatar = a?.avatar_url ? (parsePhotoUrlsFromImageField(a.avatar_url)[0] || null) : null;
+      } else {
+        const s = await prisma.shelters.findUnique({ where: { id: r.reviewer_id }, select: { name: true, avatar_url: true } });
+        reviewerName = s?.name || "Refugio"; 
+        reviewerAvatar = s?.avatar_url ? (parsePhotoUrlsFromImageField(s.avatar_url)[0] || null) : null;
+      }
+      return { ...r, reviewer_name: reviewerName, reviewer_avatar: reviewerAvatar };
+    }));
+    const total = reviews.length;
+    const average = total > 0 ? Math.round((reviews.reduce((acc, r) => acc + r.rating, 0) / total) * 10) / 10 : null;
+    res.json({ reviews: enriched, averageRating: average, totalCount: total });
+  } catch (err) { console.error("[GET /api/reviews/me/received]", err); res.status(500).json({ error: "Error al obtener valoraciones recibidas." }); }
+});
+
+// GET /api/reviews/check/:matchId — must be BEFORE /:targetId
+app.get("/api/reviews/check/:matchId", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.sub, role = req.user.role, matchId = req.params.matchId;
+    let reviewerId;
+    if (role === "adopter") {
+      const adopter = await prisma.adopters.findFirst({ where: { user_id: userId } });
+      if (!adopter) return res.status(404).json({ error: "Adoptante no encontrado." });
+      reviewerId = adopter.id;
+    } else {
+      const shelter = await getProfessionalShelterProfile(req.user);
+      if (!shelter) return res.status(404).json({ error: "Perfil no encontrado." });
+      reviewerId = shelter.id;
+    }
+    const existing = await prisma.reviews.findFirst({ where: { reviewer_id: reviewerId, match_id: matchId } });
+    res.json({ hasReviewed: !!existing, review: existing || null });
+  } catch (err) { console.error("[GET /api/reviews/check/:matchId]", err); res.status(500).json({ error: "Error al verificar valoración." }); }
+});
+
+// GET /api/reviews/:targetId — public
+app.get("/api/reviews/:targetId", async (req, res) => {
+  try {
+    const { targetId } = req.params;
+    const reviews = await prisma.reviews.findMany({ where: { target_id: targetId }, orderBy: { created_at: "desc" } });
+    const enriched = await Promise.all(reviews.map(async (r) => {
+      let reviewerName = "Usuario", reviewerAvatar = null;
+      if (r.reviewer_role === "adopter") {
+        const a = await prisma.adopters.findUnique({ where: { id: r.reviewer_id }, select: { name: true, username: true, avatar_url: true } });
+        reviewerName = a?.username || a?.name || "Adoptante"; 
+        reviewerAvatar = a?.avatar_url ? (parsePhotoUrlsFromImageField(a.avatar_url)[0] || null) : null;
+      } else {
+        const s = await prisma.shelters.findUnique({ where: { id: r.reviewer_id }, select: { name: true, avatar_url: true } });
+        reviewerName = s?.name || "Refugio"; 
+        reviewerAvatar = s?.avatar_url ? (parsePhotoUrlsFromImageField(s.avatar_url)[0] || null) : null;
+      }
+      return { ...r, reviewer_name: reviewerName, reviewer_avatar: reviewerAvatar };
+    }));
+    const total = reviews.length;
+    const average = total > 0 ? Math.round((reviews.reduce((acc, r) => acc + r.rating, 0) / total) * 10) / 10 : null;
+    res.json({ reviews: enriched, averageRating: average, totalCount: total });
+  } catch (err) { console.error("[GET /api/reviews/:targetId]", err); res.status(500).json({ error: "Error al obtener valoraciones." }); }
+});
+
+// POST /api/reviews — crear valoración
+app.post("/api/reviews", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.sub, role = req.user.role;
+    const { target_id, target_role, match_id, rating, comment } = req.body;
+    if (!target_id || !target_role || !match_id) return res.status(400).json({ error: "target_id, target_role y match_id son obligatorios." });
+    const ratingNum = Number(rating);
+    if (!ratingNum || ratingNum < 1 || ratingNum > 5) return res.status(400).json({ error: "rating debe ser un número entre 1 y 5." });
+    let reviewer_id;
+    if (role === "adopter") {
+      const adopter = await prisma.adopters.findFirst({ where: { user_id: userId } });
+      if (!adopter) return res.status(404).json({ error: "Adoptante no encontrado." });
+      reviewer_id = adopter.id;
+    } else if (role === "shelter" || role === "vet") {
+      const shelter = await getProfessionalShelterProfile(req.user);
+      if (!shelter) return res.status(404).json({ error: "Perfil profesional no encontrado." });
+      reviewer_id = shelter.id;
+    } else {
+      return res.status(403).json({ error: "Rol no autorizado." });
+    }
+    const match = await prisma.matches.findUnique({ where: { id: match_id } });
+    if (!match || match.interaction_type !== "accepted") return res.status(400).json({ error: "Solo se puede valorar un match aceptado." });
+    if (role === "adopter" && match.adopter_id !== reviewer_id) return res.status(403).json({ error: "No perteneces a este match." });
+    let review;
+    try {
+      review = await prisma.reviews.create({ data: { reviewer_id, reviewer_role: role, target_id, target_role, match_id, rating: ratingNum, comment: comment?.trim() || null } });
+    } catch (e) {
+      if (e.code === "P2002") return res.status(409).json({ error: "Ya has valorado esta relación." });
+      throw e;
+    }
+    res.status(201).json(review);
+  } catch (err) { console.error("[POST /api/reviews]", err); res.status(500).json({ error: "Error al crear la valoración." }); }
 });
 
 server.listen(PORT, () => {

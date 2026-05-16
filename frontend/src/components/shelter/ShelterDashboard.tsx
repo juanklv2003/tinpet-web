@@ -17,6 +17,8 @@ import { MatchesView } from './views/MatchesView';
 import { MonitoringView } from './views/MonitoringView';
 import { PetsView } from './views/PetsView';
 import { ProfileView } from './views/ProfileView';
+import { ReviewsView } from './views/ReviewsView';
+import { Star } from 'lucide-react';
 
 import type { ActiveView } from './types';
 
@@ -95,6 +97,8 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
         return '/chat';
       case 'profile':
         return '/profile';
+      case 'reviews':
+        return '/reviews';
       default:
         return '/pets';
     }
@@ -109,6 +113,7 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
     if (path.startsWith('/requests')) return 'matches';
     if (path.startsWith('/chat')) return 'chat';
     if (path.startsWith('/profile')) return 'profile';
+    if (path.startsWith('/reviews')) return 'reviews';
     return null;
   };
   const renderNavItem = ({
@@ -267,6 +272,7 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
             Ajustes
           </p>
           {renderNavItem({ view: 'profile', icon: <IconUser />, label: 'Mi Perfil' })}
+          {renderNavItem({ view: 'reviews', icon: <Star />, label: 'Valoraciones' })}
           <button
             type="button"
             onClick={toggleDarkMode}
@@ -308,6 +314,7 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
                 {activeView === 'employees' && 'Empleados'}
                 {activeView === 'chat' && 'Chat'}
                 {activeView === 'profile' && 'Mi Perfil'}
+                {activeView === 'reviews' && 'Valoraciones'}
               </h2>
               <p className="text-sm text-gray-400 mt-1">
                 {activeView === 'pets' && `${pets.length} mascota${pets.length !== 1 ? 's' : ''}`}
@@ -316,6 +323,7 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
                 {activeView === 'employees' && `${employees.length} empleado${employees.length !== 1 ? 's' : ''}`}
                 {activeView === 'chat' && 'Conversaciones con adoptantes'}
                 {activeView === 'profile' && 'Información de tu cuenta'}
+                {activeView === 'reviews' && 'Lo que dicen los adoptantes de ti'}
               </p>
             </div>
             {activeView === 'pets' && (
@@ -382,6 +390,9 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
               onPhotoSelect={handleProfilePhotoSelect}
               onSave={saveProfile}
             />
+          )}
+          {activeView === 'reviews' && (
+            <ReviewsView />
           )}
         </div>
       </main>

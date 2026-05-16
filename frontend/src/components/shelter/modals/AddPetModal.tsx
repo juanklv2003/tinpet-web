@@ -207,6 +207,18 @@ export function AddPetModal({ onClose, onAdd, employees }: AddPetModalProps) {
                 ]}
               />
             </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                Descripción
+              </label>
+              <textarea
+                value={form.description}
+                onChange={e => set('description', e.target.value)}
+                placeholder="Cuenta algo sobre la mascota..."
+                rows={3}
+                className="w-full rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-gray-400 transition resize-none"
+              />
+            </div>
             <div className="col-span-2 flex flex-col min-h-[17rem]">
               <label className="block text-xs font-medium text-gray-400 mb-1.5">
                 Foto

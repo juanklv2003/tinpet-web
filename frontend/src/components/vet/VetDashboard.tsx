@@ -14,9 +14,11 @@ import { EmployeesView } from '../shelter/views/EmployeesView';
 import { MatchesView } from '../shelter/views/MatchesView';
 import { MonitoringView } from '../shelter/views/MonitoringView';
 import { PetsView } from '../shelter/views/PetsView';
+import { ReviewsView } from '../shelter/views/ReviewsView';
 import { useVetDashboardLogic } from './hooks/useVetDashboardLogic';
 import type { VetActiveView } from './types';
 import { VetProfileView } from './views/VetProfileView';
+import { Star } from 'lucide-react';
 
 export default function VetDashboard({ initialView }: { initialView?: string } = {}) {
   const { user, token, logout } = useAuth();
@@ -86,6 +88,8 @@ export default function VetDashboard({ initialView }: { initialView?: string } =
         return '/vet/chat';
       case 'profile':
         return '/vet/profile';
+      case 'reviews':
+        return '/vet/reviews';
       default:
         return '/vet/pets';
     }
@@ -98,6 +102,7 @@ export default function VetDashboard({ initialView }: { initialView?: string } =
     if (path.startsWith('/vet/requests')) return 'matches';
     if (path.startsWith('/vet/chat')) return 'chat';
     if (path.startsWith('/vet/profile')) return 'profile';
+    if (path.startsWith('/vet/reviews')) return 'reviews';
     return null;
   };
 
@@ -216,6 +221,7 @@ export default function VetDashboard({ initialView }: { initialView?: string } =
             Ajustes
           </p>
           {renderNavItem({ view: 'profile', icon: <IconUser />, label: 'Mi Perfil' })}
+          {renderNavItem({ view: 'reviews', icon: <Star />, label: 'Valoraciones' })}
 
           <button
             type="button"
@@ -258,6 +264,7 @@ export default function VetDashboard({ initialView }: { initialView?: string } =
                 {activeView === 'employees' && 'Empleados'}
                 {activeView === 'chat' && 'Chat'}
                 {activeView === 'profile' && 'Mi Perfil'}
+                {activeView === 'reviews' && 'Valoraciones'}
               </h2>
               <p className="text-sm text-gray-400 mt-1">
                 {activeView === 'pets' && `${pets.length} mascota${pets.length !== 1 ? 's' : ''}`}
@@ -266,6 +273,7 @@ export default function VetDashboard({ initialView }: { initialView?: string } =
                 {activeView === 'employees' && `${employees.length} empleado${employees.length !== 1 ? 's' : ''}`}
                 {activeView === 'chat' && 'Conversaciones con adoptantes'}
                 {activeView === 'profile' && 'Informacion de tu clinica'}
+                {activeView === 'reviews' && 'Lo que dicen los adoptantes de ti'}
               </p>
             </div>
             {activeView === 'pets' && (
@@ -337,6 +345,10 @@ export default function VetDashboard({ initialView }: { initialView?: string } =
               onPhotoSelect={handleProfilePhotoSelect}
               onSave={saveProfile}
             />
+          )}
+
+          {activeView === 'reviews' && (
+            <ReviewsView />
           )}
         </div>
       </main>

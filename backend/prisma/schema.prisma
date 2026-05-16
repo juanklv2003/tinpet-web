@@ -170,8 +170,13 @@ model vet_clinics {
   email         String?
   location      String?
   phone         String?
+  description   String?
+  website       String?
+  instagram     String?
+  facebook      String?
   avatar_url    String?
   created_at    DateTime?       @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime?       @updatedAt @db.Timestamptz(6)
   conversations conversations[]
   users         users?          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   vet_employees vet_employees[]
@@ -189,6 +194,23 @@ model vet_employees {
   created_at      DateTime?         @default(now()) @db.Timestamptz(6)
   medical_records medical_records[]
   vet_clinics     vet_clinics?      @relation(fields: [vet_clinic_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// Reviews / ratings between adopters and shelters/vets (Wallapop-style)
+model reviews {
+  id            String    @id @default(uuid()) @db.Uuid
+  reviewer_id   String    @db.Uuid   // adopters.id or shelters.id
+  reviewer_role String               // 'adopter' | 'shelter' | 'vet'
+  target_id     String    @db.Uuid   // shelters.id or adopters.id
+  target_role   String               // 'shelter' | 'vet' | 'adopter'
+  match_id      String?   @db.Uuid   // matches.id for deduplication
+  rating        Int                  // 1-5
+  comment       String?
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@unique([reviewer_id, target_id, match_id], name: "one_review_per_relation")
+  @@index([target_id])
+  @@index([reviewer_id])
 }
 
 /// Knowledge base for assistant: FAQs, rules, features

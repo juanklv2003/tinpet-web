@@ -24,6 +24,8 @@ export interface Conversation {
   pet_id: string;
   pet_name: string | null;
   pet_image: string | null;
+  pet_status?: string | null;
+  match_id?: string | null;
   other_party: {
     type: "shelter" | "vet" | "adopter";
     id: string;
@@ -82,6 +84,10 @@ class ChatService {
 
       this.socket.on("new_match_request", (payload: NewMatchRequestPayload) => {
         this.emit("new_match_request", payload);
+      });
+
+      this.socket.on("pet_status_updated", (data: { petId: string; status: string }) => {
+        this.emit("pet_status_updated", data);
       });
 
       this.socket.on("error", (error: { message: string }) => {

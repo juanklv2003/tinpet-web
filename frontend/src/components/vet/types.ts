@@ -7,4 +7,4 @@ export interface VetProfileForm {
   avatarUrl: string;
 }
 
-export type VetActiveView = 'pets' | 'monitoring' | 'matches' | 'employees' | 'chat' | 'profile';
+export type VetActiveView = 'pets' | 'monitoring' | 'matches' | 'employees' | 'chat' | 'profile' | 'reviews';

@@ -1,5 +1,6 @@
-import { Archive, Ban, Building2, ChevronLeft, MessageCircle, Stethoscope, UserRound } from "lucide-react";
+import { Archive, Ban, Building2, CheckCircle, ChevronLeft, MessageCircle, Stethoscope, UserRound } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { LoadingView } from "../../ui/LoadingView";
 import type { Conversation, Message } from "../../../services/chatService";
 import { chatService } from "../../../services/chatService";
 import { IconPaw, IconPhone, IconSend } from "../Icons";
@@ -266,12 +267,30 @@ export function ChatView({ token }: ChatViewProps) {
       fetchConversations();
     };
 
+    const handlePetStatusUpdated = (data: { petId: string; status: string }) => {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.pet_id === data.petId ? { ...c, pet_status: data.status } : c,
+        ),
+      );
+      if (selectedConversationIdRef.current) {
+        setSelectedConversation((prev) => {
+          if (prev?.pet_id === data.petId) {
+            return { ...prev, pet_status: data.status };
+          }
+          return prev;
+        });
+      }
+    };
+
     chatService.on("new_message", handleNewMessage);
     chatService.on("new_conversation", handleNewConversation);
+    chatService.on("pet_status_updated", handlePetStatusUpdated);
 
     return () => {
       chatService.off("new_message", handleNewMessage);
       chatService.off("new_conversation", handleNewConversation);
+      chatService.off("pet_status_updated", handlePetStatusUpdated);
     };
   }, [fetchConversations]);
 
@@ -357,6 +376,20 @@ export function ChatView({ token }: ChatViewProps) {
       );
       if (!res.ok) throw new Error("Error al actualizar estado");
       setShowPetStatusModal(false);
+      
+      // Update local state immediately
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.pet_id === selectedConversation.pet_id
+            ? { ...c, pet_status: newStatus === "adopted" ? "adoptado" : newStatus === "pending" ? "pendiente" : "disponible" }
+            : c,
+        ),
+      );
+      setSelectedConversation((prev) => prev ? ({
+        ...prev,
+        pet_status: newStatus === "adopted" ? "adoptado" : newStatus === "pending" ? "pendiente" : "disponible"
+      }) : null);
+
       const statusLabels: Record<string, string> = {
         available: "Disponible",
         pending: "En proceso",
@@ -381,11 +414,7 @@ export function ChatView({ token }: ChatViewProps) {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand" />
-      </div>
-    );
+    return <LoadingView message="Cargando chats..." />;
   }
 
 
@@ -811,11 +840,42 @@ export function ChatView({ token }: ChatViewProps) {
             </div>
 
             {/* Messages */}
+            {/* Review Banner */}
+            {selectedConversation.pet_status === "adoptado" && (
+              <div className="bg-green-50 dark:bg-green-900/20 p-4 border-b border-green-100 dark:border-green-800/30 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-800/40 flex items-center justify-center text-green-600 dark:text-green-400">
+                    <CheckCircle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h5 className="font-semibold text-green-800 dark:text-green-300">
+                      ¡Adopción completada!
+                    </h5>
+                    <p className="text-sm text-green-700/80 dark:text-green-400/70">
+                      Ya podés valorar a este usuario por la adopción de{" "}
+                      {selectedConversation.pet_name}.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    // Navigate to reviews view or open review modal
+                    // For now, we'll suggest using the reviews tab
+                    setSuccessModal({
+                      isOpen: true,
+                      message: "Funcionalidad de valoración desde chat próximamente. Por ahora podés usar la pestaña de Valoraciones.",
+                    });
+                  }}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-colors shadow-sm"
+                >
+                  Valorar
+                </button>
+              </div>
+            )}
+
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {loadingMessages ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand" />
-                </div>
+                <LoadingView message="Cargando mensajes..." minHeight="200px" />
               ) : !messages || messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-32 text-center">
                   <MessageCircle className="w-8 h-8 mb-2 text-gray-400 dark:text-gray-500" />

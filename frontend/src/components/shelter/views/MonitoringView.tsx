@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { LoadingView } from '../../ui/LoadingView';
 import type { ShelterStats } from '../../../hooks/useShelterStats';
 import type { Pet } from '../../../types';
 import { daysSince, fmtDate } from '../helpers';
@@ -157,8 +158,12 @@ export function MonitoringView({
     }
   }, [customTasks, customTasksStorageKey]);
 
-  const allTasks: DashboardTask[] = [...dailyTasks, ...customTasks];
+  const allTasks: DashboardTask[] = useMemo(() => [...dailyTasks, ...customTasks], [dailyTasks, customTasks]);
   const completedCount = allTasks.filter(task => completedTasks[task.id]).length;
+
+  if (statsLoading) {
+    return <LoadingView message="Cargando monitorización..." />;
+  }
 
   return (
     <div className="space-y-6">

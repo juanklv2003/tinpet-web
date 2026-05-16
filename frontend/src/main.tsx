@@ -60,6 +60,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           />
           <Route
             path="/chat"
+
             element={
               <RequireAuth>
                 <ShelterDashboard initialView="chat" />
@@ -71,6 +72,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             element={
               <RequireAuth>
                 <ShelterDashboard initialView="profile" />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/reviews"
+            element={
+              <RequireAuth>
+                <ShelterDashboard initialView="reviews" />
               </RequireAuth>
             }
           />

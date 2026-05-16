@@ -1,4 +1,5 @@
 import { Cat, Dog, PawPrint, Search } from 'lucide-react';
+import { LoadingView } from '../../ui/LoadingView';
 import { useState } from 'react';
 import type { Pet, PetStatus } from '../../../types';
 import { StyledSelect } from '../../styled-select';
@@ -172,9 +173,7 @@ export function PetsView({
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
-          Cargando...
-        </div>
+        <LoadingView message="Cargando mascotas..." minHeight="200px" />
       ) : pets.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 text-gray-500 text-sm gap-3">
           <PawPrint className="w-9 h-9 text-gray-500 dark:text-gray-400" />

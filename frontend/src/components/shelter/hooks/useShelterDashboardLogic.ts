@@ -303,6 +303,7 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
         name: form.name,
         species: form.species,
         status: form.status,
+        description: form.description,
         ai_profile,
       }),
     });

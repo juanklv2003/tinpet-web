@@ -4,6 +4,7 @@ import { AdopterInfoModal } from '../modals/AdopterInfoModal';
 import { fmtDate } from '../helpers';
 import { Heart, Search } from 'lucide-react';
 import { API_BASE_URL } from '../../../services/api';
+import { LoadingView } from '../../ui/LoadingView';
 
 interface MatchesViewProps {
   matches: MatchRequest[];
@@ -227,9 +228,7 @@ export function MatchesView({ matches, loading, error, onAccept, onReject }: Mat
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
-          Cargando solicitudes...
-        </div>
+        <LoadingView message="Cargando solicitudes..." minHeight="200px" />
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 text-gray-500 text-sm gap-2">
           <Heart className="w-8 h-8 text-brand" />

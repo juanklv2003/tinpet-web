@@ -72,6 +72,35 @@ router.patch('/:id', authenticate, async (req, res) => {
       where: { id: req.params.id },
       data: req.body,
     });
+
+    if (req.body.status && global.io) {
+      global.io.emit('pet_status_updated', {
+        petId: updated.id,
+        status: updated.status
+      });
+
+      // If adopted, notify the adopter if they exist
+      if (updated.status === 'adoptado' && updated.adopter_id) {
+        const adopter = await prisma.adopters.findUnique({ 
+          where: { id: updated.adopter_id },
+          include: { users: true }
+        });
+        
+        if (adopter?.users?.id && global.sendPushNotification) {
+          global.sendPushNotification(
+            adopter.users.id,
+            '¡Adopción completada! 🐾',
+            `La adopción de ${updated.name} ha sido confirmada. ¡Valorá tu experiencia!`,
+            { 
+              type: 'adoption_completed', 
+              petId: updated.id,
+              petName: updated.name 
+            }
+          );
+        }
+      }
+    }
+
     res.json(updated);
   } catch (err) {
     console.error('[pets PATCH]', err);

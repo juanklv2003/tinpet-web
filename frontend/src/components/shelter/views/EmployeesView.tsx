@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { LoadingView } from '../../ui/LoadingView';
 import type { ShelterEmployee } from '../../../hooks/useShelterEmployees';
 import type { Pet } from '../../../types';
 
@@ -115,7 +116,7 @@ export function EmployeesView({
         </form>
 
         {loading ? (
-          <div className="flex items-center justify-center h-40 text-gray-500 text-sm">Cargando empleados...</div>
+          <LoadingView message="Cargando empleados..." minHeight="160px" />
         ) : employees.length === 0 ? (
           <div className="flex items-center justify-center h-40 text-gray-500 text-sm">No hay empleados registrados.</div>
         ) : (

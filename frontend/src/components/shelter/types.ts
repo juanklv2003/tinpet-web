@@ -13,6 +13,7 @@ export interface AddPetForm {
   intakeDate: string;
   status: PetStatus;
   inChargeEmployeeId: string;
+  description: string;
 }
 
 export const emptyAddForm: AddPetForm = {
@@ -25,6 +26,7 @@ export const emptyAddForm: AddPetForm = {
   intakeDate: '',
   status: 'available',
   inChargeEmployeeId: '',
+  description: '',
 };
 
 export interface EditPetForm {
@@ -53,5 +55,5 @@ export interface ShelterProfileForm {
   youtube: string;
 }
 
-export type ActiveView = 'pets' | 'monitoring' | 'matches' | 'employees' | 'chat' | 'profile';
+export type ActiveView = 'pets' | 'monitoring' | 'matches' | 'employees' | 'chat' | 'profile' | 'reviews';
 export type PetsSort = 'newest' | 'oldest' | 'name';

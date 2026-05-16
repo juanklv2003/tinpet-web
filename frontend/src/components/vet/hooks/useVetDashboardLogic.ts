@@ -281,6 +281,7 @@ export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogi
         name: form.name,
         species: form.species,
         status: form.status,
+        description: form.description,
         ai_profile,
       }),
     });
