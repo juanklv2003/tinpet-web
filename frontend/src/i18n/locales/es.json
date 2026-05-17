@@ -1,0 +1,218 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error de conexión",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "add": "Añadir",
+    "search": "Buscar",
+    "filter": "Filtros",
+    "close": "Cerrar",
+    "back": "Volver",
+    "yes": "Sí",
+    "no": "No",
+    "actions": "Acciones",
+    "share": "Compartir",
+    "export": "Exportar",
+    "download": "Descargar",
+    "invite": "Invitar",
+    "accept": "Aceptar",
+    "reject": "Rechazar"
+  },
+  "nav": {
+    "general": "General",
+    "system": "Sistema",
+    "pets": "Mascotas",
+    "monitoring": "Monitorización",
+    "requests": "Solicitudes",
+    "employees": "Empleados",
+    "chat": "Chat",
+    "profile": "Clínica",
+    "settings": "Ajustes",
+    "reviews": "Valoraciones",
+    "logout": "Cerrar Sesión",
+    "theme": {
+      "light": "Modo claro",
+      "dark": "Modo oscuro"
+    }
+  },
+  "monitoring": {
+    "title": "Monitorización",
+    "subtitle": "Estadísticas y estado general. Resumen actualizado al día de hoy.",
+    "panel": "Panel Estadístico",
+    "kpi": {
+      "totalPets": "Total Mascotas",
+      "likes": "Likes Recibidos",
+      "adoptions": "Adopciones",
+      "adoptionRate": "Tasa Adopción"
+    },
+    "tasks": {
+      "title": "Tareas Clínicas",
+      "subtitle_zero": "0 de {{count}} marcadas para hoy.",
+      "subtitle": "{{done}} de {{count}} marcadas para hoy.",
+      "completeForms": "Completar fichas ({{count}})",
+      "completeFormsDesc": "Mascotas sin foto o raza.",
+      "validateAdmissions": "Validar altas ({{count}})",
+      "validateAdmissionsDesc": "Nuevos en los últimos 7 días."
+    },
+    "lastMatch": {
+      "title": "Último Match",
+      "viewAll": "Ver todas",
+      "requested": "Solicitado"
+    }
+  },
+  "pets": {
+    "title": "Lista de Mascotas",
+    "subtitle_one": "Mostrando {{count}} mascota registrada.",
+    "subtitle_other": "Mostrando {{count}} mascotas registradas.",
+    "addPet": "Nueva mascota",
+    "searchPlaceholder": "Buscar por nombre, especie o raza...",
+    "table": {
+      "animal": "Animal",
+      "species": "Especie / Raza",
+      "status": "Estado",
+      "intake": "Alta",
+      "actions": "Acciones"
+    },
+    "status": {
+      "available": "Disponible",
+      "adopted": "Adoptado",
+      "pending": "Pendiente"
+    },
+    "empty": "No hay mascotas registradas aún.",
+    "modal": {
+      "add": {
+        "title": "Nueva Mascota",
+        "subtitle": "Completa la ficha para dar de alta.",
+        "photo": "Fotografía Principal",
+        "photoHelp": "Sube o arrastra la imagen aquí",
+        "basicInfo": "Información Básica",
+        "name": "Nombre",
+        "status": "Estado",
+        "species": "Especie",
+        "breed": "Raza",
+        "dates": "Fechas Importantes",
+        "birthDate": "Nacimiento",
+        "intakeDate": "Alta",
+        "health": "Salud e Historial",
+        "vaccines": "Vacunas",
+        "description": "Descripción",
+        "successToast": "Mascota dada de alta exitosamente."
+      },
+      "detail": {
+        "about": "Sobre él / ella",
+        "birth": "Nacimiento",
+        "intake": "Ingreso",
+        "medical": "Médico",
+        "vaccines": "Vacunas",
+        "deleteToast": "Mascota eliminada del sistema."
+      }
+    }
+  },
+  "requests": {
+    "title": "Solicitudes",
+    "subtitle": "Gestión de adoptantes interesados (Matches de Tinpet).",
+    "empty": "No hay solicitudes pendientes.",
+    "new": "Nueva",
+    "likedPet": "Le gustó {{petName}}",
+    "acceptToast": "¡Match aceptado! Se ha abierto un chat.",
+    "rejectToast": "Solicitud rechazada."
+  },
+  "employees": {
+    "title": "Empleados",
+    "subtitle_zero": "Gestión del equipo (0 empleados registrados).",
+    "subtitle_one": "Gestión del equipo ({{count}} empleado registrado).",
+    "subtitle_other": "Gestión del equipo ({{count}} empleados registrados).",
+    "addForm": {
+      "title": "Nuevo empleado",
+      "name": "Nombre",
+      "namePlaceholder": "Ej. Ana García",
+      "email": "Email",
+      "emailPlaceholder": "ana@veterinaria.com",
+      "role": "Rol",
+      "rolePlaceholder": "Veterinaria, Asistente...",
+      "submit": "Añadir empleado",
+      "successToast": "Invitación enviada al empleado."
+    },
+    "empty": {
+      "title": "Aún no hay equipo",
+      "subtitle": "No hay empleados registrados. Utiliza el formulario para enviar invitaciones."
+    }
+  },
+  "chat": {
+    "title": "Chat",
+    "subtitle": "Conversaciones directas con adoptantes.",
+    "messages": "Mensajes",
+    "active": "{{count}} activa",
+    "placeholder": "Escribe un mensaje...",
+    "adoptionInProgress": "Adopción en proceso",
+    "empty": "Selecciona una conversación para comenzar."
+  },
+  "profile": {
+    "title": "Perfil de Clínica",
+    "subtitle": "Información pública visible en la app Tinpet.",
+    "editBtn": "Editar Perfil",
+    "officialBadge": "Veterinaria Oficial",
+    "shelterBadge": "Refugio Oficial",
+    "about": "Sobre Nosotros",
+    "contact": "Contacto y Ubicación",
+    "modal": {
+      "title": "Editar Perfil Clínico",
+      "basicData": "Datos Básicos",
+      "clinicName": "Nombre Clínica",
+      "email": "Email",
+      "location": "Ubicación",
+      "description": "Descripción",
+      "socialNetworks": "Redes Sociales",
+      "saveChanges": "Guardar Cambios",
+      "successToast": "Perfil actualizado correctamente."
+    }
+  },
+  "reviews": {
+    "title": "Valoraciones",
+    "subtitle": "Lo que dicen los adoptantes de ti.",
+    "empty": "Aún no tienes valoraciones."
+  },
+  "settings": {
+    "title": "Ajustes",
+    "subtitle": "Configuración del sistema y preferencias.",
+    "theme": {
+      "title": "Tema de la Aplicación",
+      "subtitle": "Personaliza cómo ves Tinpet en este dispositivo.",
+      "light": "Claro",
+      "dark": "Oscuro",
+      "system": "Sistema",
+      "lightToast": "Modo Claro activado.",
+      "darkToast": "Modo Oscuro activado.",
+      "systemToast": "Tema sincronizado con el sistema."
+    },
+    "language": {
+      "title": "Idioma de la Interfaz",
+      "subtitle": "Selecciona el idioma del panel de gestión.",
+      "es": "Español",
+      "en": "English",
+      "successToast": "Idioma cambiado."
+    },
+    "export": {
+      "title": "Exportar Datos",
+      "subtitle": "Descarga toda la información de mascotas, solicitudes y empleados en formato CSV o JSON seguro.",
+      "btn": "Exportar ZIP",
+      "toast": "Iniciando exportación de base de datos..."
+    },
+    "danger": {
+      "title": "Eliminar Clínica",
+      "subtitle": "Esta acción es irreversible y borrará todo el acceso y datos vinculados a Tinpet.",
+      "btn": "Eliminar Cuenta",
+      "cancelToast": "Acción cancelada por seguridad."
+    }
+  },
+  "auth": {
+    "admin": "Administrador",
+    "role": {
+      "shelter": "Refugio",
+      "vet": "Veterinaria"
+    }
+  }
+}

@@ -1,0 +1,218 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Connection error",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "filter": "Filters",
+    "close": "Close",
+    "back": "Back",
+    "yes": "Yes",
+    "no": "No",
+    "actions": "Actions",
+    "share": "Share",
+    "export": "Export",
+    "download": "Download",
+    "invite": "Invite",
+    "accept": "Accept",
+    "reject": "Reject"
+  },
+  "nav": {
+    "general": "General",
+    "system": "System",
+    "pets": "Pets",
+    "monitoring": "Monitoring",
+    "requests": "Requests",
+    "employees": "Employees",
+    "chat": "Chat",
+    "profile": "Clinic",
+    "settings": "Settings",
+    "reviews": "Reviews",
+    "logout": "Sign Out",
+    "theme": {
+      "light": "Light mode",
+      "dark": "Dark mode"
+    }
+  },
+  "monitoring": {
+    "title": "Monitoring",
+    "subtitle": "Statistics and general status. Updated summary for today.",
+    "panel": "Statistics Panel",
+    "kpi": {
+      "totalPets": "Total Pets",
+      "likes": "Likes Received",
+      "adoptions": "Adoptions",
+      "adoptionRate": "Adoption Rate"
+    },
+    "tasks": {
+      "title": "Clinical Tasks",
+      "subtitle_zero": "0 of {{count}} completed for today.",
+      "subtitle": "{{done}} of {{count}} completed for today.",
+      "completeForms": "Complete profiles ({{count}})",
+      "completeFormsDesc": "Pets without photo or breed.",
+      "validateAdmissions": "Validate admissions ({{count}})",
+      "validateAdmissionsDesc": "New in the last 7 days."
+    },
+    "lastMatch": {
+      "title": "Last Match",
+      "viewAll": "View all",
+      "requested": "Requested"
+    }
+  },
+  "pets": {
+    "title": "Pet List",
+    "subtitle_one": "Showing {{count}} registered pet.",
+    "subtitle_other": "Showing {{count}} registered pets.",
+    "addPet": "New pet",
+    "searchPlaceholder": "Search by name, species or breed...",
+    "table": {
+      "animal": "Animal",
+      "species": "Species / Breed",
+      "status": "Status",
+      "intake": "Intake",
+      "actions": "Actions"
+    },
+    "status": {
+      "available": "Available",
+      "adopted": "Adopted",
+      "pending": "Pending"
+    },
+    "empty": "No pets registered yet.",
+    "modal": {
+      "add": {
+        "title": "New Pet",
+        "subtitle": "Complete the profile to register.",
+        "photo": "Main Photo",
+        "photoHelp": "Upload or drag the image here",
+        "basicInfo": "Basic Information",
+        "name": "Name",
+        "status": "Status",
+        "species": "Species",
+        "breed": "Breed",
+        "dates": "Important Dates",
+        "birthDate": "Birth Date",
+        "intakeDate": "Intake Date",
+        "health": "Health & History",
+        "vaccines": "Vaccines",
+        "description": "Description",
+        "successToast": "Pet registered successfully."
+      },
+      "detail": {
+        "about": "About",
+        "birth": "Birth",
+        "intake": "Intake",
+        "medical": "Medical",
+        "vaccines": "Vaccines",
+        "deleteToast": "Pet removed from the system."
+      }
+    }
+  },
+  "requests": {
+    "title": "Requests",
+    "subtitle": "Management of interested adopters (Tinpet Matches).",
+    "empty": "No pending requests.",
+    "new": "New",
+    "likedPet": "Liked {{petName}}",
+    "acceptToast": "Match accepted! A chat has been opened.",
+    "rejectToast": "Request rejected."
+  },
+  "employees": {
+    "title": "Employees",
+    "subtitle_zero": "Team management (0 employees registered).",
+    "subtitle_one": "Team management ({{count}} employee registered).",
+    "subtitle_other": "Team management ({{count}} employees registered).",
+    "addForm": {
+      "title": "New employee",
+      "name": "Name",
+      "namePlaceholder": "E.g. Ana García",
+      "email": "Email",
+      "emailPlaceholder": "ana@clinic.com",
+      "role": "Role",
+      "rolePlaceholder": "Veterinarian, Assistant...",
+      "submit": "Add employee",
+      "successToast": "Invitation sent to employee."
+    },
+    "empty": {
+      "title": "No team yet",
+      "subtitle": "No employees registered. Use the form to send invitations."
+    }
+  },
+  "chat": {
+    "title": "Chat",
+    "subtitle": "Direct conversations with adopters.",
+    "messages": "Messages",
+    "active": "{{count}} active",
+    "placeholder": "Write a message...",
+    "adoptionInProgress": "Adoption in progress",
+    "empty": "Select a conversation to start."
+  },
+  "profile": {
+    "title": "Clinic Profile",
+    "subtitle": "Public information visible in the Tinpet app.",
+    "editBtn": "Edit Profile",
+    "officialBadge": "Official Clinic",
+    "shelterBadge": "Official Shelter",
+    "about": "About Us",
+    "contact": "Contact & Location",
+    "modal": {
+      "title": "Edit Clinic Profile",
+      "basicData": "Basic Data",
+      "clinicName": "Clinic Name",
+      "email": "Email",
+      "location": "Location",
+      "description": "Description",
+      "socialNetworks": "Social Networks",
+      "saveChanges": "Save Changes",
+      "successToast": "Profile updated successfully."
+    }
+  },
+  "reviews": {
+    "title": "Reviews",
+    "subtitle": "What adopters say about you.",
+    "empty": "No reviews yet."
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "System configuration and preferences.",
+    "theme": {
+      "title": "Application Theme",
+      "subtitle": "Customize how you see Tinpet on this device.",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System",
+      "lightToast": "Light mode activated.",
+      "darkToast": "Dark mode activated.",
+      "systemToast": "Theme synced with system."
+    },
+    "language": {
+      "title": "Interface Language",
+      "subtitle": "Select the language for the management panel.",
+      "es": "Español",
+      "en": "English",
+      "successToast": "Language changed."
+    },
+    "export": {
+      "title": "Export Data",
+      "subtitle": "Download all pet, request and employee data in secure CSV or JSON format.",
+      "btn": "Export ZIP",
+      "toast": "Starting database export..."
+    },
+    "danger": {
+      "title": "Delete Clinic",
+      "subtitle": "This action is irreversible and will delete all access and data linked to Tinpet.",
+      "btn": "Delete Account",
+      "cancelToast": "Action cancelled for safety."
+    }
+  },
+  "auth": {
+    "admin": "Administrator",
+    "role": {
+      "shelter": "Shelter",
+      "vet": "Clinic"
+    }
+  }
+}

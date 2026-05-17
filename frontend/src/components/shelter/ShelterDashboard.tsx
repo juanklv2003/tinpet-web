@@ -4,11 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { chatService } from '../../services/chatService';
 import type { NewMatchRequestPayload } from '../../services/chatService';
 
-import { PawPrint } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { useShelterDashboardLogic } from './hooks/useShelterDashboardLogic';
-import { useTheme } from './hooks/useTheme';
-import { IconChart, IconChat, IconHeart, IconPaw, IconPlus, IconUser } from './Icons';
+import { DashboardShell } from '../dashboard/DashboardShell';
+import type { DashboardView } from '../dashboard/Sidebar';
 import { AddPetModal } from './modals/AddPetModal';
 import { PetProfileModal } from './modals/PetProfileModal';
 import { ChatView } from './views/ChatView';
@@ -18,25 +15,52 @@ import { MonitoringView } from './views/MonitoringView';
 import { PetsView } from './views/PetsView';
 import { ProfileView } from './views/ProfileView';
 import { ReviewsView } from './views/ReviewsView';
-import { Star } from 'lucide-react';
+import { SettingsView } from './views/SettingsView';
+import { useShelterDashboardLogic } from './hooks/useShelterDashboardLogic';
+import { useTranslation } from '../../i18n/useTranslation';
 
 import type { ActiveView } from './types';
+
+// Map ActiveView ↔ DashboardView ↔ URL path
+type ShelterView = ActiveView | 'settings';
+
+const VIEW_TO_PATH: Record<ShelterView, string> = {
+  pets:        '/pets',
+  monitoring:  '/dashboard',
+  employees:   '/employees',
+  matches:     '/requests',
+  chat:        '/chat',
+  profile:     '/profile',
+  reviews:     '/reviews',
+  settings:    '/settings',
+};
+
+const PATH_TO_VIEW: Array<{ prefix: string; view: ShelterView }> = [
+  { prefix: '/pets',       view: 'pets' },
+  { prefix: '/dashboard',  view: 'monitoring' },
+  { prefix: '/employees',  view: 'employees' },
+  { prefix: '/requests',   view: 'matches' },
+  { prefix: '/chat',       view: 'chat' },
+  { prefix: '/profile',    view: 'profile' },
+  { prefix: '/reviews',    view: 'reviews' },
+  { prefix: '/settings',   view: 'settings' },
+];
 
 // ─── COMPONENTE PRINCIPAL ────────────────────────────────────────────────────
 export default function ShelterDashboard({ initialView }: { initialView?: string } = {}) {
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const t = useTranslation();
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [unreadMatchesCount, setUnreadMatchesCount] = useState(0);
-
-  // ─── Dark mode ────────────────────────────────────────────────────────────
-  const { isDarkMode, toggleDarkMode } = useTheme();
+  const [activeView, setActiveViewState] = useState<ShelterView>(
+    (initialView as ShelterView) ?? 'monitoring'
+  );
 
   const {
-    activeView,
-    setActiveView,
-    sidebarOpen,
-    setSidebarOpen,
     pets,
     setPets,
     loading,
@@ -68,336 +92,125 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
     handleAddEmployee,
   } = useShelterDashboardLogic(user);
 
-  // If a route set an initialView, apply it on mount.
+  // Sync activeView from initialView prop on mount
   useEffect(() => {
-    if (initialView && typeof setActiveView === 'function') {
-      setActiveView(initialView as any);
-    }
+    if (initialView) setActiveViewState(initialView as ShelterView);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialView]);
 
-  // ─── Cerrar sesión ────────────────────────────────────────────────────────
+  // Sync activeView from URL
+  useEffect(() => {
+    const match = PATH_TO_VIEW.find(({ prefix }) => location.pathname.startsWith(prefix));
+    if (match && match.view !== activeView) {
+      setActiveViewState(match.view);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  const handleNavigate = (view: DashboardView | 'settings') => {
+    const path = VIEW_TO_PATH[view as ShelterView] ?? '/dashboard';
+    navigate(path);
+    setActiveViewState(view as ShelterView);
+    if (view === 'chat') setUnreadMessagesCount(0);
+    if (view === 'matches') setUnreadMatchesCount(0);
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/');
   };
 
-  // ─── Nav item helper ──────────────────────────────────────────────────────
-  const viewToPath = (v: ActiveView) => {
-    switch (v) {
-      case 'pets':
-        return '/pets';
-      case 'monitoring':
-        return '/dashboard';
-      case 'employees':
-        return '/employees';
-      case 'matches':
-        return '/requests';
-      case 'chat':
-        return '/chat';
-      case 'profile':
-        return '/profile';
-      case 'reviews':
-        return '/reviews';
-      default:
-        return '/pets';
-    }
-  };
-
-  const location = useLocation();
-
-  const pathToView = (path: string): ActiveView | null => {
-    if (path.startsWith('/pets')) return 'pets';
-    if (path.startsWith('/dashboard')) return 'monitoring';
-    if (path.startsWith('/employees')) return 'employees';
-    if (path.startsWith('/requests')) return 'matches';
-    if (path.startsWith('/chat')) return 'chat';
-    if (path.startsWith('/profile')) return 'profile';
-    if (path.startsWith('/reviews')) return 'reviews';
-    return null;
-  };
-  const renderNavItem = ({
-    view,
-    icon,
-    label,
-    showBadge = false,
-  }: {
-    view: ActiveView;
-    icon: React.ReactNode;
-    label: string;
-    showBadge?: boolean;
-  }) => (
-    <button
-      type="button"
-      onClick={() => {
-        const to = viewToPath(view);
-        navigate(to);
-        setActiveView(view);
-        setSidebarOpen(false);
-        if (view === 'chat') {
-          setUnreadMessagesCount(0);
-        }
-        if (view === 'matches') {
-          setUnreadMatchesCount(0);
-        }
-      }}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-[background-color,color] duration-150
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1
-        ${
-          activeView === view
-            ? 'bg-brand/10 text-brand dark:bg-brand/15'
-            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50'
-        } [&_svg]:w-5 [&_svg]:h-5`}
-    >
-      <div className="relative">
-        {icon}
-        {showBadge && (
-          <span className="absolute -top-1 -right-1 flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#B94188] opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-[#B94188] border-2 border-white dark:border-gray-800"></span>
-          </span>
-        )}
-      </div>
-      {label}
-    </button>
-  );
-
-  // Keep activeView in sync with the URL when the user navigates or lands on a role path
-  useEffect(() => {
-    const fromPath = pathToView(location.pathname);
-    if (fromPath && fromPath !== activeView) {
-      setActiveView(fromPath);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
-
+  // Socket for unread badges
   useEffect(() => {
     if (!token) return;
-
-    chatService.connect(token).catch((error: unknown) => {
-      console.error('Error connecting dashboard socket:', error);
+    chatService.connect(token).catch((err: unknown) => {
+      console.error('Error connecting dashboard socket:', err);
     });
-
-    const handleIncomingMessage = (message: { sender_role?: string }) => {
+    const handleMsg = (message: { sender_role?: string }) => {
       if (message?.sender_role !== 'adopter') return;
-      if (activeView !== 'chat') {
-        setUnreadMessagesCount((prev) => prev + 1);
-      }
+      if (activeView !== 'chat') setUnreadMessagesCount(prev => prev + 1);
     };
-
-    const handleNewMatchRequest = (_payload: NewMatchRequestPayload) => {
-      if (activeView !== 'matches') {
-        setUnreadMatchesCount((prev) => prev + 1);
-      }
+    const handleMatch = (_payload: NewMatchRequestPayload) => {
+      if (activeView !== 'matches') setUnreadMatchesCount(prev => prev + 1);
     };
-
-    chatService.on('new_message', handleIncomingMessage);
-    chatService.on('new_match_request', handleNewMatchRequest);
-
+    chatService.on('new_message', handleMsg);
+    chatService.on('new_match_request', handleMatch);
     return () => {
-      chatService.off('new_message', handleIncomingMessage);
-      chatService.off('new_match_request', handleNewMatchRequest);
+      chatService.off('new_message', handleMsg);
+      chatService.off('new_match_request', handleMatch);
     };
   }, [token, activeView]);
 
-  // ─── RENDER ────────────────────────────────────────────────────────────────
-  return (
-    <div className="h-screen flex bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      {/* BOTÓN MENÚ MÓVIL */}
-      <button
-        type="button"
-        onClick={() => setSidebarOpen(true)}
-        className="xl:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-        aria-label="Abrir menú"
-      >
-        <svg className="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
+  const userRole = t('auth.role.shelter');
 
-      {/* OVERLAY MÓVIL */}
-      {sidebarOpen && (
-        <div 
-          className="xl:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-          onClick={() => setSidebarOpen(false)}
+  return (
+    <DashboardShell
+      activeView={activeView as DashboardView}
+      onNavigate={handleNavigate}
+      onLogout={handleLogout}
+      userName={user?.name}
+      userRole={userRole}
+      sidebarOpen={sidebarOpen}
+      setSidebarOpen={setSidebarOpen}
+      unreadMessages={unreadMessagesCount}
+      unreadMatches={unreadMatchesCount}
+    >
+      {activeView === 'pets' && (
+        <PetsView
+          pets={pets}
+          loading={loading}
+          error={error}
+          onDeletePet={handleDeletePet}
+          onSelectPet={setSelectedPet}
+          onOpenAddModal={() => setIsAddModalOpen(true)}
         />
       )}
+      {activeView === 'monitoring' && (
+        <MonitoringView
+          pets={pets}
+          error={error}
+          stats={stats}
+          statsLoading={statsLoading}
+          statsError={statsError}
+        />
+      )}
+      {activeView === 'matches' && (
+        <MatchesView
+          matches={matches}
+          loading={matchesLoading}
+          error={matchesError}
+          onAccept={handleAcceptMatch}
+          onReject={handleRejectMatch}
+        />
+      )}
+      {activeView === 'employees' && (
+        <EmployeesView
+          employees={employees}
+          pets={pets}
+          loading={employeesLoading}
+          error={employeesError}
+          onAddEmployee={handleAddEmployee}
+        />
+      )}
+      {activeView === 'chat' && (
+        <ChatView token={token || ''} />
+      )}
+      {activeView === 'profile' && (
+        <ProfileView
+          user={user}
+          profileForm={profileForm}
+          profileDirty={profileDirty}
+          profileSaveMsg={profileSaveMsg}
+          profileError={profileError}
+          onUpdateField={updateProfileField}
+          onPhotoSelect={handleProfilePhotoSelect}
+          onSave={saveProfile}
+        />
+      )}
+      {activeView === 'reviews' && <ReviewsView />}
+      {activeView === 'settings' && <SettingsView />}
 
-      {/* SIDEBAR */}
-      <aside className={`
-        fixed xl:relative z-50 xl:z-auto
-        w-72 shrink-0 h-full 
-        flex flex-col gap-4 p-5 
-        bg-gray-50 dark:bg-gray-900 
-        border-r border-gray-100 dark:border-gray-800 
-        overflow-y-auto
-        transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full xl:translate-x-0'}
-      `}>
-        <div className="px-4 py-2 mb-2 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
-            <PawPrint className="w-5 h-5 text-brand" aria-hidden="true" />
-            <span><span className="text-brand">Tin</span>Pet</span>
-          </h1>
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(false)}
-            className="xl:hidden p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-          >
-            <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <p className="px-4 text-sm text-gray-400 mt-0.5 truncate xl:hidden">
-          {user?.name || 'Refugio'}
-        </p>
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 space-y-1">
-          <p className="px-3 pt-1 pb-2 text-sm font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-            General
-          </p>
-          {renderNavItem({ view: 'pets', icon: <IconPaw />, label: 'Mascotas' })}
-          {renderNavItem({ view: 'monitoring', icon: <IconChart />, label: 'Monitorización' })}
-          {renderNavItem({ view: 'matches', icon: <IconHeart />, label: 'Solicitudes', showBadge: activeView !== 'matches' && unreadMatchesCount > 0 })}
-          {/* Empleados solo para veterinarias */}
-          {renderNavItem({
-            view: 'chat',
-            icon: <IconChat />,
-            label: 'Chat',
-            showBadge: activeView !== 'chat' && unreadMessagesCount > 0,
-          })}
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 space-y-1">
-          <p className="px-3 pt-1 pb-2 text-sm font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-            Ajustes
-          </p>
-          {renderNavItem({ view: 'profile', icon: <IconUser />, label: 'Mi Perfil' })}
-          {renderNavItem({ view: 'reviews', icon: <Star />, label: 'Valoraciones' })}
-          <button
-            type="button"
-            onClick={toggleDarkMode}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors [&_svg]:w-5 [&_svg]:h-5"
-          >
-            {isDarkMode ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 7a5 5 0 100 10A5 5 0 0012 7z" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" />
-              </svg>
-            )}
-            {isDarkMode ? 'Modo claro' : 'Modo oscuro'}
-          </button>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-base font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors [&_svg]:w-5 [&_svg]:h-5"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" />
-            </svg>
-            Cerrar sesión
-          </button>
-        </div>
-      </aside>
-
-      {/* MAIN */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="w-full px-4 lg:px-5 xl:px-6 2xl:px-8 py-4 lg:py-6 xl:py-8">
-          <div className="mb-6 xl:mb-8 flex items-center justify-between">
-            <div className="pl-12 xl:pl-0">
-              <h2 className="text-xl xl:text-2xl font-bold text-gray-900 dark:text-white">
-                {activeView === 'pets' && 'Lista de Mascotas'}
-                {activeView === 'monitoring' && 'Monitorización'}
-                {activeView === 'matches' && 'Solicitudes'}
-                {activeView === 'employees' && 'Empleados'}
-                {activeView === 'chat' && 'Chat'}
-                {activeView === 'profile' && 'Mi Perfil'}
-                {activeView === 'reviews' && 'Valoraciones'}
-              </h2>
-              <p className="text-sm text-gray-400 mt-1">
-                {activeView === 'pets' && `${pets.length} mascota${pets.length !== 1 ? 's' : ''}`}
-                {activeView === 'monitoring' && 'Estadísticas del refugio'}
-                {activeView === 'matches' && `${matches.length} solicitud${matches.length !== 1 ? 'es' : ''}`}
-                {activeView === 'employees' && `${employees.length} empleado${employees.length !== 1 ? 's' : ''}`}
-                {activeView === 'chat' && 'Conversaciones con adoptantes'}
-                {activeView === 'profile' && 'Información de tu cuenta'}
-                {activeView === 'reviews' && 'Lo que dicen los adoptantes de ti'}
-              </p>
-            </div>
-            {activeView === 'pets' && (
-              <Button
-                variant="solid"
-                onClick={() => setIsAddModalOpen(true)}
-                className="gap-2"
-              >
-                <IconPlus />
-                <span className="hidden sm:inline">Nueva mascota</span>
-                <span className="sm:hidden">Añadir</span>
-              </Button>
-            )}
-          </div>
-
-          {activeView === 'pets' && (
-            <PetsView
-              pets={pets}
-              loading={loading}
-              error={error}
-              onDeletePet={handleDeletePet}
-              onSelectPet={setSelectedPet}
-              onOpenAddModal={() => setIsAddModalOpen(true)}
-            />
-          )}
-          {activeView === 'monitoring' && (
-            <MonitoringView
-              pets={pets}
-              error={error}
-              stats={stats}
-              statsLoading={statsLoading}
-              statsError={statsError}
-            />
-          )}
-          {activeView === 'matches' && (
-            <MatchesView
-              matches={matches}
-              loading={matchesLoading}
-              error={matchesError}
-              onAccept={handleAcceptMatch}
-              onReject={handleRejectMatch}
-            />
-          )}
-          {activeView === 'employees' && (
-            <EmployeesView
-              employees={employees}
-              pets={pets}
-              loading={employeesLoading}
-              error={employeesError}
-              onAddEmployee={handleAddEmployee}
-            />
-          )}
-          {activeView === 'chat' && (
-            <ChatView token={token || ''} />
-          )}
-          {activeView === 'profile' && (
-            <ProfileView
-              user={user}
-              profileForm={profileForm}
-              profileDirty={profileDirty}
-              profileSaveMsg={profileSaveMsg}
-              profileError={profileError}
-              onUpdateField={updateProfileField}
-              onPhotoSelect={handleProfilePhotoSelect}
-              onSave={saveProfile}
-            />
-          )}
-          {activeView === 'reviews' && (
-            <ReviewsView />
-          )}
-        </div>
-      </main>
-
-      {/* MODAL: AÑADIR */}
+      {/* Modals */}
       {isAddModalOpen && (
         <AddPetModal
           onClose={() => setIsAddModalOpen(false)}
@@ -406,8 +219,6 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
           showEmployeeField={false}
         />
       )}
-
-      {/* MODAL: PERFIL MASCOTA */}
       {selectedPet && (
         <PetProfileModal
           pet={selectedPet}
@@ -415,13 +226,11 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
           onDelete={handleDeletePet}
           onUpdate={updated => {
             setSelectedPet(updated);
-            setPets(prev =>
-              prev.map(p => (p.id === updated.id ? updated : p))
-            );
+            setPets(prev => prev.map(p => (p.id === updated.id ? updated : p)));
           }}
           employees={employees}
         />
       )}
-    </div>
+    </DashboardShell>
   );
 }

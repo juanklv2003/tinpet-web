@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ImagePlus } from 'lucide-react';
+import { Image } from '@phosphor-icons/react';
 import { StyledDatePicker } from '../../styled-date-picker';
 import { StyledSelect } from '../../styled-select';
 import { IconPlus, IconX } from '../Icons';
@@ -124,7 +124,7 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
       />
 
       <div
-        className={`absolute right-3 top-3 bottom-3 w-[calc(100%-1.5rem)] sm:w-[30rem] xl:w-[35rem] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out ${
+        className={`absolute right-3 top-3 bottom-3 w-[calc(100%-1.5rem)] sm:w-[26rem] xl:w-[28rem] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out ${
           isVisible ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -256,7 +256,7 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
                 >
                   <div className="w-full h-full min-h-[12rem] xl:min-h-[15rem] mx-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex items-center justify-center overflow-hidden">
                     <div className="flex flex-col items-center text-center px-4">
-                      <ImagePlus className="w-10 h-10 mb-3 text-brand" strokeWidth={1.5} />
+                      <Image size={40} className="mb-3 text-brand" />
                       <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
                         Haz click para subir fotos
                       </p>

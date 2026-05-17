@@ -304,7 +304,7 @@ export function PetProfileModal({
       />
 
       <div
-        className={`absolute right-3 top-3 bottom-3 w-[calc(100%-1.5rem)] sm:w-[min(calc(100%-1.5rem),46rem)] xl:w-[min(calc(100%-1.5rem),52rem)] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out ${
+        className={`absolute right-3 top-3 bottom-3 w-[calc(100%-1.5rem)] sm:w-[min(calc(100%-1.5rem),30rem)] xl:w-[min(calc(100%-1.5rem),34rem)] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out ${
           isVisible ? 'translate-x-0' : 'translate-x-full'
         }`}
       >

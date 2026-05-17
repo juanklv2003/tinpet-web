@@ -55,5 +55,6 @@ export interface ShelterProfileForm {
   youtube: string;
 }
 
-export type ActiveView = 'pets' | 'monitoring' | 'matches' | 'employees' | 'chat' | 'profile' | 'reviews';
+export type ActiveView = 'pets' | 'monitoring' | 'matches' | 'employees' | 'chat' | 'profile' | 'reviews' | 'settings';
 export type PetsSort = 'newest' | 'oldest' | 'name';
+

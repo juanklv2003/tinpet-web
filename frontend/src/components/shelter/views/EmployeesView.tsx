@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { UsersThree, X } from '@phosphor-icons/react';
 import { LoadingView } from '../../ui/LoadingView';
 import type { ShelterEmployee } from '../../../hooks/useShelterEmployees';
 import type { Pet } from '../../../types';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface EmployeesViewProps {
   employees: ShelterEmployee[];
@@ -18,6 +20,7 @@ export function EmployeesView({
   error,
   onAddEmployee,
 }: EmployeesViewProps) {
+  const t = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('');
@@ -43,17 +46,10 @@ export function EmployeesView({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
-
     setSubmitting(true);
     try {
-      await onAddEmployee({
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        role: role.trim() || undefined,
-      });
-      setName('');
-      setEmail('');
-      setRole('');
+      await onAddEmployee({ name: name.trim(), email: email.trim().toLowerCase(), role: role.trim() || undefined });
+      setName(''); setEmail(''); setRole('');
     } finally {
       setSubmitting(false);
     }
@@ -65,219 +61,211 @@ export function EmployeesView({
     return fromArray || fromSingle || null;
   };
 
-  // Filtrar las mascotas de las cuales este empleado es el encargado
   const assignedPets = selectedEmployee
     ? pets.filter(p => p.ai_profile?.inChargeEmployeeId === selectedEmployee.id)
     : [];
 
+  const inputClass = "w-full bg-white dark:bg-slate-900 border border-ink-light/20 dark:border-slate-600 rounded-xl px-4 py-3 text-sm font-medium text-ink-dark dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all";
+
   return (
-    <div className="relative">
-      <div className="space-y-6">
-        {error && (
-          <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-lg">
-            {error}
-          </p>
-        )}
+    <section className="animate-bento-in relative">
+      {/* Header */}
+      <header className="mb-12">
+        <h2 className="font-serif text-4xl md:text-5xl text-ink-dark dark:text-white leading-tight">
+          {t('employees.title')}
+        </h2>
+        <p className="text-ink-medium dark:text-slate-400 mt-3 font-medium text-sm">
+          {employees.length === 0
+            ? t('employees.subtitle_zero')
+            : employees.length === 1
+              ? t('employees.subtitle_one', { count: 1 })
+              : t('employees.subtitle_other', { count: employees.length })}
+        </p>
+      </header>
 
-        <form onSubmit={submit} className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Nuevo empleado</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nombre"
-              className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
-            />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
-            />
-            <input
-              type="text"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              placeholder="Rol (opcional)"
-              className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
-            />
-          </div>
-          <div className="mt-3">
-            <button
-              type="submit"
-              disabled={submitting || !name.trim() || !email.trim()}
-              className="px-5 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-sm shadow-brand/20 transition-[background-color] duration-150 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              {submitting ? 'Guardando...' : 'Añadir empleado'}
-            </button>
-          </div>
-        </form>
+      {error && (
+        <p className="mb-6 text-sm text-red-400 bg-red-500/10 border border-red-500/20 px-4 py-3 rounded-2xl">{error}</p>
+      )}
 
-        {loading ? (
-          <LoadingView message="Cargando empleados..." minHeight="160px" />
-        ) : employees.length === 0 ? (
-          <div className="flex items-center justify-center h-40 text-gray-500 text-sm">No hay empleados registrados.</div>
-        ) : (
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
-            <table className="w-full select-none">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Nombre</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Email</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Rol</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {employees.map((employee) => (
-                  <tr
-                    key={employee.id}
-                    onClick={() => {
-                      setSelectedEmployee(employee);
-                    }}
-                    className="cursor-pointer hover:bg-brand/5 dark:hover:bg-brand/8 transition-[background-color] duration-150"
-                  >
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                      {employee.name}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-                      {employee.email}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-                      {String(employee.role ?? '—')}
-                    </td>
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+        {/* Add employee form */}
+        <div className="md:col-span-4 bento-item">
+          <div className="bg-surface dark:bg-slate-800 rounded-3xl p-8 shadow-bento border border-white dark:border-slate-700 sticky top-10 transition-colors">
+            <h4 className="font-serif text-xl text-ink-dark dark:text-white mb-6">
+              {t('employees.addForm.title')}
+            </h4>
+            <form onSubmit={submit} className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-ink-light dark:text-slate-400 uppercase tracking-wider mb-2">
+                  {t('employees.addForm.name')}
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder={t('employees.addForm.namePlaceholder')}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-ink-light dark:text-slate-400 uppercase tracking-wider mb-2">
+                  {t('employees.addForm.email')}
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder={t('employees.addForm.emailPlaceholder')}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-ink-light dark:text-slate-400 uppercase tracking-wider mb-2">
+                  {t('employees.addForm.role')}
+                </label>
+                <input
+                  type="text"
+                  value={role}
+                  onChange={e => setRole(e.target.value)}
+                  placeholder={t('employees.addForm.rolePlaceholder')}
+                  className={inputClass}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={submitting || !name.trim() || !email.trim()}
+                className="w-full bg-brand-500 hover:bg-brand-600 text-white px-6 py-3.5 rounded-xl text-sm font-bold shadow-sm shadow-brand-500/20 transition-colors mt-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {submitting ? '...' : t('employees.addForm.submit')}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Employee list */}
+        <div className="md:col-span-8 bento-item" style={{ animationDelay: '100ms' }}>
+          {loading ? (
+            <LoadingView message={t('common.loading')} minHeight="200px" />
+          ) : employees.length === 0 ? (
+            <div className="bg-surface dark:bg-slate-800 rounded-3xl p-8 shadow-bento border border-white dark:border-slate-700 h-full min-h-[400px] flex flex-col items-center justify-center text-center transition-colors">
+              <div className="w-20 h-20 bg-background dark:bg-slate-900 rounded-full flex items-center justify-center text-ink-light dark:text-slate-500 mb-6">
+                <UsersThree size={40} weight="fill" />
+              </div>
+              <h5 className="text-xl font-bold text-ink-dark dark:text-white mb-2">
+                {t('employees.empty.title')}
+              </h5>
+              <p className="text-sm text-ink-medium dark:text-slate-400 max-w-sm">
+                {t('employees.empty.subtitle')}
+              </p>
+            </div>
+          ) : (
+            <div className="bg-surface dark:bg-slate-800 rounded-3xl shadow-bento border border-white dark:border-slate-700 overflow-hidden transition-colors">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr>
+                    {['Nombre', 'Email', 'Rol'].map(h => (
+                      <th key={h} className="px-8 py-5 text-xs font-bold text-ink-light dark:text-slate-400 uppercase tracking-widest border-b border-ink-light/10 dark:border-slate-700">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {employees.map(emp => (
+                    <tr
+                      key={emp.id}
+                      onClick={() => setSelectedEmployee(emp)}
+                      className="hover:bg-brand-50/30 dark:hover:bg-slate-700/50 transition-colors cursor-pointer group"
+                    >
+                      <td className="px-8 py-5 border-b border-ink-light/5 dark:border-slate-700/50">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-brand-100 dark:bg-brand-500/20 flex items-center justify-center text-brand-500 font-bold text-sm shrink-0">
+                            {emp.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-bold text-ink-dark dark:text-white group-hover:text-brand-600 transition-colors">
+                            {emp.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 border-b border-ink-light/5 dark:border-slate-700/50 text-sm font-medium text-ink-medium dark:text-slate-300">
+                        {emp.email}
+                      </td>
+                      <td className="px-8 py-5 border-b border-ink-light/5 dark:border-slate-700/50 text-sm font-medium text-ink-medium dark:text-slate-300">
+                        {String(emp.role ?? '—')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Flyout Drawer lateral derecho */}
+      {/* Employee detail drawer */}
       {selectedEmployee && (
-        <div className="fixed inset-0 z-50 flex justify-end select-none">
-          {/* Overlay oscuro para cerrar */}
+        <div className="fixed inset-0 z-50 flex justify-end">
           <button
             type="button"
-            aria-label="Cerrar detalle"
+            aria-label="Cerrar"
             onClick={handleClose}
-            className={`absolute inset-0 bg-black/60 backdrop-blur-sm cursor-default transition-opacity duration-300 ${
-              isVisible ? 'opacity-100' : 'opacity-0'
-            }`}
+            className={`absolute inset-0 bg-ink-dark/60 backdrop-blur-sm cursor-default transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
           />
+          <div className={`absolute right-3 top-3 bottom-3 w-[min(calc(100%-1.5rem),28rem)] bg-surface dark:bg-slate-800 border border-ink-light/10 dark:border-slate-700 rounded-3xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out flex flex-col ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className="px-8 py-6 border-b border-ink-light/10 dark:border-slate-700 flex justify-between items-center shrink-0">
+              <div>
+                <h3 className="font-serif text-xl text-ink-dark dark:text-white">Detalle del empleado</h3>
+                <p className="text-xs text-ink-light dark:text-slate-500 mt-1">Información y asignaciones</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleClose}
+                className="w-10 h-10 rounded-full hover:bg-background dark:hover:bg-slate-700 flex items-center justify-center text-ink-medium dark:text-slate-400 transition-colors"
+              >
+                <X size={20} weight="bold" />
+              </button>
+            </div>
 
-          {/* Panel Lateral */}
-          <div
-            className={`absolute right-3 top-3 bottom-3 w-[calc(100%-1.5rem)] sm:w-[min(calc(100%-1.5rem),28rem)] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out flex flex-col justify-between p-6 ${
-              isVisible ? 'translate-x-0' : 'translate-x-full'
-            }`}
-          >
-            <div className="overflow-y-auto flex-1 pr-1">
-              {/* Encabezado */}
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                    Detalle del empleado
-                  </h3>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Información detallada y asignaciones
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition duration-100"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+            <div className="flex-1 overflow-y-auto p-8 dash-scroll space-y-8">
+              <div className="space-y-4 bg-background dark:bg-slate-900 p-5 rounded-2xl border border-ink-light/10 dark:border-slate-700">
+                {[
+                  { label: 'Nombre', value: selectedEmployee.name },
+                  { label: 'Email', value: selectedEmployee.email },
+                  { label: 'Rol', value: String(selectedEmployee.role ?? '—') },
+                ].map(item => (
+                  <div key={item.label}>
+                    <label className="text-xs font-bold text-ink-light dark:text-slate-500 uppercase tracking-widest">{item.label}</label>
+                    <p className="text-sm font-bold text-ink-dark dark:text-white mt-1">{item.value}</p>
+                  </div>
+                ))}
               </div>
 
-              {/* Info Empleado */}
-              <div className="space-y-4 bg-gray-50/50 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-800/80 mb-6">
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    Nombre
-                  </label>
-                  <p className="text-base font-bold text-gray-900 dark:text-white mt-0.5">
-                    {selectedEmployee.name}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    Email
-                  </label>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-0.5">
-                    {selectedEmployee.email}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    Rol
-                  </label>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-0.5">
-                    {String(selectedEmployee.role ?? '—')}
-                  </p>
-                </div>
-              </div>
-
-              {/* Mascotas a cargo */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+              <div>
+                <h4 className="text-xs font-bold text-ink-light dark:text-slate-500 uppercase tracking-widest mb-4">
                   Mascotas a su cargo ({assignedPets.length})
                 </h4>
-
                 {assignedPets.length === 0 ? (
-                  <p className="text-xs text-gray-500 italic py-2">
-                    No tiene ninguna mascota asignada actualmente.
-                  </p>
+                  <p className="text-sm text-ink-light dark:text-slate-400 italic">Sin mascotas asignadas.</p>
                 ) : (
-                  <div className="grid grid-cols-1 gap-2.5">
+                  <div className="space-y-3">
                     {assignedPets.map(pet => {
-                      const primaryPhoto = getPrimaryPhoto(pet);
+                      const photo = getPrimaryPhoto(pet);
                       return (
-                        <div
-                          key={pet.id}
-                          className="flex items-center gap-3 p-2.5 bg-white dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm"
-                        >
-                          <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden shrink-0 flex items-center justify-center">
-                            {primaryPhoto ? (
-                              <img
-                                src={primaryPhoto}
-                                alt={pet.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <span className="text-xs text-gray-400 select-none">🐾</span>
-                            )}
+                        <div key={pet.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl border border-ink-light/10 dark:border-slate-700">
+                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-background dark:bg-slate-800 shrink-0">
+                            {photo
+                              ? <img src={photo} alt={pet.name} className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center text-ink-light text-lg">🐾</div>
+                            }
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                              {pet.name}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                              {pet.species} {pet.ai_profile?.breed ? `• ${pet.ai_profile.breed}` : ''}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-ink-dark dark:text-white truncate">{pet.name}</p>
+                            <p className="text-xs text-ink-light dark:text-slate-400">
+                              {pet.species}{pet.ai_profile?.breed ? ` · ${pet.ai_profile.breed}` : ''}
                             </p>
                           </div>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                              pet.status === 'available'
-                                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/40'
-                                : pet.status === 'pending'
-                                ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-100 dark:border-amber-800/40'
-                                : 'bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400 border border-sky-100 dark:border-sky-800/40'
-                            }`}
-                          >
-                            {pet.status === 'available'
-                              ? 'Disponible'
-                              : pet.status === 'pending'
-                              ? 'Pendiente'
-                              : 'Adoptado'}
+                          <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${pet.status === 'available' ? 'bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400' : pet.status === 'pending' ? 'bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400'}`}>
+                            {pet.status === 'available' ? 'Disponible' : pet.status === 'pending' ? 'Pendiente' : 'Adoptado'}
                           </span>
                         </div>
                       );
@@ -287,19 +275,18 @@ export function EmployeesView({
               </div>
             </div>
 
-            {/* Pie del Panel */}
-            <div className="border-t border-gray-100 dark:border-gray-700 pt-4 mt-4">
+            <div className="px-8 py-5 border-t border-ink-light/10 dark:border-slate-700 shrink-0">
               <button
                 type="button"
                 onClick={handleClose}
-                className="w-full py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-100"
+                className="w-full py-3.5 rounded-xl border border-ink-light/20 dark:border-slate-600 text-sm font-bold text-ink-medium dark:text-slate-300 hover:bg-background dark:hover:bg-slate-700 transition-colors"
               >
-                Cerrar
+                {t('common.close')}
               </button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }
