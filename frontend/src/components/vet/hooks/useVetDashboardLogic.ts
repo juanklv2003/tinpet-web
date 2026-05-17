@@ -24,7 +24,10 @@ interface UseVetDashboardLogicResult {
   profileError: string | null;
   fetchMyPets: () => Promise<void>;
   updateProfileField: (field: keyof VetProfileForm, value: string) => void;
-  handleProfilePhotoSelect: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  handleProfilePhotoSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleCropCancel: () => void;
+  handleCropConfirm: (croppedBlob: Blob) => Promise<void>;
+  cropImageSrc: string | null;
   saveProfile: () => Promise<void>;
   handleAddPet: (form: AddPetForm) => Promise<void>;
   handleDeletePet: (petId: string) => Promise<void>;
@@ -71,12 +74,18 @@ export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogi
     email: user?.email ?? '',
     location: '',
     phone: '',
+    website: '',
     description: '',
     avatarUrl: '',
+    instagram: '',
+    facebook: '',
+    youtube: '',
+    tiktok: '',
   });
   const [profileDirty, setProfileDirty] = useState(false);
   const [profileSaveMsg, setProfileSaveMsg] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
 
   const {
     stats,
@@ -134,7 +143,7 @@ export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogi
     }
   }, [user?.id, activeView, isAddModalOpen, fetchMyPets, fetchStats, fetchMatches, fetchEmployees]);
 
-  // Restore from localStorage on mount
+  // Restore from localStorage and sync from backend on mount
   useEffect(() => {
     if (!user?.id || !profileStorageKey) return;
 
@@ -143,32 +152,71 @@ export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogi
       email: user.email ?? '',
       location: '',
       phone: '',
+      website: '',
       description: '',
       avatarUrl: '',
+      instagram: '',
+      facebook: '',
+      youtube: '',
+      tiktok: '',
     };
 
-    try {
-      const raw = localStorage.getItem(profileStorageKey);
-      if (!raw) {
+    const loadProfile = async () => {
+      // First populate with localStorage (if any) so the user doesn't see a completely blank screen
+      try {
+        const raw = localStorage.getItem(profileStorageKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Partial<VetProfileForm>;
+          setProfileForm({
+            displayName: parsed.displayName ?? fallback.displayName,
+            email: parsed.email ?? fallback.email,
+            location: parsed.location ?? '',
+            phone: parsed.phone ?? '',
+            website: parsed.website ?? '',
+            description: parsed.description ?? '',
+            avatarUrl: parsed.avatarUrl ?? '',
+            instagram: parsed.instagram ?? '',
+            facebook: parsed.facebook ?? '',
+            youtube: parsed.youtube ?? '',
+            tiktok: parsed.tiktok ?? '',
+          });
+        } else {
+          setProfileForm(fallback);
+        }
+      } catch {
         setProfileForm(fallback);
-      } else {
-        const parsed = JSON.parse(raw) as Partial<VetProfileForm>;
-        setProfileForm({
-          displayName: parsed.displayName ?? fallback.displayName,
-          email: parsed.email ?? fallback.email,
-          location: parsed.location ?? '',
-          phone: parsed.phone ?? '',
-          description: parsed.description ?? '',
-          avatarUrl: parsed.avatarUrl ?? '',
-        });
       }
-    } catch {
-      setProfileForm(fallback);
-    }
 
-    setProfileDirty(false);
-    setProfileSaveMsg(null);
-    setProfileError(null);
+      // Then fetch the source of truth from backend
+      try {
+        const data = await apiFetch<{ name?: string; email?: string; location?: string; phone?: string; website?: string; description?: string; avatar_url?: string; instagram?: string; facebook?: string }>('/api/vet-clinics/profile');
+        if (data) {
+          const backendProfile: VetProfileForm = {
+            displayName: data.name ?? fallback.displayName,
+            email: data.email ?? fallback.email,
+            location: data.location ?? '',
+            phone: data.phone ?? '',
+            website: data.website ?? '',
+            description: data.description ?? '',
+            avatarUrl: data.avatar_url ?? '',
+            instagram: data.instagram ?? '',
+            facebook: data.facebook ?? '',
+            youtube: '',
+            tiktok: '',
+          };
+          setProfileForm(backendProfile);
+          localStorage.setItem(profileStorageKey, JSON.stringify(backendProfile));
+        }
+      } catch (err) {
+        console.error('Error fetching vet clinic profile:', err);
+      }
+
+      setProfileDirty(false);
+      setProfileSaveMsg(null);
+      setProfileError(null);
+    };
+
+    void loadProfile();
   }, [user?.id, user?.name, user?.email, profileStorageKey]);
 
   const updateProfileField = (field: keyof VetProfileForm, value: string) => {
@@ -178,14 +226,14 @@ export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogi
     setProfileError(null);
   };
 
-  const uploadProfileImage = async (file: File): Promise<string> => {
+  const uploadImageBlob = async (blob: Blob): Promise<string> => {
     const token = localStorage.getItem('token');
     if (!token) {
       throw new Error('No hay sesión activa para subir la imagen.');
     }
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', blob, 'profile.jpg');
 
     const response = await fetch(`${API_BASE_URL}/api/upload`, {
       method: 'POST',
@@ -211,7 +259,7 @@ export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogi
     return payload.url;
   };
 
-  const handleProfilePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -225,10 +273,24 @@ export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogi
       return;
     }
 
+    // Read file as data URL and show crop modal instead of uploading directly
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropImageSrc(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCropCancel = () => {
+    setCropImageSrc(null);
+  };
+
+  const handleCropConfirm = async (croppedBlob: Blob) => {
     try {
       setProfileSaveMsg('Subiendo foto...');
-      const cloudinaryUrl = await uploadProfileImage(file);
+      const cloudinaryUrl = await uploadImageBlob(croppedBlob);
       updateProfileField('avatarUrl', cloudinaryUrl);
+      setCropImageSrc(null);
       setProfileSaveMsg('Foto subida. Pulsa "Guardar cambios" para confirmar.');
     } catch (error) {
       const message =
@@ -237,6 +299,7 @@ export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogi
           : 'No se pudo subir la foto de perfil.';
       setProfileError(message);
       setProfileSaveMsg(null);
+      setCropImageSrc(null);
     }
   };
 
@@ -246,13 +309,21 @@ export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogi
     try {
       localStorage.setItem(profileStorageKey, JSON.stringify(profileForm));
 
-      // Save avatar to backend via vet-clinics endpoint
-      if (profileForm.avatarUrl) {
-        await apiFetch('/api/vet-clinics/profile', {
-          method: 'PUT',
-          body: JSON.stringify({ avatar_url: profileForm.avatarUrl }),
-        });
-      }
+      // Save profile to backend via vet-clinics endpoint
+      await apiFetch('/api/vet-clinics/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: profileForm.displayName,
+          email: profileForm.email,
+          location: profileForm.location,
+          phone: profileForm.phone,
+          website: profileForm.website || null,
+          description: profileForm.description,
+          avatar_url: profileForm.avatarUrl || null,
+          instagram: profileForm.instagram || null,
+          facebook: profileForm.facebook || null,
+        }),
+      });
 
       setProfileDirty(false);
       setProfileSaveMsg('Perfil guardado correctamente.');
@@ -317,6 +388,9 @@ export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogi
     fetchMyPets,
     updateProfileField,
     handleProfilePhotoSelect,
+    handleCropCancel,
+    handleCropConfirm,
+    cropImageSrc,
     saveProfile,
     handleAddPet,
     handleDeletePet,

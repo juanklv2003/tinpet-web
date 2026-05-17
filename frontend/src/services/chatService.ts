@@ -55,7 +55,6 @@ class ChatService {
 
       this.socket = io(SOCKET_URL, {
         auth: { token },
-        transports: ["websocket"],
       });
 
       this.socket.on("connect", () => {

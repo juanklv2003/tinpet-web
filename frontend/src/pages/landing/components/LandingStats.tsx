@@ -8,7 +8,7 @@ const stats = [
 export function LandingStats() {
   return (
     <div className="mx-auto max-w-7xl px-6 lg:px-8">
-      <div className="grid grid-cols-2 lg:grid-cols-4 divide-y-2 divide-brand/15 lg:divide-y-0 lg:divide-x-2 rounded-2xl border border-brand/20 bg-brand/5 dark:bg-brand/8 dark:border-brand/15 overflow-hidden">
+      <div className="grid grid-cols-2 lg:grid-cols-4 divide-y-2 divide-stone-200/60 lg:divide-y-0 lg:divide-x-2 rounded-[32px] border border-stone-200/60 dark:border-slate-800 dark:divide-slate-800 bg-white dark:bg-dark-card shadow-sm overflow-hidden transition-colors duration-300">
         {stats.map((stat) => (
           <div
             key={stat.value}

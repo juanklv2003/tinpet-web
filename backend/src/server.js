@@ -1781,7 +1781,28 @@ app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
       },
     });
 
-    if (!currentMatch || currentMatch.pets?.shelter_id !== shelter.id) {
+    if (!currentMatch) {
+      return res
+        .status(404)
+        .json({ error: "Solicitud no encontrada" });
+    }
+
+    // Check ownership: shelter_id on the pet can be a shelter OR a vet_clinic UUID
+    let isOwner = currentMatch.pets?.shelter_id === shelter.id;
+
+    // For vets: the auto-created shelter record (from getProfessionalShelterProfile)
+    // has a DIFFERENT UUID than the vet_clinic. Match against vet_clinics.id too.
+    if (!isOwner && req.user.role === "vet") {
+      const vetClinic = await prisma.vet_clinics.findFirst({
+        where: { user_id: req.user.sub },
+        select: { id: true },
+      });
+      if (vetClinic) {
+        isOwner = currentMatch.pets?.shelter_id === vetClinic.id;
+      }
+    }
+
+    if (!isOwner) {
       return res
         .status(404)
         .json({ error: "Solicitud no encontrada o sin permisos" });
@@ -1793,8 +1814,6 @@ app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
         interaction_type: status,
       },
       include: {
-        shelters: { include: { users: true } },
-        vet_clinics: { include: { users: true } },
         pets: {
           select: { id: true, name: true },
         },
@@ -1860,19 +1879,40 @@ app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
 
     // Si se acepta, crear conversación automáticamente
     if (status === "accepted") {
-      await prisma.conversations.create({
-        data: {
+      // Evitar duplicados: verificar si ya existe una conversación para este match
+      const existingConv = await prisma.conversations.findFirst({
+        where: { match_id: currentMatch.id }
+      });
+
+      if (!existingConv) {
+        const conversationData = {
           id: randomUUID(),
           adopter_id: currentMatch.adopter_id,
-          shelter_id: shelter.id,
           pet_id: currentMatch.pet_id,
           match_id: currentMatch.id,
-        },
-      });
+        };
+
+        // Vets: usar vet_clinic_id en vez de shelter_id
+        if (req.user.role === "vet") {
+          const vetClinic = await prisma.vet_clinics.findFirst({
+            where: { user_id: req.user.sub },
+            select: { id: true },
+          });
+          if (vetClinic) {
+            conversationData.vet_clinic_id = vetClinic.id;
+          } else {
+            conversationData.shelter_id = shelter.id;
+          }
+        } else {
+          conversationData.shelter_id = shelter.id;
+        }
+
+        await prisma.conversations.create({ data: conversationData });
+      }
+    }
       // El estado de la mascota NO se cambia automáticamente.
       // El usuario (refugio/vet) debe actualizarlo manualmente desde el panel de mascotas
       // o desde el menú de 3 puntos en el chat.
-    }
 
     res.json({
       id: updated.id,
@@ -2082,10 +2122,10 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
         },
         include: {
           shelter: {
-            select: { id: true, name: true, phone: true, location: true, avatar_url: true },
+            select: { id: true, name: true, phone: true, email: true, location: true, avatar_url: true },
           },
           vet_clinic: {
-            select: { id: true, name: true, phone: true, location: true, description: true, website: true, instagram: true, facebook: true, avatar_url: true },
+            select: { id: true, name: true, phone: true, email: true, location: true, description: true, website: true, instagram: true, facebook: true, avatar_url: true },
           },
           pet: { select: { id: true, name: true, image_url: true, status: true } },
           messages: {
@@ -2100,14 +2140,28 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
       if (!shelter)
         return res.status(404).json({ error: "Perfil profesional no encontrado" });
 
+      const conversationWhere = { ...(archivedFilter !== undefined ? { archived: archivedFilter } : {}) };
+
+      // Vets: conversations are stored with vet_clinic_id, not shelter_id
+      if (role === "vet") {
+        const vetClinic = await prisma.vet_clinics.findFirst({
+          where: { user_id: userId },
+          select: { id: true },
+        });
+        if (vetClinic) {
+          conversationWhere.vet_clinic_id = vetClinic.id;
+        } else {
+          conversationWhere.shelter_id = shelter.id;
+        }
+      } else {
+        conversationWhere.shelter_id = shelter.id;
+      }
+
       conversations = await prisma.conversations.findMany({
-        where: {
-          shelter_id: shelter.id,
-          ...(archivedFilter !== undefined ? { archived: archivedFilter } : {}),
-        },
+        where: conversationWhere,
         include: {
           adopter: {
-            select: { id: true, name: true, avatar_url: true, photos: true },
+            select: { id: true, name: true, email: true, avatar_url: true, photos: true },
           },
           pet: { select: { id: true, name: true, image_url: true, status: true } },
           messages: {
@@ -2119,7 +2173,19 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
       });
     }
 
-    const payload = conversations.map((conv) => ({
+    // Filtrar conversaciones duplicadas (por adopter_id y pet_id) conservando la más reciente
+    const uniqueConversations = [];
+    const seenChats = new Set();
+    for (const conv of conversations) {
+      // Usamos el adopter_id y pet_id como clave única. Si no hay pet_id, usamos el id de la conversación.
+      const key = conv.pet_id && conv.adopter_id ? `${conv.adopter_id}-${conv.pet_id}` : conv.id;
+      if (!seenChats.has(key)) {
+        seenChats.add(key);
+        uniqueConversations.push(conv);
+      }
+    }
+
+    const payload = uniqueConversations.map((conv) => ({
       id: conv.id,
       match_id: conv.match_id,
       pet_id: conv.pet_id,
@@ -2127,27 +2193,29 @@ app.get("/api/conversations", authenticateToken, async (req, res) => {
       pet_image: parsePhotoUrlsFromImageField(conv.pet?.image_url)[0] ?? null,
       pet_status: conv.pet?.status ?? null,
       archived: conv.archived,
-      other_party: conv.shelter
+      other_party: conv.vet_clinic
         ? {
-            type: "shelter",
-            id: conv.shelter.id,
-            name: conv.shelter.name,
-            phone: conv.shelter.phone,
-            location: conv.shelter.location,
-            avatar: conv.shelter.avatar_url ?? null,
+            type: "vet",
+            id: conv.vet_clinic.id,
+            name: conv.vet_clinic.name,
+            phone: conv.vet_clinic.phone,
+            email: conv.vet_clinic.email,
+            location: conv.vet_clinic.location,
+            description: conv.vet_clinic.description,
+            website: conv.vet_clinic.website,
+            instagram: conv.vet_clinic.instagram,
+            facebook: conv.vet_clinic.facebook,
+            avatar: conv.vet_clinic.avatar_url ?? null,
           }
-        : conv.vet_clinic
+        : conv.shelter
           ? {
-              type: "vet",
-              id: conv.vet_clinic.id,
-              name: conv.vet_clinic.name,
-              phone: conv.vet_clinic.phone,
-              location: conv.vet_clinic.location,
-              description: conv.vet_clinic.description,
-              website: conv.vet_clinic.website,
-              instagram: conv.vet_clinic.instagram,
-              facebook: conv.vet_clinic.facebook,
-              avatar: conv.vet_clinic.avatar_url ?? null,
+              type: "shelter",
+              id: conv.shelter.id,
+              name: conv.shelter.name,
+              phone: conv.shelter.phone,
+              email: conv.shelter.email,
+              location: conv.shelter.location,
+              avatar: conv.shelter.avatar_url ?? null,
             }
           : {
               type: "adopter",
@@ -2470,7 +2538,7 @@ app.get("/api/stats", authenticateToken, async (req, res) => {
     if (!isProfessionalRole(req.user.role)) {
       return res
         .status(403)
-        .json({ error: "Solo los refugios pueden ver estadísticas" });
+        .json({ error: "Solo los refugios y veterinarias pueden ver estadísticas" });
     }
 
     const shelter = await getProfessionalShelterProfile(req.user);
@@ -2661,7 +2729,10 @@ app.get("/api/adopter/profile", authenticateToken, async (req, res) => {
         .json({ error: "Perfil de adoptante no encontrado" });
     }
 
-    return res.json(adopter);
+    return res.json({
+      ...adopter,
+      photo: adopter.avatar_url ?? null,
+    });
   } catch (error) {
     console.error("Error al obtener perfil de adoptante:", error);
     return res
@@ -2686,6 +2757,7 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
       description,
       birth_date,
       avatar_url,
+      photo,
       photos,
       phone,
       hobbies,
@@ -2723,10 +2795,11 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
       data.description = description.trim() || null;
     }
 
-    if (avatar_url === null || avatar_url === "") {
+    const finalAvatarUrl = avatar_url !== undefined ? avatar_url : photo;
+    if (finalAvatarUrl === null || finalAvatarUrl === "") {
       data.avatar_url = null;
-    } else if (typeof avatar_url === "string" && avatar_url.trim()) {
-      data.avatar_url = avatar_url.trim();
+    } else if (typeof finalAvatarUrl === "string" && finalAvatarUrl.trim()) {
+      data.avatar_url = finalAvatarUrl.trim();
     }
 
     // Photos array (max 5)
@@ -2904,7 +2977,10 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
       },
     });
 
-    return res.json(updated);
+    return res.json({
+      ...updated,
+      photo: updated.avatar_url ?? null,
+    });
   } catch (error) {
     console.error("Error al actualizar perfil de adoptante:", error);
     console.error("Error details:", error?.message, error?.code, error?.meta);
@@ -3521,15 +3597,154 @@ io.on("connection", async (socket) => {
 
 app.put('/api/shelters/profile', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'shelter') return res.status(403).json({ error: 'Acceso denegado' });
-    const { avatar_url } = req.body;
+    if (!isProfessionalRole(req.user.role)) return res.status(403).json({ error: 'Acceso denegado' });
+    const { name, email, location, phone, description, website, avatar_url } = req.body;
     const shelter = await prisma.shelters.findFirst({ where: { user_id: req.user.sub } });
     if (!shelter) return res.status(404).json({ error: 'Refugio no encontrado' });
-    const updated = await prisma.shelters.update({ where: { id: shelter.id }, data: { avatar_url } });
+    
+    const updated = await prisma.shelters.update({ 
+      where: { id: shelter.id }, 
+      data: { 
+        name, 
+        email, 
+        location, 
+        phone, 
+        description, 
+        website, 
+        avatar_url 
+      } 
+    });
     res.json(updated);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Vet Profile Endpoints ────────────────────────────────────────
+
+function serializeJsonField(val) {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'string') return val;
+  return JSON.stringify(val);
+}
+
+function parseJsonField(val) {
+  if (!val) return null;
+  if (typeof val === 'object') return val;
+  try { return JSON.parse(val); } catch { return null; }
+}
+
+function mapVetClinicToFrontend(vc) {
+  return {
+    id: vc.id,
+    name: vc.name,
+    description: vc.description || null,
+    avatar_url: vc.avatar_url || null,
+    address: vc.address || vc.location || null,
+    phone: vc.phone || null,
+    email: vc.email || null,
+    website: vc.website || null,
+    hours: parseJsonField(vc.hours),
+    services: parseJsonField(vc.services),
+    certifications: parseJsonField(vc.certifications),
+    photos: Array.isArray(vc.photos) ? vc.photos.map(url => ({ url, caption: '', isPrimary: false })) : null,
+    social_links: parseJsonField(vc.social_links),
+    location: vc.latitude != null && vc.longitude != null
+      ? { latitude: vc.latitude, longitude: vc.longitude }
+      : null,
+    created_at: vc.created_at,
+    updated_at: vc.updated_at,
+  };
+}
+
+// GET /api/vet/profile — nuevo endpoint unificado
+app.get('/api/vet/profile', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'vet') return res.status(403).json({ error: 'Acceso denegado' });
+    const profile = await prisma.vet_clinics.findFirst({
+      where: { user_id: req.user.sub },
+    });
+    if (!profile) return res.status(404).json({ error: 'Veterinaria no encontrada' });
+    res.json(mapVetClinicToFrontend(profile));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PATCH /api/vet/profile — nuevo endpoint unificado con campos completos
+app.patch('/api/vet/profile', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'vet') return res.status(403).json({ error: 'Acceso denegado' });
+    const vetClinic = await prisma.vet_clinics.findFirst({ where: { user_id: req.user.sub } });
+    if (!vetClinic) return res.status(404).json({ error: 'Veterinaria no encontrada' });
+
+    const {
+      name, email, address, phone, description, avatar_url,
+      website, instagram, facebook,
+      hours, services, certifications, photos, social_links,
+      location,
+    } = req.body;
+
+    const data = {};
+    if (name !== undefined) data.name = name;
+    if (email !== undefined) data.email = email;
+    if (address !== undefined) data.address = address;
+    if (phone !== undefined) data.phone = phone;
+    if (description !== undefined) data.description = description;
+    if (avatar_url !== undefined) data.avatar_url = avatar_url;
+    if (website !== undefined) data.website = website;
+    if (instagram !== undefined) data.instagram = instagram;
+    if (facebook !== undefined) data.facebook = facebook;
+    if (hours !== undefined) data.hours = serializeJsonField(hours);
+    if (services !== undefined) data.services = serializeJsonField(services);
+    if (certifications !== undefined) data.certifications = serializeJsonField(certifications);
+    if (social_links !== undefined) data.social_links = serializeJsonField(social_links);
+    if (photos !== undefined) {
+      data.photos = Array.isArray(photos) ? photos.map(p => typeof p === 'string' ? p : (p.url || p)) : [];
+    }
+    if (location !== undefined) {
+      data.latitude = location?.latitude ?? null;
+      data.longitude = location?.longitude ?? null;
+    }
+
+    const updated = await prisma.vet_clinics.update({
+      where: { id: vetClinic.id },
+      data,
+    });
+    res.json(mapVetClinicToFrontend(updated));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /api/shelter/{id}/public — perfil público del refugio
+app.get('/api/shelter/:id/public', async (req, res) => {
+  try {
+    const profile = await prisma.shelters.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!profile) return res.status(404).json({ error: 'Refugio no encontrado' });
+    res.json(profile);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /api/vet/{id}/public — perfil público de la veterinaria
+app.get('/api/vet/:id/public', async (req, res) => {
+  try {
+    const profile = await prisma.vet_clinics.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!profile) return res.status(404).json({ error: 'Veterinaria no encontrada' });
+    res.json(mapVetClinicToFrontend(profile));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/shelters/profile', authenticateToken, async (req, res) => {
+  try {
+    if (!isProfessionalRole(req.user.role)) return res.status(403).json({ error: 'Acceso denegado' });
+    const profile = await prisma.shelters.findFirst({
+      where: { user_id: req.user.sub },
+    });
+    if (!profile) return res.status(404).json({ error: 'Refugio no encontrado' });
+    res.json(profile);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Backward compatibility: keep old URLs
 app.get('/api/vet-clinics/profile', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'vet') return res.status(403).json({ error: 'Acceso denegado' });
@@ -3544,7 +3759,7 @@ app.get('/api/vet-clinics/profile', authenticateToken, async (req, res) => {
 app.put('/api/vet-clinics/profile', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'vet') return res.status(403).json({ error: 'Acceso denegado' });
-    const { name, email, location, phone, description, avatar_url, website, instagram, facebook } = req.body;
+    const { name, email, location, phone, description, avatar_url, website, instagram, facebook, address, hours, services, certifications, photos, social_links } = req.body;
     const vetClinic = await prisma.vet_clinics.findFirst({ where: { user_id: req.user.sub } });
     if (!vetClinic) return res.status(404).json({ error: 'Veterinaria no encontrada' });
 
@@ -3552,12 +3767,20 @@ app.put('/api/vet-clinics/profile', authenticateToken, async (req, res) => {
     if (name !== undefined) data.name = name;
     if (email !== undefined) data.email = email;
     if (location !== undefined) data.location = location;
+    if (address !== undefined) data.address = address;
     if (phone !== undefined) data.phone = phone;
     if (description !== undefined) data.description = description;
     if (avatar_url !== undefined) data.avatar_url = avatar_url;
     if (website !== undefined) data.website = website;
     if (instagram !== undefined) data.instagram = instagram;
     if (facebook !== undefined) data.facebook = facebook;
+    if (hours !== undefined) data.hours = serializeJsonField(hours);
+    if (services !== undefined) data.services = serializeJsonField(services);
+    if (certifications !== undefined) data.certifications = serializeJsonField(certifications);
+    if (social_links !== undefined) data.social_links = serializeJsonField(social_links);
+    if (photos !== undefined) {
+      data.photos = Array.isArray(photos) ? photos.map(p => typeof p === 'string' ? p : (p.url || p)) : [];
+    }
 
     const updated = await prisma.vet_clinics.update({
       where: { id: vetClinic.id },
@@ -3570,6 +3793,59 @@ app.put('/api/vet-clinics/profile', authenticateToken, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // REVIEWS — Sistema de valoraciones estilo Wallapop
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Helper: enrich reviewer info (name + avatar) for a single review
+async function enrichReviewer(review) {
+  const r = review;
+  let reviewerName = "Usuario";
+  let reviewerAvatar = null;
+
+  if (r.reviewer_role === "adopter") {
+    const a = await prisma.adopters.findUnique({
+      where: { id: r.reviewer_id },
+      select: { name: true, username: true, avatar_url: true, photos: true },
+    });
+    reviewerName = a?.username || a?.name || "Adoptante";
+    // Priority: adopters often store profile pics in photos array
+    if (Array.isArray(a?.photos) && a.photos.length > 0) {
+      reviewerAvatar = a.photos[0];
+    } else if (a?.avatar_url) {
+      reviewerAvatar = parsePhotoUrlsFromImageField(a.avatar_url)[0] || null;
+    }
+  } else if (r.reviewer_role === "vet") {
+    // Vet reviewer → reviewer_id is a shelter record (created by getProfessionalShelterProfile)
+    const s = await prisma.shelters.findUnique({
+      where: { id: r.reviewer_id },
+      select: { name: true, avatar_url: true, user_id: true },
+    });
+    reviewerName = s?.name || "Veterinaria";
+    if (s?.avatar_url) {
+      reviewerAvatar = parsePhotoUrlsFromImageField(s.avatar_url)[0] || null;
+    }
+    // Fallback: look up the actual vet_clinic via user_id for the real avatar
+    if (!reviewerAvatar && s?.user_id) {
+      const v = await prisma.vet_clinics.findFirst({
+        where: { user_id: s.user_id },
+        select: { avatar_url: true },
+      });
+      if (v?.avatar_url) {
+        reviewerAvatar = parsePhotoUrlsFromImageField(v.avatar_url)[0] || null;
+      }
+    }
+  } else {
+    // Shelter reviewer (or unknown fallback)
+    const s = await prisma.shelters.findUnique({
+      where: { id: r.reviewer_id },
+      select: { name: true, avatar_url: true },
+    });
+    reviewerName = s?.name || "Refugio";
+    reviewerAvatar = s?.avatar_url
+      ? (parsePhotoUrlsFromImageField(s.avatar_url)[0] || null)
+      : null;
+  }
+
+  return { ...r, reviewer_name: reviewerName, reviewer_avatar: reviewerAvatar };
+}
 
 // GET /api/reviews/me/received  — must be BEFORE /:targetId to avoid conflict
 app.get("/api/reviews/me/received", authenticateToken, async (req, res) => {
@@ -3587,19 +3863,7 @@ app.get("/api/reviews/me/received", authenticateToken, async (req, res) => {
       targetId = shelter.id;
     }
     const reviews = await prisma.reviews.findMany({ where: { target_id: targetId }, orderBy: { created_at: "desc" } });
-    const enriched = await Promise.all(reviews.map(async (r) => {
-      let reviewerName = "Usuario", reviewerAvatar = null;
-      if (r.reviewer_role === "adopter") {
-        const a = await prisma.adopters.findUnique({ where: { id: r.reviewer_id }, select: { name: true, username: true, avatar_url: true } });
-        reviewerName = a?.username || a?.name || "Adoptante"; 
-        reviewerAvatar = a?.avatar_url ? (parsePhotoUrlsFromImageField(a.avatar_url)[0] || null) : null;
-      } else {
-        const s = await prisma.shelters.findUnique({ where: { id: r.reviewer_id }, select: { name: true, avatar_url: true } });
-        reviewerName = s?.name || "Refugio"; 
-        reviewerAvatar = s?.avatar_url ? (parsePhotoUrlsFromImageField(s.avatar_url)[0] || null) : null;
-      }
-      return { ...r, reviewer_name: reviewerName, reviewer_avatar: reviewerAvatar };
-    }));
+    const enriched = await Promise.all(reviews.map(enrichReviewer));
     const total = reviews.length;
     const average = total > 0 ? Math.round((reviews.reduce((acc, r) => acc + r.rating, 0) / total) * 10) / 10 : null;
     res.json({ reviews: enriched, averageRating: average, totalCount: total });
@@ -3630,19 +3894,7 @@ app.get("/api/reviews/:targetId", async (req, res) => {
   try {
     const { targetId } = req.params;
     const reviews = await prisma.reviews.findMany({ where: { target_id: targetId }, orderBy: { created_at: "desc" } });
-    const enriched = await Promise.all(reviews.map(async (r) => {
-      let reviewerName = "Usuario", reviewerAvatar = null;
-      if (r.reviewer_role === "adopter") {
-        const a = await prisma.adopters.findUnique({ where: { id: r.reviewer_id }, select: { name: true, username: true, avatar_url: true } });
-        reviewerName = a?.username || a?.name || "Adoptante"; 
-        reviewerAvatar = a?.avatar_url ? (parsePhotoUrlsFromImageField(a.avatar_url)[0] || null) : null;
-      } else {
-        const s = await prisma.shelters.findUnique({ where: { id: r.reviewer_id }, select: { name: true, avatar_url: true } });
-        reviewerName = s?.name || "Refugio"; 
-        reviewerAvatar = s?.avatar_url ? (parsePhotoUrlsFromImageField(s.avatar_url)[0] || null) : null;
-      }
-      return { ...r, reviewer_name: reviewerName, reviewer_avatar: reviewerAvatar };
-    }));
+    const enriched = await Promise.all(reviews.map(enrichReviewer));
     const total = reviews.length;
     const average = total > 0 ? Math.round((reviews.reduce((acc, r) => acc + r.rating, 0) / total) * 10) / 10 : null;
     res.json({ reviews: enriched, averageRating: average, totalCount: total });

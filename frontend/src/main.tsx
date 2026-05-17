@@ -132,6 +132,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             }
           />
           <Route
+            path="/vet/reviews"
+            element={
+              <RequireAuth>
+                <VetDashboard initialView="reviews" />
+              </RequireAuth>
+            }
+          />
+          <Route
             path="/adopter/dashboard"
             element={
               <RequireAuth>

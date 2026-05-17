@@ -1,0 +1,26 @@
+change_name: landing-redesign
+status: in-progress
+current_phase: apply
+phases:
+  explore:
+    status: completed
+    completed_at: "2026-05-17T13:25:00Z"
+  propose:
+    status: completed
+    completed_at: "2026-05-17T13:26:00Z"
+  spec:
+    status: completed
+    completed_at: "2026-05-17T13:26:30Z"
+  design:
+    status: completed
+    completed_at: "2026-05-17T13:27:00Z"
+  tasks:
+    status: completed
+    completed_at: "2026-05-17T13:27:30Z"
+  apply:
+    status: in-progress
+    started_at: "2026-05-17T13:28:00Z"
+  verify:
+    status: pending
+  archive:
+    status: pending

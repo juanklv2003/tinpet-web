@@ -46,6 +46,9 @@ export default function VetDashboard({ initialView }: { initialView?: string } =
     profileError,
     updateProfileField,
     handleProfilePhotoSelect,
+    handleCropCancel,
+    handleCropConfirm,
+    cropImageSrc,
     saveProfile,
     handleAddPet,
     handleDeletePet,
@@ -343,6 +346,9 @@ export default function VetDashboard({ initialView }: { initialView?: string } =
               profileError={profileError}
               onUpdateField={updateProfileField}
               onPhotoSelect={handleProfilePhotoSelect}
+              onCropCancel={handleCropCancel}
+              onCropConfirm={handleCropConfirm}
+              cropImageSrc={cropImageSrc}
               onSave={saveProfile}
             />
           )}
@@ -358,6 +364,7 @@ export default function VetDashboard({ initialView }: { initialView?: string } =
           onClose={() => setIsAddModalOpen(false)}
           onAdd={handleAddPet}
           employees={employees}
+          showEmployeeField={true}
         />
       )}
 

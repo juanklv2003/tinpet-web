@@ -873,16 +873,18 @@ export function ChatView({ token }: ChatViewProps) {
               </div>
             )}
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col">
               {loadingMessages ? (
-                <LoadingView message="Cargando mensajes..." minHeight="200px" />
+                <div className="flex-1 flex flex-col items-center justify-center">
+                  <LoadingView message="Cargando mensajes..." minHeight="auto" />
+                </div>
               ) : !messages || messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-32 text-center">
-                  <MessageCircle className="w-8 h-8 mb-2 text-gray-400 dark:text-gray-500" />
-                  <p className="text-gray-500 dark:text-gray-400">
+                <div className="flex-1 flex flex-col items-center justify-center text-center py-12">
+                  <MessageCircle className="w-12 h-12 mb-3 text-gray-400 dark:text-gray-500 animate-pulse" />
+                  <p className="text-gray-500 dark:text-gray-400 font-semibold text-lg">
                     Aún no hay mensajes
                   </p>
-                  <p className="text-gray-400 dark:text-gray-500 text-sm">
+                  <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">
                     Inicia la conversación
                   </p>
                 </div>

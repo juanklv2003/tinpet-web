@@ -178,6 +178,7 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
     }
   }, [user?.id, activeView, isAddModalOpen, fetchStats, fetchMatches, fetchEmployees]);
 
+  // Restore from localStorage and sync from backend on mount
   useEffect(() => {
     if (!user?.id || !profileStorageKey) return;
 
@@ -196,34 +197,78 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
       youtube: '',
     };
 
-    try {
-      const raw = localStorage.getItem(profileStorageKey);
-      if (!raw) {
+    const loadProfile = async () => {
+      // First populate with localStorage (if any) so the user doesn't see a completely blank screen
+      try {
+        const raw = localStorage.getItem(profileStorageKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Partial<ShelterProfileForm>;
+          setProfileForm({
+            displayName: parsed.displayName ?? fallback.displayName,
+            email: parsed.email ?? fallback.email,
+            location: parsed.location ?? '',
+            phone: parsed.phone ?? '',
+            website: parsed.website ?? '',
+            description: parsed.description ?? '',
+            avatarUrl: parsed.avatarUrl ?? '',
+            googleMaps: parsed.googleMaps ?? '',
+            instagram: parsed.instagram ?? '',
+            tiktok: parsed.tiktok ?? '',
+            facebook: parsed.facebook ?? '',
+            youtube: parsed.youtube ?? '',
+          });
+        } else {
+          setProfileForm(fallback);
+        }
+      } catch {
         setProfileForm(fallback);
-      } else {
-        const parsed = JSON.parse(raw) as Partial<ShelterProfileForm>;
-        setProfileForm({
-          displayName: parsed.displayName ?? fallback.displayName,
-          email: parsed.email ?? fallback.email,
-          location: parsed.location ?? '',
-          phone: parsed.phone ?? '',
-          website: parsed.website ?? '',
-          description: parsed.description ?? '',
-          avatarUrl: parsed.avatarUrl ?? '',
-          googleMaps: parsed.googleMaps ?? '',
-          instagram: parsed.instagram ?? '',
-          tiktok: parsed.tiktok ?? '',
-          facebook: parsed.facebook ?? '',
-          youtube: parsed.youtube ?? '',
-        });
       }
-    } catch {
-      setProfileForm(fallback);
-    }
 
-    setProfileDirty(false);
-    setProfileSaveMsg(null);
-    setProfileError(null);
+      // Then fetch the source of truth from backend
+      try {
+        const data = await apiFetch<{ name?: string; email?: string; location?: string; phone?: string; website?: string; description?: string; avatar_url?: string }>('/api/shelters/profile');
+        if (data) {
+          const backendProfile: ShelterProfileForm = {
+            displayName: data.name ?? fallback.displayName,
+            email: data.email ?? fallback.email,
+            location: data.location ?? '',
+            phone: data.phone ?? '',
+            website: data.website ?? '',
+            description: data.description ?? '',
+            avatarUrl: data.avatar_url ?? '',
+            // Keep social links from local cache since backend doesn't store them
+            googleMaps: fallback.googleMaps,
+            instagram: fallback.instagram,
+            tiktok: fallback.tiktok,
+            facebook: fallback.facebook,
+            youtube: fallback.youtube,
+          };
+          // Merge local cache social links if they exist
+          try {
+            const raw = localStorage.getItem(profileStorageKey);
+            if (raw) {
+              const parsed = JSON.parse(raw) as Partial<ShelterProfileForm>;
+              backendProfile.googleMaps = parsed.googleMaps ?? '';
+              backendProfile.instagram = parsed.instagram ?? '';
+              backendProfile.tiktok = parsed.tiktok ?? '';
+              backendProfile.facebook = parsed.facebook ?? '';
+              backendProfile.youtube = parsed.youtube ?? '';
+            }
+          } catch {}
+
+          setProfileForm(backendProfile);
+          localStorage.setItem(profileStorageKey, JSON.stringify(backendProfile));
+        }
+      } catch (err) {
+        console.error('Error fetching shelter profile:', err);
+      }
+
+      setProfileDirty(false);
+      setProfileSaveMsg(null);
+      setProfileError(null);
+    };
+
+    void loadProfile();
   }, [user?.id, user?.name, user?.email, profileStorageKey]);
 
   const updateProfileField = (field: keyof ShelterProfileForm, value: string) => {
@@ -268,13 +313,19 @@ export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashb
     try {
       localStorage.setItem(profileStorageKey, JSON.stringify(profileForm));
       
-      // Save avatar to backend
-      if (profileForm.avatarUrl) {
-        await apiFetch('/api/shelters/profile', {
-          method: 'PUT',
-          body: JSON.stringify({ avatar_url: profileForm.avatarUrl }),
-        });
-      }
+      // Save profile to backend
+      await apiFetch('/api/shelters/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: profileForm.displayName,
+          email: profileForm.email,
+          location: profileForm.location,
+          phone: profileForm.phone,
+          description: profileForm.description,
+          website: profileForm.website,
+          avatar_url: profileForm.avatarUrl
+        }),
+      });
 
       setProfileDirty(false);
       setProfileSaveMsg('Perfil guardado correctamente.');

@@ -104,24 +104,24 @@ export function ReviewsView() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {totalCount === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-          <Star size={48} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Aún no tienes valoraciones</h3>
-          <p className="text-gray-500">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
+          <Star size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Aún no tienes valoraciones</h3>
+          <p className="text-gray-500 dark:text-gray-400">
             Las valoraciones de los adoptantes aparecerán aquí.
           </p>
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 flex flex-col md:flex-row gap-8 items-center md:items-start">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 flex flex-col md:flex-row gap-8 items-center md:items-start">
             <div className="flex flex-col items-center">
-              <span className="text-6xl font-bold text-gray-900">
+              <span className="text-6xl font-bold text-gray-900 dark:text-white">
                 {averageRating?.toFixed(1) || '0.0'}
               </span>
               <div className="my-3">
                 {renderStars(Math.round(averageRating || 0), 24)}
               </div>
-              <span className="text-sm text-gray-500 font-medium">
+              <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
                 {totalCount} valoraci{totalCount === 1 ? 'ón' : 'ones'}
               </span>
             </div>
@@ -132,15 +132,15 @@ export function ReviewsView() {
                 const percentage = totalCount > 0 ? (count / totalCount) * 100 : 0;
                 return (
                   <div key={rating} className="flex items-center gap-4 text-sm font-medium">
-                    <span className="w-4 text-gray-600">{rating}</span>
-                    <Star size={16} className="text-gray-400" />
-                    <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <span className="w-4 text-gray-600 dark:text-gray-400">{rating}</span>
+                    <Star size={16} className="text-gray-400 dark:text-gray-500" />
+                    <div className="flex-1 h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-yellow-400 rounded-full"
                         style={{ width: `${percentage}%` }}
                       ></div>
                     </div>
-                    <span className="w-8 text-right text-gray-500">{count}</span>
+                    <span className="w-8 text-right text-gray-500 dark:text-gray-400">{count}</span>
                   </div>
                 );
               })}
@@ -149,10 +149,10 @@ export function ReviewsView() {
 
           <div className="space-y-4">
             {reviews.map((review) => (
-              <div key={review.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md">
+              <div key={review.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 transition-all hover:shadow-md dark:hover:shadow-gray-900/50">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
                       {getAvatarUrl(review.reviewer_avatar) ? (
                         <img 
                           src={getAvatarUrl(review.reviewer_avatar)!} 
@@ -160,14 +160,14 @@ export function ReviewsView() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-pink-100 text-pink-600 font-bold text-lg">
+                        <div className="w-full h-full flex items-center justify-center bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 font-bold text-lg">
                           {review.reviewer_name.charAt(0).toUpperCase()}
                         </div>
                       )}
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-900">{review.reviewer_name}</h4>
-                      <span className="text-sm text-gray-500">
+                      <h4 className="font-semibold text-gray-900 dark:text-white">{review.reviewer_name}</h4>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
                         {new Date(review.created_at).toLocaleDateString('es-ES', { 
                           year: 'numeric', 
                           month: 'long', 
@@ -181,7 +181,7 @@ export function ReviewsView() {
                   </div>
                 </div>
                 {review.comment && (
-                  <p className="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg">
+                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
                     {review.comment}
                   </p>
                 )}

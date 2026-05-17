@@ -12,9 +12,10 @@ interface AddPetModalProps {
   onClose: () => void;
   onAdd: (form: AddPetForm) => Promise<void>;
   employees: ShelterEmployee[];
+  showEmployeeField?: boolean;
 }
 
-export function AddPetModal({ onClose, onAdd, employees }: AddPetModalProps) {
+export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = false }: AddPetModalProps) {
   const ANIMATION_MS = 280;
   const MAX_PHOTOS = 10;
   const [form, setForm] = useState<AddPetForm>(emptyAddForm);
@@ -191,22 +192,24 @@ export function AddPetModal({ onClose, onAdd, employees }: AddPetModalProps) {
                 ]}
               />
             </div>
-            <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                Empleado encargado (Opcional)
-              </label>
-              <StyledSelect
-                value={form.inChargeEmployeeId}
-                onChange={(value) => set('inChargeEmployeeId', value as string)}
-                options={[
-                  { value: '', label: 'Ninguno' },
-                  ...employees.map(emp => ({
-                    value: emp.id,
-                    label: emp.name + (emp.role ? ` (${emp.role})` : ''),
-                  })),
-                ]}
-              />
-            </div>
+            {showEmployeeField && (
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                  Empleado encargado (Opcional)
+                </label>
+                <StyledSelect
+                  value={form.inChargeEmployeeId}
+                  onChange={(value) => set('inChargeEmployeeId', value as string)}
+                  options={[
+                    { value: '', label: 'Ninguno' },
+                    ...employees.map(emp => ({
+                      value: emp.id,
+                      label: emp.name + (emp.role ? ` (${emp.role})` : ''),
+                    })),
+                  ]}
+                />
+              </div>
+            )}
             <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-400 mb-1.5">
                 Descripción

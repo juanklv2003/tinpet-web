@@ -1,4 +1,4 @@
-import { Eye, EyeOff, X } from 'lucide-react';
+import { Eye, EyeOff, X, PawPrint } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLogin } from '../../../hooks/useLogin';
@@ -37,8 +37,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
   // Track whether we triggered a login so we don't react to pre-existing sessions
   const pendingRedirect = useRef(false);
 
-  // Navigate once the auth context actually has the user (avoids race condition
-  // where navigate fires before React propagates setAuth to RequireAuth)
+  // Navigate once the auth context actually has the user
   useEffect(() => {
     if (pendingRedirect.current && user) {
       pendingRedirect.current = false;
@@ -70,11 +69,9 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
     e.preventDefault();
     const success = await login(loginEmail, loginPassword);
     if (success) {
-      // Mark that we want to navigate once user is in context
       pendingRedirect.current = true;
     }
   };
-
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,243 +82,224 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
     }
   };
 
-  // Shared input class
   const inputClass =
-    'w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 ' +
-    'px-3 py-2.5 text-sm transition-[border-color,box-shadow] duration-150 ' +
-    'placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-900 dark:text-white ' +
-    'focus:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1';
+    'w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 ' +
+    'text-slate-800 dark:text-slate-200 rounded-lg focus:border-brand focus:ring-2 focus:ring-brand/20 ' +
+    'focus:outline-none transition-all duration-200 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500';
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center px-4 py-6"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6"
       role="dialog"
       aria-modal="true"
     >
-      {/* Backdrop */}
+      {/* Backdrop / Overlay */}
       <button
         type="button"
         onClick={onClose}
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-md"
+        className="absolute inset-0 bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300"
         aria-label="Cerrar modal"
       />
 
-      {/* Panel */}
-      <div className="relative z-50 w-full max-w-md overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-xl shadow-slate-900/10 dark:border-slate-800 dark:bg-slate-950 sm:max-w-lg">
-        <div className="p-7 sm:p-8">
-          {/* Close button */}
+      {/* Panel / Card */}
+      <div className="relative inline-block w-full max-w-md p-8 overflow-hidden text-left align-middle transition-all transform bg-white dark:bg-dark-card border border-stone-200 dark:border-slate-700 shadow-2xl rounded-2xl">
+        
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-slate-400 hover:text-brand focus:outline-none transition-colors"
+          aria-label="Cerrar"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        
+        {/* Header with Paw logo */}
+        <div className="text-center mb-6">
+          <div className="w-12 h-12 rounded-xl bg-brand flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-brand/30">
+            <PawPrint className="h-6 w-6 fill-current" />
+          </div>
+          <h3 className="text-2.5xl font-black text-slate-900 dark:text-white leading-tight">
+            {mode === 'login' ? 'Bienvenido de nuevo' : 'Crea tu cuenta'}
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5">
+            {mode === 'login' ? 'Ingresa para continuar con tu adopción' : 'Únete a la familia Tinpet'}
+          </p>
+        </div>
+
+        {/* Mode Tabs */}
+        <div className="mb-6 flex gap-1 border-b border-stone-200 dark:border-gray-700">
+          {(['login', 'register'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              id={`modal-tab-${m}`}
+              onClick={() => setMode(m)}
+              className={`px-4 pb-3 text-sm font-semibold transition-[color,border-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-t ${
+                mode === m
+                  ? 'border-b-2 border-brand text-brand'
+                  : 'text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300'
+              }`}
+            >
+              {m === 'login' ? 'Iniciar sesión' : 'Registrarse'}
+            </button>
+          ))}
+        </div>
+
+        {/* Login Form */}
+        {mode === 'login' && (
+          <form id="login-form" onSubmit={handleLoginSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 text-left">
+                Email
+              </label>
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="tu@correo.com"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 text-left">
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  type={showLoginPassword ? 'text' : 'password'}
+                  required
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className={`${inputClass} pr-12`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword((value) => !value)}
+                  aria-label={showLoginPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                >
+                  {showLoginPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+                </button>
+              </div>
+            </div>
+
+            {loginError && (
+              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-950/40 dark:text-red-400">
+                {loginError}
+              </p>
+            )}
+
+            <button
+              id="login-submit-btn"
+              type="submit"
+              disabled={loginLoading}
+              className="w-full mt-4 px-5 py-3 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-bold shadow-sm shadow-brand/20 transition-[background-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
+            >
+              {loginLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+            </button>
+          </form>
+        )}
+
+        {/* Register Form */}
+        {mode === 'register' && (
+          <form id="register-form" onSubmit={handleRegisterSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 text-left">
+                Nombre
+              </label>
+              <input
+                type="text"
+                required
+                autoComplete="name"
+                placeholder="Tu nombre o refugio"
+                value={regName}
+                onChange={(e) => setRegName(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 text-left">
+                Email
+              </label>
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="tu@correo.com"
+                value={regEmail}
+                onChange={(e) => setRegEmail(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 text-left">
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  type={showRegisterPassword ? 'text' : 'password'}
+                  required
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  className={`${inputClass} pr-12`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowRegisterPassword((value) => !value)}
+                  aria-label={showRegisterPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                >
+                  {showRegisterPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 text-left">
+                Rol
+              </label>
+              <StyledSelect
+                value={regRole}
+                onChange={(value) => setRegRole(value as UserRole)}
+                options={[
+                  { value: 'shelter', label: 'Refugio' },
+                  { value: 'vet', label: 'Veterinaria' },
+                ]}
+                className={inputClass}
+              />
+            </div>
+
+            {regError && (
+              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-950/40 dark:text-red-400">
+                {regError}
+              </p>
+            )}
+
+            <button
+              id="register-submit-btn"
+              type="submit"
+              disabled={regLoading}
+              className="w-full mt-4 px-5 py-3 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-bold shadow-sm shadow-brand/20 transition-[background-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
+            >
+              {regLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
+            </button>
+          </form>
+        )}
+
+        <div className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
+          <span>{mode === 'login' ? '¿No tienes cuenta? ' : '¿Ya tienes cuenta? '}</span>
           <button
             type="button"
-            onClick={onClose}
-            id="modal-close-btn"
-            className="absolute right-4 top-5 rounded-xl p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-            aria-label="Cerrar"
+            onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+            className="font-bold text-brand hover:text-brand-dark focus:outline-none transition-colors"
           >
-            <X className="h-5 w-5" />
+            {mode === 'login' ? 'Regístrate' : 'Inicia Sesión'}
           </button>
-
-          {/* Header */}
-          <div className="mb-7 text-center">
-            <h2 className="text-[2rem] font-black tracking-tight text-slate-900 dark:text-white">
-              {mode === 'login' ? 'Bienvenido de nuevo' : 'Crea tu cuenta'}
-            </h2>
-            <p className="mt-1.5 text-base text-slate-500 dark:text-slate-400">
-              {mode === 'login'
-                ? 'Accede a tu panel de control'
-                : 'Empieza a gestionar adopciones hoy'}
-            </p>
-          </div>
-
-          {/* Mode tabs */}
-          <div className="mb-6 flex gap-1 border-b border-stone-200 dark:border-gray-700">
-            {(['login', 'register'] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                id={`modal-tab-${m}`}
-                onClick={() => setMode(m)}
-                className={`px-4 pb-3 text-sm font-semibold transition-[color,border-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-t ${
-                  mode === m
-                    ? 'border-b-2 border-brand text-brand'
-                    : 'text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300'
-                }`}
-              >
-                {m === 'login' ? 'Iniciar sesión' : 'Registrarse'}
-              </button>
-            ))}
-          </div>
-
-          {/* Login form */}
-          {mode === 'login' && (
-            <form id="login-form" onSubmit={handleLoginSubmit} className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  autoComplete="email"
-                  placeholder="usuario@ejemplo.com"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <input
-                    type={showLoginPassword ? 'text' : 'password'}
-                    required
-                    autoComplete="current-password"
-                    placeholder="••••••"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    className={`${inputClass} pr-12`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowLoginPassword((value) => !value)}
-                    aria-label={showLoginPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                  >
-                    {showLoginPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
-                  </button>
-                </div>
-              </div>
-
-              <p className="text-right text-sm font-semibold text-slate-400 dark:text-slate-500">
-                ¿Olvidaste tu contraseña?
-              </p>
-
-              {loginError && (
-                <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-950/40 dark:text-red-400">
-                  {loginError}
-                </p>
-              )}
-
-              <button
-                id="login-submit-btn"
-                type="submit"
-                disabled={loginLoading}
-                className="w-full rounded-xl bg-brand py-3.5 text-sm font-bold text-white transition-[background-color] duration-150 hover:bg-brand-dark disabled:opacity-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-              >
-                {loginLoading ? 'Entrando...' : 'Entrar'}
-              </button>
-
-              <p className="pt-1 text-center text-sm text-slate-500 dark:text-slate-400">
-                ¿No tienes cuenta?{' '}
-                <button
-                  type="button"
-                  onClick={() => setMode('register')}
-                  className="font-semibold text-brand hover:text-brand-dark dark:text-brand"
-                >
-                  Regístrate aquí
-                </button>
-              </p>
-            </form>
-          )}
-
-          {/* Register form */}
-          {mode === 'register' && (
-            <form id="register-form" onSubmit={handleRegisterSubmit} className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Nombre
-                </label>
-                <input
-                  type="text"
-                  required
-                  autoComplete="name"
-                  placeholder="Tu nombre o refugio"
-                  value={regName}
-                  onChange={(e) => setRegName(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  autoComplete="email"
-                  placeholder="usuario@ejemplo.com"
-                  value={regEmail}
-                  onChange={(e) => setRegEmail(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <input
-                    type={showRegisterPassword ? 'text' : 'password'}
-                    required
-                    autoComplete="new-password"
-                    placeholder="••••••"
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    className={`${inputClass} pr-12`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowRegisterPassword((value) => !value)}
-                    aria-label={showRegisterPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                  >
-                    {showRegisterPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Rol
-                </label>
-                <StyledSelect
-                  value={regRole}
-                  onChange={(value) => setRegRole(value as UserRole)}
-                  options={[
-                    { value: 'shelter', label: 'Refugio' },
-                    { value: 'vet', label: 'Veterinaria' },
-                  ]}
-                  className={inputClass}
-                />
-              </div>
-
-              {regError && (
-                <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-950/40 dark:text-red-400">
-                  {regError}
-                </p>
-              )}
-
-              <button
-                id="register-submit-btn"
-                type="submit"
-                disabled={regLoading}
-                className="w-full rounded-xl bg-brand py-3.5 text-sm font-bold text-white transition-[background-color] duration-150 hover:bg-brand-dark disabled:opacity-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-              >
-                {regLoading ? 'Creando cuenta...' : 'Crear cuenta'}
-              </button>
-
-              <p className="pt-1 text-center text-sm text-slate-500 dark:text-slate-400">
-                ¿Ya tienes cuenta?{' '}
-                <button
-                  type="button"
-                  onClick={() => setMode('login')}
-                  className="font-semibold text-brand hover:text-brand-dark dark:text-brand"
-                >
-                  Inicia sesión
-                </button>
-              </p>
-            </form>
-          )}
         </div>
       </div>
     </div>

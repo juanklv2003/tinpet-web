@@ -1,6 +1,8 @@
-import { PawPrint, Sun, Moon } from 'lucide-react';
+import { useState } from 'react';
+import { Sun, Moon, Menu, X } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { useTheme } from '../../../components/shelter/hooks/useTheme';
+import tinpetLogo from '../../../assets/tinpetLogo (2).ico';
 
 interface LandingHeaderProps {
   onLogin: () => void;
@@ -10,49 +12,175 @@ interface LandingHeaderProps {
 
 export function LandingHeader({ onLogin, onRegister, scrolled = false }: LandingHeaderProps) {
   const { isDarkMode, toggleDarkMode } = useTheme();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(prev => !prev);
+  };
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
+    e.preventDefault();
+    const targetElement = document.getElementById(targetId);
+    if (targetElement) {
+      const headerOffset = 80;
+      const elementPosition = targetElement.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+      const startPosition = window.pageYOffset;
+      const distance = offsetPosition - startPosition;
+      const duration = 800; // ms
+      let start: number | null = null;
+
+      const easeInOutQuad = (t: number, b: number, c: number, d: number) => {
+        t /= d / 2;
+        if (t < 1) return (c / 2) * t * t + b;
+        t--;
+        return (-c / 2) * (t * (t - 2) - 1) + b;
+      };
+
+      const animation = (currentTime: number) => {
+        if (start === null) start = currentTime;
+        const timeElapsed = currentTime - start;
+        const nextScroll = easeInOutQuad(timeElapsed, startPosition, distance, duration);
+        window.scrollTo(0, nextScroll);
+        if (timeElapsed < duration) {
+          requestAnimationFrame(animation);
+        } else {
+          window.scrollTo(0, offsetPosition);
+        }
+      };
+
+      requestAnimationFrame(animation);
+    }
+    setIsMobileMenuOpen(false);
+  };
 
   return (
     <header
-      className={`sticky top-0 z-10 transition-[background-color,border-color,box-shadow] duration-200
-        bg-[#fdfaf8]/90 dark:bg-gray-900/90 backdrop-blur-sm
+      className={`sticky top-0 z-40 transition-all duration-300 border-b
         ${scrolled
-          ? 'border-b border-stone-200/80 dark:border-gray-800/60 shadow-sm'
-          : 'border-b border-transparent'
+          ? 'bg-white/90 dark:bg-dark-bg/90 backdrop-blur-md border-stone-200/80 dark:border-slate-800 shadow-sm'
+          : 'bg-transparent border-transparent'
         }`}
     >
-      <div className="mx-auto flex h-[4.5rem] w-full max-w-6xl items-center justify-between px-5 sm:px-8">
-        {/* Logo */}
-        <a
-          href="/"
-          className="flex items-center gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 rounded-lg"
-        >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white transition-[background-color] duration-150 group-hover:bg-brand-dark">
-            <PawPrint className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
-          </div>
-          <span className="text-xl font-black tracking-tight text-gray-900 dark:text-white">
-            <span className="text-brand">tin</span>pet
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+        {/* Logotipo */}
+        <a href="#" className="flex items-center space-x-2 group focus:outline-none">
+          <span className="w-16 h-16 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+            <img src={tinpetLogo} alt="Tinpet Logo" className="h-14 w-14 object-contain" />
+          </span>
+          <span className="text-2xl font-extrabold tracking-tight text-brand dark:text-brand">
+            Tinpet
           </span>
         </a>
 
-        {/* Nav */}
-        <nav className="flex items-center gap-1" aria-label="Navegación principal">
+        {/* Navegación Escritorio */}
+        <nav className="hidden md:flex space-x-8 font-semibold text-slate-600 dark:text-slate-300">
+          <a
+            href="#hero"
+            onClick={(e) => handleNavClick(e, 'hero')}
+            className="hover:text-brand dark:hover:text-brand transition-colors duration-200"
+          >
+            Inicio
+          </a>
+          <a
+            href="#buscar"
+            onClick={(e) => handleNavClick(e, 'buscar')}
+            className="hover:text-brand dark:hover:text-brand transition-colors duration-200"
+          >
+            Mascotas
+          </a>
+          <a
+            href="#app"
+            onClick={(e) => handleNavClick(e, 'app')}
+            className="hover:text-brand dark:hover:text-brand transition-colors duration-200"
+          >
+            Nuestra App
+          </a>
+          <a
+            href="#historias"
+            onClick={(e) => handleNavClick(e, 'historias')}
+            className="hover:text-brand dark:hover:text-brand transition-colors duration-200"
+          >
+            Historias
+          </a>
+        </nav>
+
+        {/* CTA y Controles Header */}
+        <div className="flex items-center space-x-3">
+          {/* Toggle Tema Oscuro/Claro */}
           <button
             onClick={toggleDarkMode}
-            type="button"
-            className="mr-1 flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 transition-[background-color,color] duration-200 hover:bg-stone-100 dark:hover:bg-gray-800 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
-            title={isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 hover:text-brand dark:text-slate-400 dark:hover:text-brand hover:bg-slate-100 dark:hover:bg-slate-800 transition-all focus:outline-none"
             aria-label="Cambiar tema"
+            title={isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
           >
-            {isDarkMode ? <Moon className="h-[1.15rem] w-[1.15rem]" /> : <Sun className="h-[1.15rem] w-[1.15rem]" />}
+            {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </button>
 
-          <Button variant="ghost" onClick={onLogin} className="rounded-lg">
-            Iniciar sesión
+          {/* Botón Principal */}
+          <Button
+            variant="solid"
+            onClick={onRegister}
+            className="hidden sm:inline-flex px-5 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-sm shadow-brand/20 transition-[background-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            Adoptar Ahora
           </Button>
-          <Button variant="solid" onClick={onRegister} className="ml-2">
-            Empezar gratis
-          </Button>
-        </nav>
+          
+          {/* Botón Menú Móvil */}
+          <button
+            onClick={toggleMobileMenu}
+            className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-brand hover:text-white transition-all duration-200 focus:outline-none"
+            aria-label="Menú de navegación"
+          >
+            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Menú Móvil */}
+      <div
+        className={`md:hidden bg-white dark:bg-dark-bg border-b border-slate-100 dark:border-slate-800 px-6 py-6 space-y-4 shadow-lg absolute w-full left-0 transition-colors duration-300
+          ${isMobileMenuOpen ? 'block' : 'hidden'}`}
+      >
+        <a
+          href="#hero"
+          onClick={(e) => handleNavClick(e, 'hero')}
+          className="block text-lg font-semibold text-slate-700 dark:text-slate-300 hover:text-brand text-left"
+        >
+          Inicio
+        </a>
+        <a
+          href="#buscar"
+          onClick={(e) => handleNavClick(e, 'buscar')}
+          className="block text-lg font-semibold text-slate-700 dark:text-slate-300 hover:text-brand text-left"
+        >
+          Mascotas
+        </a>
+        <a
+          href="#app"
+          onClick={(e) => handleNavClick(e, 'app')}
+          className="block text-lg font-semibold text-slate-700 dark:text-slate-300 hover:text-brand text-left"
+        >
+          Nuestra App
+        </a>
+        <a
+          href="#historias"
+          onClick={(e) => handleNavClick(e, 'historias')}
+          className="block text-lg font-semibold text-slate-700 dark:text-slate-300 hover:text-brand text-left"
+        >
+          Historias
+        </a>
+        <hr className="border-slate-100 dark:border-slate-800" />
+        <Button
+          variant="solid"
+          onClick={() => {
+            onRegister();
+            setIsMobileMenuOpen(false);
+          }}
+          className="w-full px-5 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-sm shadow-brand/20 transition-[background-color] duration-150 flex justify-center"
+        >
+          Adoptar Ahora
+        </Button>
       </div>
     </header>
   );

@@ -8,7 +8,7 @@ import { PawPrint } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useShelterDashboardLogic } from './hooks/useShelterDashboardLogic';
 import { useTheme } from './hooks/useTheme';
-import { IconChart, IconChat, IconHeart, IconPaw, IconPlus, IconTeam, IconUser } from './Icons';
+import { IconChart, IconChat, IconHeart, IconPaw, IconPlus, IconUser } from './Icons';
 import { AddPetModal } from './modals/AddPetModal';
 import { PetProfileModal } from './modals/PetProfileModal';
 import { ChatView } from './views/ChatView';
@@ -259,7 +259,7 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
           {renderNavItem({ view: 'pets', icon: <IconPaw />, label: 'Mascotas' })}
           {renderNavItem({ view: 'monitoring', icon: <IconChart />, label: 'Monitorización' })}
           {renderNavItem({ view: 'matches', icon: <IconHeart />, label: 'Solicitudes', showBadge: activeView !== 'matches' && unreadMatchesCount > 0 })}
-          {renderNavItem({ view: 'employees', icon: <IconTeam />, label: 'Empleados' })}
+          {/* Empleados solo para veterinarias */}
           {renderNavItem({
             view: 'chat',
             icon: <IconChat />,
@@ -403,6 +403,7 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
           onClose={() => setIsAddModalOpen(false)}
           onAdd={handleAddPet}
           employees={employees}
+          showEmployeeField={false}
         />
       )}
 
