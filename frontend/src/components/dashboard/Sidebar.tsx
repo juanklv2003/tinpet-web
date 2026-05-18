@@ -3,19 +3,14 @@ import {
   ChatCircle,
   Gear,
   Heart,
-  PawPrint,
   SignOut,
   Star,
-  Sun,
-  Moon,
   SquaresFour,
-  Users,
   Building,
   X,
   List,
 } from '@phosphor-icons/react';
 import { useTranslation } from '../../i18n/useTranslation';
-import { useTheme } from '../shelter/hooks/useTheme';
 import tinpetLogo from '../../assets/tinpetLogo (2).ico';
 
 export type DashboardView =
@@ -59,13 +54,11 @@ export function Sidebar({
   unreadMatches = 0,
 }: SidebarProps) {
   const t = useTranslation();
-  const { isDarkMode, toggleDarkMode } = useTheme();
 
   const generalNav: NavItem[] = [
     { view: 'pets', icon: <SquaresFour size={20} />, labelKey: 'nav.pets' },
     { view: 'monitoring', icon: <ChartLineUp size={20} />, labelKey: 'nav.monitoring' },
     { view: 'matches', icon: <Heart size={20} />, labelKey: 'nav.requests', badge: unreadMatches },
-    { view: 'employees', icon: <Users size={20} />, labelKey: 'nav.employees' },
     { view: 'chat', icon: <ChatCircle size={20} />, labelKey: 'nav.chat', badge: unreadMessages },
   ];
 
@@ -160,19 +153,6 @@ export function Sidebar({
               </p>
               <nav className="space-y-1">
                 {systemNav.map(renderItem)}
-
-                {/* Dark mode toggle */}
-                <button
-                  type="button"
-                  onClick={toggleDarkMode}
-                  className="w-full flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm font-medium text-ink-medium dark:text-slate-400 hover:bg-brand-50 dark:hover:bg-slate-800 hover:text-ink-dark dark:hover:text-white transition-all"
-                >
-                  {isDarkMode
-                    ? <Sun size={20} />
-                    : <Moon size={20} />
-                  }
-                  <span>{isDarkMode ? t('nav.theme.light') : t('nav.theme.dark')}</span>
-                </button>
               </nav>
             </div>
           </div>

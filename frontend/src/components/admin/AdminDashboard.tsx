@@ -2,13 +2,15 @@ import { BarChart2, PawPrint, Shield, Users, LogOut, Settings } from 'lucide-rea
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/Button';
+import { useEffect, useState } from 'react';
+import { apiFetch } from '../../services/api';
 
-const adminStats = [
-  { label: 'Usuarios totales', value: '—', icon: Users, color: 'text-brand' },
-  { label: 'Refugios activos', value: '—', icon: PawPrint, color: 'text-emerald-500' },
-  { label: 'Adopciones este mes', value: '—', icon: BarChart2, color: 'text-amber-500' },
-  { label: 'Incidencias abiertas', value: '—', icon: Shield, color: 'text-sky-500' },
-];
+type AdminStats = {
+  totalUsers: number;
+  activeShelters: number;
+  adoptionsThisMonth: number;
+  openIncidents: number;
+};
 
 const adminSections = [
   { label: 'Usuarios & roles', description: 'Gestiona permisos y accesos de todos los usuarios.' },
@@ -22,11 +24,25 @@ const adminSections = [
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [stats, setStats] = useState<AdminStats | null>(null);
+
+  useEffect(() => {
+    apiFetch<AdminStats>('/api/admin/stats')
+      .then(setStats)
+      .catch(console.error);
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
+
+  const adminStatsDisplay = [
+    { label: 'Usuarios totales', value: stats ? stats.totalUsers : '—', icon: Users, color: 'text-brand' },
+    { label: 'Refugios activos', value: stats ? stats.activeShelters : '—', icon: PawPrint, color: 'text-emerald-500' },
+    { label: 'Adopciones este mes', value: stats ? stats.adoptionsThisMonth : '—', icon: BarChart2, color: 'text-amber-500' },
+    { label: 'Incidencias abiertas', value: stats ? stats.openIncidents : '—', icon: Shield, color: 'text-sky-500' },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans">
@@ -68,7 +84,7 @@ export default function AdminDashboard() {
 
         {/* Stats grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {adminStats.map(stat => {
+          {adminStatsDisplay.map(stat => {
             const Icon = stat.icon;
             return (
               <div

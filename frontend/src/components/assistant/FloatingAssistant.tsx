@@ -3,14 +3,10 @@ import { assistantApi, type AssistantChatMessage } from '../../services/assistan
 import { Sparkles, X, Send, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useTranslation } from '../../i18n/useTranslation';
+import { useI18n } from '../../i18n/I18nContext';
 
 type UiMessage = AssistantChatMessage & { id: string };
-
-const quickPrompts = [
-  '¿Cómo funciona TinPet Web?',
-  '¿Qué datos puedo ver de una mascota?',
-  '¿Qué solicitudes tengo pendientes?',
-];
 
 function createMessage(role: AssistantChatMessage['role'], content: string): UiMessage {
   return {
@@ -20,11 +16,11 @@ function createMessage(role: AssistantChatMessage['role'], content: string): UiM
   };
 }
 
-function buildInitialMessages(): UiMessage[] {
+function buildInitialMessages(t: (key: any) => string): UiMessage[] {
   return [
     createMessage(
       'assistant',
-      'Hola, soy el asistente de TinPet Web. Preguntame por mascotas, adopción, matches o navegación.'
+      t('assistant.initialMessage')
     ),
   ];
 }
@@ -32,13 +28,21 @@ function buildInitialMessages(): UiMessage[] {
 export function FloatingAssistant() {
   const { user } = useAuth();
   const location = useLocation();
+  const t = useTranslation();
+  const { locale } = useI18n();
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [input, setInput] = useState('');
   const [conversationId, setConversationId] = useState<string | undefined>();
-  const [messages, setMessages] = useState<UiMessage[]>(() => buildInitialMessages());
+  const [messages, setMessages] = useState<UiMessage[]>(() => buildInitialMessages(t));
+
+  const quickPrompts = useMemo(() => [
+    t('assistant.prompt1'),
+    t('assistant.prompt2'),
+    t('assistant.prompt3'),
+  ], [locale]); // eslint-disable-line react-hooks/exhaustive-deps
   const hasUserMessages = messages.some((message) => message.role === 'user');
 
   const context = useMemo(
@@ -47,8 +51,9 @@ export function FloatingAssistant() {
       path: location.pathname,
       userName: user?.name,
       userRole: user?.role,
+      locale,
     }),
-    [location.pathname, user?.name, user?.role]
+    [location.pathname, user?.name, user?.role, locale]
   );
 
   useEffect(() => {
@@ -70,14 +75,15 @@ export function FloatingAssistant() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open]);
 
-  // Reiniciar el asistente por completo cuando cambia la cuenta
+  // Reiniciar el asistente por completo cuando cambia la cuenta o el idioma
   useEffect(() => {
-    setMessages(buildInitialMessages());
+    setMessages(buildInitialMessages(t));
     setConversationId(undefined);
     setSending(false);
     setInput('');
     setOpen(false);
-  }, [user?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, locale]);
 
   const sendMessage = async (rawText: string) => {
     const text = rawText.trim();
@@ -104,7 +110,7 @@ export function FloatingAssistant() {
       console.error('[assistant]', error);
       setMessages((current) => [
         ...current,
-        createMessage('assistant', 'No pude conectar con el backend de IA. Revisa `/api/assistant/chat`.')
+        createMessage('assistant', t('assistant.errorMsg'))
       ]);
     } finally {
       setSending(false);
@@ -118,20 +124,20 @@ export function FloatingAssistant() {
 
   return (
     <>
-      <div className="fixed bottom-5 left-5 z-50">
+      <div className="fixed bottom-5 right-5 z-40">
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
           className="group flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 text-gray-900 dark:text-white shadow-md ring-1 ring-black/5 transition-[transform,box-shadow] duration-150 hover:scale-[1.02] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          aria-label="Abrir asistente de TinPet"
+          aria-label={t('assistant.launcherAriaLabel')}
         >
           <Sparkles className="h-4 w-4 text-brand" aria-hidden="true" />
-          <span className="text-sm font-semibold tracking-wide">AI TinPet</span>
+          <span className="text-sm font-semibold tracking-wide">{t('assistant.launcherLabel')}</span>
         </button>
       </div>
 
       <div
-        className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-[2px]"
+        className="fixed inset-0 z-40 bg-gray-900/40 backdrop-blur-[2px]"
         style={{
           transition: 'opacity 300ms ease-out',
           opacity: open ? 1 : 0,
@@ -140,7 +146,7 @@ export function FloatingAssistant() {
         onClick={() => setOpen(false)}
       >
         <div
-          className="fixed bottom-5 left-5 w-[min(92vw,420px)] overflow-hidden rounded-[28px] border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-[0_30px_80px_rgba(15,23,42,0.20)] origin-bottom-left"
+          className="fixed bottom-5 right-5 w-[min(92vw,420px)] overflow-hidden rounded-[28px] border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-[0_30px_80px_rgba(15,23,42,0.20)] origin-bottom-right"
           style={{
             transition: 'all 400ms cubic-bezier(0.16, 1, 0.3, 1)',
             opacity: open ? 1 : 0,
@@ -150,9 +156,9 @@ export function FloatingAssistant() {
         >
           <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
             <div className="pr-4">
-              <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">Asistente TinPet Web</h2>
+              <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">{t('assistant.title')}</h2>
               <p className="mt-1 text-sm leading-5 text-gray-500 dark:text-gray-400">
-                Preguntame sobre mascotas, adopción, chats o cómo usar el panel.
+                {t('assistant.subtitle')}
               </p>
             </div>
 
@@ -160,7 +166,7 @@ export function FloatingAssistant() {
               type="button"
               onClick={() => setOpen(false)}
               className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 transition-[background-color] duration-150 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-              aria-label="Cerrar asistente"
+              aria-label={t('assistant.closeAriaLabel')}
             >
               <X className="h-4 w-4" />
             </button>
@@ -183,7 +189,7 @@ export function FloatingAssistant() {
             {sending && (
               <div className="mr-auto inline-flex items-center gap-2 rounded-2xl rounded-bl-md bg-gray-100 dark:bg-gray-800 px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                 <Loader2 className="h-4 w-4 animate-spin text-brand" />
-                Pensando...
+                {t('assistant.thinking')}
               </div>
             )}
           </div>
@@ -216,7 +222,7 @@ export function FloatingAssistant() {
                     void sendMessage(input);
                   }
                 }}
-                placeholder="Preguntale algo a TinPet..."
+                placeholder={t('assistant.placeholder')}
                 className="max-h-32 flex-1 resize-none border-none bg-transparent text-sm text-slate-900 dark:text-white outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
               />
 
@@ -225,7 +231,7 @@ export function FloatingAssistant() {
                 onClick={() => void sendMessage(input)}
                 disabled={sending || !input.trim()}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand text-white transition-[background-color] duration-150 hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                aria-label="Enviar pregunta"
+                aria-label={t('assistant.sendAriaLabel')}
               >
                 <Send className="h-4 w-4" />
               </button>

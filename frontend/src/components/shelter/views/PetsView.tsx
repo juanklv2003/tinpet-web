@@ -175,9 +175,9 @@ export function PetsView({
                     onChange={v => { setStatusFilter(v as 'all' | PetStatus); setCurrentPage(1); }}
                     options={[
                       { value: 'all', label: 'Todos los estados' },
-                      { value: 'available', label: t('pets.status.available') },
-                      { value: 'pending', label: t('pets.status.pending') },
-                      { value: 'adopted', label: t('pets.status.adopted') },
+                      { value: 'disponible', label: t('pets.status.available') },
+                      { value: 'pendiente', label: t('pets.status.pending') },
+                      { value: 'adoptado', label: t('pets.status.adopted') },
                     ]}
                     className={selectClass}
                   />

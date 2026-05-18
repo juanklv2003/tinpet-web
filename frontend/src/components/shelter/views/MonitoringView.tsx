@@ -52,19 +52,19 @@ export function MonitoringView({
 
   const totalPets = stats?.totalPets ?? pets.length;
   const totalLikesReceived = stats?.totalLikesReceived ?? 0;
-  const closedAdoptions = stats?.closedAdoptions ?? pets.filter(p => p.status === 'adopted').length;
-  const adoptedPets = pets.filter(p => p.status === 'adopted').length;
+  const closedAdoptions = stats?.closedAdoptions ?? pets.filter(p => p.status === 'adopted' || p.status === 'adoptado').length;
+  const adoptedPets = pets.filter(p => p.status === 'adopted' || p.status === 'adoptado').length;
   const adoptionRate = totalPets > 0 ? Math.round((adoptedPets / totalPets) * 100) : 0;
 
   const incompleteProfiles = pets.filter(p => !hasAnyPhoto(p) || !p.ai_profile?.breed).slice(0, 5);
   const staleAvailablePets = pets
-    .filter(p => p.status === 'available')
+    .filter(p => p.status === 'available' || p.status === 'disponible')
     .map(p => ({ pet: p, age: daysSince(p.created_at) ?? 0 }))
     .filter(i => i.age >= 45)
     .sort((a, b) => b.age - a.age)
     .slice(0, 5);
   const longPendingPets = pets
-    .filter(p => p.status === 'pending')
+    .filter(p => p.status === 'pending' || p.status === 'pendiente')
     .map(p => ({ pet: p, age: daysSince(p.created_at) ?? 0 }))
     .filter(i => i.age >= 14)
     .sort((a, b) => b.age - a.age)
@@ -108,30 +108,36 @@ export function MonitoringView({
     },
   ], [incompleteProfiles, staleAvailablePets, longPendingPets, pets, recentActivity, t]);
 
-  const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
-  const [customTasks, setCustomTasks] = useState<DashboardTask[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(tasksStorageKey);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [customTasks, setCustomTasks] = useState<DashboardTask[]>(() => {
+    try {
+      const raw = localStorage.getItem(customTasksStorageKey);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const [newTaskTitle, setNewTaskTitle] = useState('');
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(tasksStorageKey);
-      if (raw) setCompletedTasks(JSON.parse(raw));
+      localStorage.setItem(tasksStorageKey, JSON.stringify(completedTasks));
     } catch { /* ignore */ }
-  }, [tasksStorageKey]);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(customTasksStorageKey);
-      if (raw) setCustomTasks(JSON.parse(raw));
-    } catch { /* ignore */ }
-  }, [customTasksStorageKey]);
-
-  useEffect(() => {
-    try { localStorage.setItem(tasksStorageKey, JSON.stringify(completedTasks)); } catch { /* ignore */ }
   }, [completedTasks, tasksStorageKey]);
 
   useEffect(() => {
-    try { localStorage.setItem(customTasksStorageKey, JSON.stringify(customTasks)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(customTasksStorageKey, JSON.stringify(customTasks));
+    } catch { /* ignore */ }
   }, [customTasks, customTasksStorageKey]);
 
   const allTasks = useMemo<DashboardTask[]>(() => [...dailyTasks, ...customTasks], [dailyTasks, customTasks]);

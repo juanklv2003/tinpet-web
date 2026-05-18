@@ -5,12 +5,11 @@ import { useTheme } from '../../../components/shelter/hooks/useTheme';
 import tinpetLogo from '../../../assets/tinpetLogo (2).ico';
 
 interface LandingHeaderProps {
-  onLogin: () => void;
   onRegister: () => void;
   scrolled?: boolean;
 }
 
-export function LandingHeader({ onLogin, onRegister, scrolled = false }: LandingHeaderProps) {
+export function LandingHeader({ onRegister, scrolled = false }: LandingHeaderProps) {
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 

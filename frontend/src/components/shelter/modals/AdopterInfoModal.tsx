@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { IconX } from '../Icons';
 import type { MatchRequest } from '../../../hooks/useShelterMatches';
 import { API_BASE_URL } from '../../../services/api';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface AdopterInfoModalProps {
   match: MatchRequest;
@@ -34,9 +35,10 @@ const extractStringFromCandidate = (candidate: unknown): string | null => {
 };
 
 export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
+  const t = useTranslation();
   const adopter = match.adopter ?? {
     id: match.adopter_id,
-    name: match.user_name ?? 'Usuario',
+    name: match.user_name ?? t('adopter.modal.defaultUser'),
     email: '',
     phone: '',
     photos: [],
@@ -75,7 +77,7 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
   const username =
     (typeof adopter.username === 'string' && adopter.username.trim()) ||
     (typeof adopter.user_name === 'string' && adopter.user_name.trim()) ||
-    'Usuario';
+    t('adopter.modal.defaultUser');
   const realName =
     (typeof adopter.name === 'string' && adopter.name.trim()) ||
     (typeof match.user_name === 'string' && match.user_name.trim()) ||
@@ -110,7 +112,7 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
     <div className="fixed inset-0 z-50">
       <button
         type="button"
-        aria-label="Cerrar modal"
+        aria-label={t('common.close')}
         onClick={handleClose}
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
           isVisible ? 'opacity-100' : 'opacity-0'
@@ -125,7 +127,7 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
           {photos.length > 0 ? (
             <img
               src={photos[activePhotoIndex]}
-              alt={`${adopter.name} - foto ${activePhotoIndex + 1}`}
+              alt={`${adopter.name} - ${t('pets.modal.add.photoLabel')} ${activePhotoIndex + 1}`}
               onClick={() => handleNextPhoto()}
               className="w-full h-full object-contain select-none cursor-pointer hover:opacity-95 transition-opacity"
             />
@@ -144,7 +146,7 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
                 type="button"
                 onClick={handlePrevPhoto}
                 className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 transition-colors flex items-center justify-center z-10"
-                aria-label="Foto anterior"
+                aria-label={t('adopter.modal.prevPhoto')}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
@@ -154,7 +156,7 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
                 type="button"
                 onClick={handleNextPhoto}
                 className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 transition-colors flex items-center justify-center z-10"
-                aria-label="Siguiente foto"
+                aria-label={t('adopter.modal.nextPhoto')}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
@@ -197,16 +199,16 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
               {username}
             </h2>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-              <span className="font-semibold">Nombre completo:</span> {realName}
+              <span className="font-semibold">{t('adopter.modal.fullName')}:</span> {realName}
             </p>
             {adopter.email && (
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                <span className="font-semibold">Email:</span> {adopter.email}
+                <span className="font-semibold">{t('adopter.modal.email')}:</span> {adopter.email}
               </p>
             )}
             {adopter.phone && (
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                <span className="font-semibold">Teléfono:</span> {adopter.phone}
+                <span className="font-semibold">{t('adopter.modal.phone')}:</span> {adopter.phone}
               </p>
             )}
           </div>
@@ -215,7 +217,7 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
           {adopter.description && (
             <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                Sobre mí
+                {t('adopter.modal.aboutMe')}
               </p>
               <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
                 {adopter.description}
@@ -226,29 +228,29 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
           {/* Información de vivienda */}
           <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-              Vivienda
+              {t('adopter.modal.housing')}
             </p>
             <div className="space-y-1">
               {adopter.housing_type && (
                 <p className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Tipo:</span> {adopter.housing_type === 'house' ? 'Casa' : 'Apartamento'}
+                  <span className="font-medium">{t('adopter.modal.housingType')}:</span> {adopter.housing_type === 'house' ? t('adopter.modal.housingHouse') : t('adopter.modal.housingApartment')}
                 </p>
               )}
               {adopter.work_from_home !== undefined && (
                 <p className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Trabaja desde casa:</span> {adopter.work_from_home ? 'Sí' : 'No'}
+                  <span className="font-medium">{t('adopter.modal.workFromHome')}:</span> {adopter.work_from_home ? t('common.yes') : t('common.no')}
                 </p>
               )}
               {adopter.hours_at_home && (
                 <p className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Horas en casa:</span>{' '}
+                  <span className="font-medium">{t('adopter.modal.hoursAtHome')}:</span>{' '}
                   {adopter.hours_at_home === 'less4'
-                    ? 'Menos de 4 horas'
+                    ? t('adopter.modal.hoursLess4')
                     : adopter.hours_at_home === '4to8'
-                      ? '4 a 8 horas'
+                      ? t('adopter.modal.hours4to8')
                       : adopter.hours_at_home === 'more8'
-                        ? 'Más de 8 horas'
-                        : 'Siempre'}
+                        ? t('adopter.modal.hoursMore8')
+                        : t('adopter.modal.hoursAlways')}
                 </p>
               )}
             </div>
@@ -257,27 +259,27 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
           {/* Experiencia y mascotas */}
           <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-              Experiencia con mascotas
+              {t('adopter.modal.petExperience')}
             </p>
             <div className="space-y-1">
               {adopter.pet_experience && (
                 <p className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Experiencia:</span>{' '}
+                  <span className="font-medium">{t('adopter.modal.experience')}:</span>{' '}
                   {adopter.pet_experience === 'none'
-                    ? 'Ninguna'
+                    ? t('adopter.modal.experienceNone')
                     : adopter.pet_experience === 'some'
-                      ? 'Algo de experiencia'
-                      : 'Mucha experiencia'}
+                      ? t('adopter.modal.experienceSome')
+                      : t('adopter.modal.experienceHigh')}
                 </p>
               )}
               {adopter.has_other_pets !== undefined && (
                 <p className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Tiene otras mascotas:</span> {adopter.has_other_pets ? 'Sí' : 'No'}
+                  <span className="font-medium">{t('adopter.modal.hasOtherPets')}:</span> {adopter.has_other_pets ? t('common.yes') : t('common.no')}
                 </p>
               )}
               {adopter.has_other_pets && adopter.other_pets_desc && (
                 <div className="mt-1 pl-3 border-l-2 border-pink-200 dark:border-pink-800/40">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Detalles de mascotas:</p>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('adopter.modal.otherPetsDetails')}:</p>
                   {Array.isArray(adopter.other_pets_desc) ? (
                     <ul className="list-disc list-inside pl-1 text-sm text-gray-700 dark:text-gray-300 space-y-0.5">
                       {adopter.other_pets_desc.map((pet, idx) => (
@@ -296,25 +298,25 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
           {adopter.has_children !== undefined && (
             <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                Familia
+                {t('adopter.modal.family')}
               </p>
               <p className="text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-medium">Tiene hijos:</span> {adopter.has_children ? 'Sí' : 'No'}
+                <span className="font-medium">{t('adopter.modal.hasChildren')}:</span> {adopter.has_children ? t('common.yes') : t('common.no')}
               </p>
               
               {adopter.has_children && (adopter.kids_count !== undefined || (adopter.kids_ages && adopter.kids_ages.length > 0)) && (
                 <div className="mt-2 pl-3 border-l-2 border-blue-200 dark:border-blue-800/40 space-y-1.5">
                   {adopter.kids_count !== undefined && adopter.kids_count > 0 && (
                     <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                      Cantidad de hijos: <span className="font-bold">{adopter.kids_count}</span>
+                      {t('adopter.modal.kidsCount')}: <span className="font-bold">{adopter.kids_count}</span>
                     </p>
                   )}
                   {Array.isArray(adopter.kids_ages) && adopter.kids_ages.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 items-center mt-1">
-                      <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Edades:</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{t('adopter.modal.ages')}:</span>
                       {adopter.kids_ages.map((age, i) => (
                         <span key={i} className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-100 dark:border-blue-800">
-                          {age} {age === 1 ? 'año' : 'años'}
+                          {age} {age === 1 ? t('adopter.modal.ageYear_one') : t('adopter.modal.ageYear_other')}
                         </span>
                       ))}
                     </div>
@@ -328,7 +330,7 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
           {adopter.hobbies && adopter.hobbies.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                Intereses
+                {t('adopter.modal.interests')}
               </p>
               <div className="flex flex-wrap gap-2">
                 {adopter.hobbies.map((hobby, idx) => (

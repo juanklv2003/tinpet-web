@@ -153,6 +153,20 @@ async function sendGroqChatCompletion(payload) {
   const timeoutMs = readOptionalNumber("GROQ_TIMEOUT_MS", 15000);
   const historyLimit = readOptionalNumber("ASSISTANT_MAX_HISTORY_MESSAGES", 12);
 
+  const locale = payload.context?.locale || "es";
+  let finalSystemPrompt = systemPrompt;
+  if (locale === "en") {
+    if (systemPrompt === DEFAULT_SYSTEM_PROMPT) {
+      finalSystemPrompt = "You are the official assistant of TinPet Web. Respond in English, briefly, usefully, and without inventing facts. If context is missing, state it clearly. Never mention internal routes, file names, technical endpoints, or implementation details; translate everything to client-facing language.";
+    } else {
+      finalSystemPrompt += "\nIMPORTANT: The user has selected English. You MUST respond entirely in English.";
+    }
+  } else {
+    if (systemPrompt !== DEFAULT_SYSTEM_PROMPT) {
+      finalSystemPrompt += "\nIMPORTANTE: El usuario ha seleccionado español. Debes responder completamente en español.";
+    }
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -166,7 +180,7 @@ async function sendGroqChatCompletion(payload) {
     {
       role: "system",
       content: [
-        systemPrompt,
+        finalSystemPrompt,
         knowledgeText ? `\nContexto de TinPet Web:\n${knowledgeText}` : "",
         contextText ? `\nContexto de la solicitud:\n${contextText}` : "",
       ]

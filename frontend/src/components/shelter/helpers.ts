@@ -6,18 +6,27 @@ export const statusLabel: Record<PetStatus, string> = {
   available: 'Disponible',
   pending: 'Pendiente',
   adopted: 'Adoptado',
+  disponible: 'Disponible',
+  pendiente: 'Pendiente',
+  adoptado: 'Adoptado',
 };
 
 export const statusDotColor: Record<PetStatus, string> = {
   available: 'bg-emerald-400',
   pending: 'bg-amber-400',
   adopted: 'bg-sky-400',
+  disponible: 'bg-emerald-400',
+  pendiente: 'bg-amber-400',
+  adoptado: 'bg-sky-400',
 };
 
 export const statusBadgeColor: Record<PetStatus, string> = {
   available: 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30',
   pending: 'bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30',
   adopted: 'bg-sky-500/15 text-sky-400 ring-1 ring-sky-500/30',
+  disponible: 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30',
+  pendiente: 'bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30',
+  adoptado: 'bg-sky-500/15 text-sky-400 ring-1 ring-sky-500/30',
 };
 
 export function fmtDate(iso?: string): string | null {

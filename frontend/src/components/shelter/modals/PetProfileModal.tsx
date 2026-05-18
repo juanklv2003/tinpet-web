@@ -9,6 +9,7 @@ import { NA } from '../components/NA';
 import { Row } from '../components/Row';
 import { fileToDataUrl, fmtDate } from '../helpers';
 import type { EditPetForm, PetStatus } from '../types';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface PetProfileModalProps {
   pet: Pet;
@@ -40,6 +41,7 @@ export function PetProfileModal({
   onUpdate,
   employees,
 }: PetProfileModalProps) {
+  const t = useTranslation();
   const ANIMATION_MS = 280;
   const [ai, setAi] = useState<Record<string, unknown>>(pet.ai_profile ?? {});
   const [form, setForm] = useState<EditPetForm>({
@@ -152,19 +154,19 @@ export function PetProfileModal({
     if (selectedFiles.length === 0) return;
 
     if (form.photoUrls.length + selectedFiles.length > MAX_PHOTOS) {
-      setErr(`Solo puedes guardar hasta ${MAX_PHOTOS} fotos por mascota.`);
+      setErr(t('pets.modal.detail.validationPhotoLimit', { count: MAX_PHOTOS }));
       return;
     }
 
     const invalidType = selectedFiles.some((file) => !file.type.startsWith('image/'));
     if (invalidType) {
-      setErr('Todos los archivos deben ser imágenes.');
+      setErr(t('pets.modal.detail.validationImageOnly'));
       return;
     }
 
     const oversized = selectedFiles.find((file) => file.size > 4 * 1024 * 1024);
     if (oversized) {
-      setErr(`La imagen ${oversized.name} supera 4MB.`);
+      setErr(t('pets.modal.detail.validationImageSize', { name: oversized.name }));
       return;
     }
 
@@ -173,7 +175,7 @@ export function PetProfileModal({
       setForm(prev => ({ ...prev, photoUrls: [...prev.photoUrls, ...urls] }));
       setErr(null);
     } catch {
-      setErr('No se pudo cargar la imagen');
+      setErr(t('pets.modal.detail.validationImageLoadError'));
     } finally {
       e.target.value = '';
     }
@@ -191,7 +193,7 @@ export function PetProfileModal({
     const cleanSpecies = form.species.trim();
 
     if (!cleanName || !cleanSpecies) {
-      setErr('Nombre y especie son obligatorios.');
+      setErr(t('pets.modal.detail.validationRequired'));
       return;
     }
 
@@ -239,14 +241,14 @@ export function PetProfileModal({
       });
       setEditMode(false);
     } catch (error: unknown) {
-      setErr((error as Error).message ?? 'No se pudo guardar los cambios');
+      setErr((error as Error).message ?? t('pets.modal.detail.saveError'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = () => {
-    if (confirm(`¿Eliminar a ${pet.name}?`)) {
+    if (confirm(t('pets.modal.detail.deleteConfirm', { name: pet.name }))) {
       onDelete(pet.id);
       setIsVisible(false);
       window.setTimeout(onClose, ANIMATION_MS);
@@ -270,7 +272,7 @@ export function PetProfileModal({
       setNewVaccine('');
       setAddingVaccine(false);
     } catch (error: unknown) {
-      setErr((error as Error).message ?? 'No se pudo guardar la vacuna');
+      setErr((error as Error).message ?? t('pets.modal.detail.vaccineSaveError'));
     }
   };
 
@@ -286,7 +288,7 @@ export function PetProfileModal({
       setNewDisease('');
       setAddingDisease(false);
     } catch (error: unknown) {
-      setErr((error as Error).message ?? 'No se pudo guardar el historial');
+      setErr((error as Error).message ?? t('pets.modal.detail.diseaseSaveError'));
     }
   };
 
@@ -296,7 +298,7 @@ export function PetProfileModal({
     <div className="fixed inset-0 z-50">
       <button
         type="button"
-        aria-label="Cerrar panel"
+        aria-label={t('common.close')}
         onClick={handleClose}
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
           isVisible ? 'opacity-100' : 'opacity-0'
@@ -304,12 +306,12 @@ export function PetProfileModal({
       />
 
       <div
-        className={`absolute right-3 top-3 bottom-3 w-[calc(100%-1.5rem)] sm:w-[min(calc(100%-1.5rem),30rem)] xl:w-[min(calc(100%-1.5rem),34rem)] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out ${
+        className={`absolute right-3 top-3 max-h-[calc(100vh-1.5rem)] flex flex-col w-[calc(100%-1.5rem)] sm:w-[min(calc(100%-1.5rem),30rem)] xl:w-[min(calc(100%-1.5rem),34rem)] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out ${
           isVisible ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         {/* Foto */}
-        <div className="relative h-60 sm:h-64 xl:h-72 bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center gap-2">
+        <div className="relative h-60 sm:h-64 xl:h-72 bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center gap-2 shrink-0">
           {form.photoUrls[0] ? (
             <img
               src={form.photoUrls[0]}
@@ -330,7 +332,7 @@ export function PetProfileModal({
                 <circle cx="12" cy="12" r="3.5" />
                 <path d="M3 8h2" />
               </svg>
-              <span className="text-gray-500 dark:text-gray-400 text-xs">Sin foto</span>
+              <span className="text-gray-500 dark:text-gray-400 text-xs">{t('pets.modal.detail.noPhoto')}</span>
             </>
           )}
           <button
@@ -352,9 +354,9 @@ export function PetProfileModal({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full text-xs font-medium bg-black/60 hover:bg-black/75 text-white"
+                className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full text-xs font-medium bg-black/60 hover:bg-black/75 text-white"
               >
-                Anadir fotos
+                {t('pets.modal.detail.addPhotos')}
               </button>
             </>
           )}
@@ -368,15 +370,15 @@ export function PetProfileModal({
             }`}
           >
             {form.status === 'available'
-              ? 'Disponible'
+              ? t('pets.status.available')
               : form.status === 'pending'
-                ? 'Pendiente'
-                : 'Adoptado'}
+                ? t('pets.status.pending')
+                : t('pets.status.adopted')}
           </span>
         </div>
 
         {/* Contenido */}
-        <div className="p-5 xl:p-6 max-h-[64vh] overflow-y-auto">
+        <div className="p-5 xl:p-6 overflow-y-auto min-h-0 flex-1">
           <div className="flex items-center justify-between mb-4 gap-3">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white truncate">{form.name}</h2>
             {!editMode ? (
@@ -385,7 +387,7 @@ export function PetProfileModal({
                 onClick={() => setEditMode(true)}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
               >
-                Editar
+                {t('common.edit')}
               </button>
             ) : (
               <div className="flex items-center gap-2">
@@ -407,7 +409,7 @@ export function PetProfileModal({
                   }}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="button"
@@ -415,7 +417,7 @@ export function PetProfileModal({
                   disabled={saving}
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-gray-900 hover:bg-gray-100 disabled:opacity-50"
                 >
-                  {saving ? 'Guardando...' : 'Guardar'}
+                  {saving ? t('pets.modal.detail.saving') : t('common.save')}
                 </button>
               </div>
             )}
@@ -425,7 +427,7 @@ export function PetProfileModal({
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="col-span-2 sm:col-span-1">
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Nombre
+                  {t('pets.modal.add.name')}
                 </label>
                 <input
                   type="text"
@@ -438,7 +440,7 @@ export function PetProfileModal({
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Especie
+                  {t('pets.modal.add.species')}
                 </label>
                 <input
                   type="text"
@@ -451,7 +453,7 @@ export function PetProfileModal({
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Raza
+                  {t('pets.modal.add.breed')}
                 </label>
                 <input
                   type="text"
@@ -464,7 +466,7 @@ export function PetProfileModal({
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Estado
+                  {t('pets.modal.add.status')}
                 </label>
                 <StyledSelect
                   value={form.status}
@@ -475,15 +477,15 @@ export function PetProfileModal({
                     }))
                   }
                   options={[
-                    { value: 'available', label: 'Disponible' },
-                    { value: 'pending', label: 'Pendiente' },
-                    { value: 'adopted', label: 'Adoptado' },
+                    { value: 'available', label: t('pets.status.available') },
+                    { value: 'pending', label: t('pets.status.pending') },
+                    { value: 'adopted', label: t('pets.status.adopted') },
                   ]}
                 />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Fecha de nacimiento
+                  {t('pets.modal.add.birthDateLabel')}
                 </label>
                 <StyledDatePicker
                   value={form.birthDate}
@@ -494,7 +496,7 @@ export function PetProfileModal({
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Empleado encargado
+                  {t('pets.modal.detail.employeeInCharge')}
                 </label>
                 <StyledSelect
                   value={form.inChargeEmployeeId}
@@ -502,7 +504,7 @@ export function PetProfileModal({
                     setForm(prev => ({ ...prev, inChargeEmployeeId: value as string }))
                   }
                   options={[
-                    { value: '', label: 'Ninguno' },
+                    { value: '', label: t('pets.modal.detail.none') },
                     ...employees.map(emp => ({
                       value: emp.id,
                       label: emp.name + (emp.role ? ` (${emp.role})` : ''),
@@ -512,14 +514,14 @@ export function PetProfileModal({
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Descripción
+                  {t('pets.modal.add.description')}
                 </label>
                 <textarea
                   value={form.description}
                   onChange={e =>
                     setForm(prev => ({ ...prev, description: e.target.value }))
                   }
-                  placeholder="Describe las características, personalidad o información relevante de la mascota..."
+                  placeholder={t('pets.modal.add.descriptionPlaceholder')}
                   className="w-full rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none"
                   rows={4}
                 />
@@ -527,18 +529,18 @@ export function PetProfileModal({
             </div>
           ) : (
             <div className="space-y-0">
-              <Row label="Nombre" value={form.name} />
-              <Row label="Especie" value={form.species ?? null} />
-              <Row label="Raza" value={form.breed || null} />
-              <Row label="Fecha de nacimiento" value={fmtDate(form.birthDate)} />
+              <Row label={t('pets.modal.add.name')} value={form.name} />
+              <Row label={t('pets.modal.add.species')} value={form.species ?? null} />
+              <Row label={t('pets.modal.add.breed')} value={form.breed || null} />
+              <Row label={t('pets.modal.add.birthDateLabel')} value={fmtDate(form.birthDate)} />
               <Row
-                label="Empleado a cargo"
-                value={employees.find(e => e.id === form.inChargeEmployeeId)?.name || 'Ninguno'}
+                label={t('pets.modal.detail.employeeInCharge')}
+                value={employees.find(e => e.id === form.inChargeEmployeeId)?.name || t('pets.modal.detail.none')}
               />
               {form.description && (
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
                   <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                    Descripción
+                    {t('pets.modal.add.description')}
                   </p>
                   <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
                     {form.description}
@@ -553,10 +555,10 @@ export function PetProfileModal({
           {editMode && (
             <div className="mb-4">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-                Fotos ({form.photoUrls.length}/{MAX_PHOTOS})
+                {t('pets.modal.add.photoLabel')} ({form.photoUrls.length}/{MAX_PHOTOS})
               </p>
               {form.photoUrls.length === 0 ? (
-                <p className="text-xs text-gray-500 dark:text-gray-400">Sin fotos cargadas.</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t('pets.modal.detail.noPhotosLoaded')}</p>
               ) : (
                 <div className="grid grid-cols-5 gap-2">
                   {form.photoUrls.map((url, index) => (
@@ -566,7 +568,7 @@ export function PetProfileModal({
                         type="button"
                         onClick={() => removePhotoAt(index)}
                         className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-black/80 text-white text-xs hidden group-hover:flex items-center justify-center"
-                        aria-label="Eliminar foto"
+                        aria-label={t('pets.modal.add.photoDelete')}
                       >
                         ×
                       </button>
@@ -581,7 +583,7 @@ export function PetProfileModal({
           <div className="mt-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Vacunas
+                {t('pets.modal.detail.vaccines')}
               </p>
               {!addingVaccine && (
                 <button
@@ -605,7 +607,7 @@ export function PetProfileModal({
                 ))}
               </div>
             ) : (
-              !addingVaccine && <NA label="Sin vacunas registradas" />
+              !addingVaccine && <NA label={t('pets.modal.detail.noVaccines')} />
             )}
             {addingVaccine && (
               <div className="flex items-center gap-2 mt-1">
@@ -620,7 +622,7 @@ export function PetProfileModal({
                       setNewVaccine('');
                     }
                   }}
-                  placeholder="Nombre de vacuna"
+                  placeholder={t('pets.modal.detail.vaccinePlaceholder')}
                   className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-gray-400"
                 />
                 <button
@@ -648,7 +650,7 @@ export function PetProfileModal({
           <div className="mt-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Historial de enfermedades
+                {t('pets.modal.detail.medicalHistory')}
               </p>
               {!addingDisease && (
                 <button
@@ -673,7 +675,7 @@ export function PetProfileModal({
                 ))}
               </ul>
             ) : (
-              !addingDisease && <NA label="Sin historial registrado" />
+              !addingDisease && <NA label={t('pets.modal.detail.noMedicalHistory')} />
             )}
             {addingDisease && (
               <div className="flex items-center gap-2 mt-1">
@@ -688,7 +690,7 @@ export function PetProfileModal({
                       setNewDisease('');
                     }
                   }}
-                  placeholder="Nombre de enfermedad"
+                  placeholder={t('pets.modal.detail.diseasePlaceholder')}
                   className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-gray-400"
                 />
                 <button
@@ -715,7 +717,7 @@ export function PetProfileModal({
           {/* Adopcion y empleado */}
           <div className="mt-4 space-y-0">
             <Row
-              label="Fecha de adopcion"
+              label={t('pets.modal.detail.adoptionDate')}
               value={
                 form.status === 'adopted'
                   ? fmtDate(ai.adoptionDate as string)
@@ -724,7 +726,7 @@ export function PetProfileModal({
               placeholder={form.status !== 'adopted' ? '---' : undefined}
             />
             <Row
-              label="Adoptante"
+              label={t('pets.modal.detail.adopter')}
               value={
                 form.status === 'adopted'
                   ? (String(ai.adopterName ?? '') || null)
@@ -733,8 +735,8 @@ export function PetProfileModal({
               placeholder={form.status !== 'adopted' ? '---' : undefined}
             />
             <Row
-              label="Empleado a cargo"
-              value={employees.find(e => e.id === ai.inChargeEmployeeId)?.name || 'Ninguno'}
+              label={t('pets.modal.detail.employeeInCharge')}
+              value={employees.find(e => e.id === ai.inChargeEmployeeId)?.name || t('pets.modal.detail.none')}
             />
           </div>
 
@@ -744,7 +746,7 @@ export function PetProfileModal({
             className="w-full flex items-center justify-center gap-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 py-2 text-sm font-medium hover:bg-red-500/20 transition-colors mt-5"
           >
             <IconTrash />
-            Eliminar mascota
+            {t('pets.modal.detail.deletePet')}
           </button>
         </div>
       </div>

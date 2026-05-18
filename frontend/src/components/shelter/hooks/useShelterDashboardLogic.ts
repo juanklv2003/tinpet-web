@@ -59,8 +59,9 @@ interface UseShelterDashboardLogicResult {
   handleAddEmployee: (payload: { name: string; email: string; role?: string }) => Promise<unknown>;
 }
 
-export function useShelterDashboardLogic(user: AuthUser | null): UseShelterDashboardLogicResult {
-  const [activeView, setActiveView] = useState<ActiveView>('pets');
+export function useShelterDashboardLogic(user: AuthUser | null, externalActiveView?: string): UseShelterDashboardLogicResult {
+  const [internalActiveView, setActiveView] = useState<ActiveView>('monitoring');
+  const activeView = (externalActiveView as ActiveView) || internalActiveView;
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [pets, setPets] = useState<Pet[]>([]);

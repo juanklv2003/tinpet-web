@@ -21,6 +21,7 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
 const assistantRoutes = require("./routes/assistant.routes");
 const knowledgeRoutes = require("./routes/knowledge.routes");
+const adminRoutes = require("./routes/admin.routes");
 const uploadRoutes = require("../routes/upload.ts");
 
 const JWT_SECRET = process.env.JWT_SECRET || "tinpet-secret-key-2024";
@@ -256,6 +257,7 @@ app.use(express.json({ limit: MAX_JSON_PAYLOAD }));
 app.use(express.urlencoded({ extended: true, limit: MAX_JSON_PAYLOAD }));
 app.use("/api/assistant", assistantRoutes);
 app.use("/api/knowledge", knowledgeRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Serve static files (uploaded images)
 app.use("/public", express.static(path.join(__dirname, "../../public")));
@@ -2556,6 +2558,9 @@ app.get("/api/stats", authenticateToken, async (req, res) => {
           pets: {
             shelter_id: shelter.id,
           },
+          interaction_type: {
+            in: ['pending', 'accepted', 'like']
+          }
         },
       }),
       prisma.pets.count({
@@ -2868,7 +2873,20 @@ app.patch("/api/adopter/profile", authenticateToken, async (req, res) => {
 
     // Email
     if (typeof email === "string") {
-      data.email = email.trim() || null;
+      const targetEmail = email.trim().toLowerCase();
+      if (targetEmail && targetEmail !== req.user.email.toLowerCase()) {
+        const existingUser = await prisma.users.findUnique({
+          where: { email: targetEmail }
+        });
+        if (existingUser && existingUser.id !== req.user.sub) {
+          return res.status(400).json({ error: 'El email ya está registrado por otro usuario' });
+        }
+        await prisma.users.update({
+          where: { id: req.user.sub },
+          data: { email: targetEmail }
+        });
+      }
+      data.email = targetEmail || null;
     }
 
     // Phone
@@ -3602,11 +3620,26 @@ app.put('/api/shelters/profile', authenticateToken, async (req, res) => {
     const shelter = await prisma.shelters.findFirst({ where: { user_id: req.user.sub } });
     if (!shelter) return res.status(404).json({ error: 'Refugio no encontrado' });
     
+    // Check and update email in users table if changed
+    if (email && email.trim().toLowerCase() !== req.user.email.toLowerCase()) {
+      const targetEmail = email.trim().toLowerCase();
+      const existingUser = await prisma.users.findUnique({
+        where: { email: targetEmail }
+      });
+      if (existingUser && existingUser.id !== req.user.sub) {
+        return res.status(400).json({ error: 'El email ya está registrado por otro usuario' });
+      }
+      await prisma.users.update({
+        where: { id: req.user.sub },
+        data: { email: targetEmail }
+      });
+    }
+
     const updated = await prisma.shelters.update({ 
       where: { id: shelter.id }, 
       data: { 
         name, 
-        email, 
+        email: email ? email.trim().toLowerCase() : undefined, 
         location, 
         phone, 
         description, 
@@ -3763,9 +3796,26 @@ app.put('/api/vet-clinics/profile', authenticateToken, async (req, res) => {
     const vetClinic = await prisma.vet_clinics.findFirst({ where: { user_id: req.user.sub } });
     if (!vetClinic) return res.status(404).json({ error: 'Veterinaria no encontrada' });
 
+    // Check and update email in users table if changed
+    if (email !== undefined && email !== null) {
+      const targetEmail = email.trim().toLowerCase();
+      if (targetEmail && targetEmail !== req.user.email.toLowerCase()) {
+        const existingUser = await prisma.users.findUnique({
+          where: { email: targetEmail }
+        });
+        if (existingUser && existingUser.id !== req.user.sub) {
+          return res.status(400).json({ error: 'El email ya está registrado por otro usuario' });
+        }
+        await prisma.users.update({
+          where: { id: req.user.sub },
+          data: { email: targetEmail }
+        });
+      }
+    }
+
     const data = {};
     if (name !== undefined) data.name = name;
-    if (email !== undefined) data.email = email;
+    if (email !== undefined) data.email = email ? email.trim().toLowerCase() : null;
     if (location !== undefined) data.location = location;
     if (address !== undefined) data.address = address;
     if (phone !== undefined) data.phone = phone;

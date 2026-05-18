@@ -27,7 +27,6 @@ type ShelterView = ActiveView | 'settings';
 const VIEW_TO_PATH: Record<ShelterView, string> = {
   pets:        '/pets',
   monitoring:  '/dashboard',
-  employees:   '/employees',
   matches:     '/requests',
   chat:        '/chat',
   profile:     '/profile',
@@ -38,7 +37,6 @@ const VIEW_TO_PATH: Record<ShelterView, string> = {
 const PATH_TO_VIEW: Array<{ prefix: string; view: ShelterView }> = [
   { prefix: '/pets',       view: 'pets' },
   { prefix: '/dashboard',  view: 'monitoring' },
-  { prefix: '/employees',  view: 'employees' },
   { prefix: '/requests',   view: 'matches' },
   { prefix: '/chat',       view: 'chat' },
   { prefix: '/profile',    view: 'profile' },
@@ -90,7 +88,7 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
     employeesLoading,
     employeesError,
     handleAddEmployee,
-  } = useShelterDashboardLogic(user);
+  } = useShelterDashboardLogic(user, activeView);
 
   // Sync activeView from initialView prop on mount
   useEffect(() => {

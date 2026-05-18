@@ -50,7 +50,6 @@ export default function LandingPage() {
       </div>
 
       <LandingHeader
-        onLogin={() => setAuthMode('login')}
         onRegister={() => setAuthMode('register')}
         scrolled={scrolled}
       />

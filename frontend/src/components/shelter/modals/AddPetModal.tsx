@@ -7,6 +7,7 @@ import { fileToDataUrl } from '../helpers';
 import type { AddPetForm, PetStatus } from '../types';
 import { emptyAddForm } from '../types';
 import type { ShelterEmployee } from '../../../hooks/useShelterEmployees';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface AddPetModalProps {
   onClose: () => void;
@@ -16,6 +17,7 @@ interface AddPetModalProps {
 }
 
 export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = false }: AddPetModalProps) {
+  const t = useTranslation();
   const ANIMATION_MS = 280;
   const MAX_PHOTOS = 10;
   const [form, setForm] = useState<AddPetForm>(emptyAddForm);
@@ -55,19 +57,19 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
     if (selectedFiles.length === 0) return;
 
     if (form.photoFiles.length + selectedFiles.length > MAX_PHOTOS) {
-      setErr(`Solo puedes subir hasta ${MAX_PHOTOS} fotos por mascota.`);
+      setErr(t('pets.modal.add.validationPhotoLimit', { count: MAX_PHOTOS }));
       return;
     }
 
     const invalidType = selectedFiles.some((file) => !file.type.startsWith('image/'));
     if (invalidType) {
-      setErr('Todos los archivos deben ser imágenes.');
+      setErr(t('pets.modal.add.validationImageOnly'));
       return;
     }
 
     const oversized = selectedFiles.find((file) => file.size > 4 * 1024 * 1024);
     if (oversized) {
-      setErr(`La imagen ${oversized.name} supera 4MB.`);
+      setErr(t('pets.modal.add.validationImageSize', { name: oversized.name }));
       return;
     }
 
@@ -80,7 +82,7 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
       }));
       setErr(null);
     } catch (error: unknown) {
-      setErr((error as Error).message ?? 'No se pudo cargar la imagen');
+      setErr((error as Error).message ?? t('pets.modal.add.validationImageLoadError'));
     } finally {
       e.target.value = '';
     }
@@ -97,7 +99,7 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.species.trim()) {
-      setErr('Nombre y especie son obligatorios.');
+      setErr(t('pets.modal.add.validationRequired'));
       return;
     }
     setSubmitting(true);
@@ -124,12 +126,12 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
       />
 
       <div
-        className={`absolute right-3 top-3 bottom-3 w-[calc(100%-1.5rem)] sm:w-[26rem] xl:w-[28rem] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out ${
+        className={`absolute right-3 top-3 max-h-[calc(100vh-1.5rem)] flex flex-col w-[calc(100%-1.5rem)] sm:w-[26rem] xl:w-[28rem] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out ${
           isVisible ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-gray-900 dark:text-white font-semibold text-lg">Nueva mascota</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+          <h2 className="text-gray-900 dark:text-white font-semibold text-lg">{t('pets.modal.add.title')}</h2>
           <button
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors"
@@ -139,69 +141,69 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
         </div>
         <form
           onSubmit={handleSubmit}
-          className="p-6 xl:p-7 h-[calc(100%-73px)] overflow-y-auto flex flex-col gap-4"
+          className="p-6 xl:p-7 overflow-y-auto flex flex-col gap-4 min-h-0"
         >
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 sm:col-span-1">
               <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                Nombre *
+                {t('pets.modal.add.name')} *
               </label>
               <input
                 type="text"
                 value={form.name}
                 onChange={e => set('name', e.target.value)}
-                placeholder="Ej: Max"
+                placeholder={t('pets.modal.add.namePlaceholder')}
                 className="w-full rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-gray-400 transition"
               />
             </div>
             <div className="col-span-2 sm:col-span-1">
               <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                Especie *
+                {t('pets.modal.add.species')} *
               </label>
               <input
                 type="text"
                 value={form.species}
                 onChange={e => set('species', e.target.value)}
-                placeholder="Ej: Perro"
+                placeholder={t('pets.modal.add.speciesPlaceholder')}
                 className="w-full rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-gray-400 transition"
               />
             </div>
             <div className="col-span-2 sm:col-span-1">
               <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                Raza
+                {t('pets.modal.add.breed')}
               </label>
               <input
                 type="text"
                 value={form.breed}
                 onChange={e => set('breed', e.target.value)}
-                placeholder="Ej: Labrador"
+                placeholder={t('pets.modal.add.breedPlaceholder')}
                 className="w-full rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-gray-400 transition"
               />
             </div>
             <div className="col-span-2 sm:col-span-1">
               <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                Estado
+                {t('pets.modal.add.status')}
               </label>
               <StyledSelect
                 value={form.status}
                 onChange={(value) => set('status', value as PetStatus)}
                 options={[
-                  { value: 'available', label: 'Disponible' },
-                  { value: 'pending', label: 'Pendiente' },
-                  { value: 'adopted', label: 'Adoptado' },
+                  { value: 'available', label: t('pets.status.available') },
+                  { value: 'pending', label: t('pets.status.pending') },
+                  { value: 'adopted', label: t('pets.status.adopted') },
                 ]}
               />
             </div>
             {showEmployeeField && (
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                  Empleado encargado (Opcional)
+                  {t('pets.modal.add.inChargeEmployee')}
                 </label>
                 <StyledSelect
                   value={form.inChargeEmployeeId}
                   onChange={(value) => set('inChargeEmployeeId', value as string)}
                   options={[
-                    { value: '', label: 'Ninguno' },
+                    { value: '', label: t('pets.modal.add.none') },
                     ...employees.map(emp => ({
                       value: emp.id,
                       label: emp.name + (emp.role ? ` (${emp.role})` : ''),
@@ -212,19 +214,19 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
             )}
             <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                Descripción
+                {t('pets.modal.add.description')}
               </label>
               <textarea
                 value={form.description}
                 onChange={e => set('description', e.target.value)}
-                placeholder="Cuenta algo sobre la mascota..."
+                placeholder={t('pets.modal.add.descriptionPlaceholder')}
                 rows={3}
                 className="w-full rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-gray-400 transition resize-none"
               />
             </div>
             <div className="col-span-2 flex flex-col min-h-[17rem]">
               <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                Foto
+                {t('pets.modal.add.photoLabel')}
               </label>
               <input
                 ref={fileInputRef}
@@ -258,10 +260,10 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
                     <div className="flex flex-col items-center text-center px-4">
                       <Image size={40} className="mb-3 text-brand" />
                       <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-                        Haz click para subir fotos
+                        {t('pets.modal.add.photoUploadClick')}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                        PNG, JPG o WEBP (max {MAX_PHOTOS})
+                        {t('pets.modal.add.photoUploadLimit', { count: MAX_PHOTOS })}
                       </p>
                     </div>
                   </div>
@@ -271,15 +273,17 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
                 <>
                   <div className="mt-1.5 flex items-center justify-between">
                     <p className="text-xs text-gray-600 dark:text-gray-500">
-                      {form.photoFiles.length} / {MAX_PHOTOS} foto{form.photoFiles.length !== 1 ? 's' : ''}
+                      {form.photoFiles.length === 1 
+                        ? t('pets.modal.add.photoCount_one', { count: 1 }) 
+                        : t('pets.modal.add.photoCount_other', { count: form.photoFiles.length })} / {MAX_PHOTOS}
                     </p>
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={form.photoUrls.length >= MAX_PHOTOS}
                       className="h-7 w-7 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
-                      aria-label="Añadir otra foto"
-                      title={form.photoUrls.length >= MAX_PHOTOS ? `Límite de ${MAX_PHOTOS} fotos` : 'Añadir otra foto'}
+                      aria-label={t('pets.modal.add.photoAddAnother')}
+                      title={form.photoUrls.length >= MAX_PHOTOS ? t('pets.modal.add.photoLimitReached', { count: MAX_PHOTOS }) : t('pets.modal.add.photoAddAnother')}
                     >
                       <IconPlus />
                     </button>
@@ -292,7 +296,7 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
                           type="button"
                           onClick={() => removePhotoAt(index)}
                           className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-black/80 text-white text-xs hidden group-hover:flex items-center justify-center"
-                          aria-label="Eliminar foto"
+                          aria-label={t('pets.modal.add.photoDelete')}
                         >
                           ×
                         </button>
@@ -307,7 +311,7 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 sm:col-span-1">
               <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                Fecha de nacimiento
+                {t('pets.modal.add.birthDateLabel')}
               </label>
               <StyledDatePicker
                 value={form.birthDate}
@@ -316,7 +320,7 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
             </div>
             <div className="col-span-2 sm:col-span-1">
               <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                Fecha de recogida
+                {t('pets.modal.add.intakeDateLabel')}
               </label>
               <StyledDatePicker
                 value={form.intakeDate}
@@ -333,7 +337,7 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
               onClick={handleClose}
               className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
-              Cancelar
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -341,7 +345,7 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
               className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-2 text-sm font-semibold hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors disabled:opacity-50"
             >
               <IconPlus />
-              {submitting ? 'Añadiendo...' : 'Añadir mascota'}
+              {submitting ? t('pets.modal.add.adding') : t('pets.modal.add.addPet')}
             </button>
           </div>
         </form>
