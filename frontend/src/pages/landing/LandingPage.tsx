@@ -50,7 +50,7 @@ export default function LandingPage() {
       </div>
 
       <LandingHeader
-        onRegister={() => setAuthMode('register')}
+        onRegister={() => setAuthMode('login')}
         scrolled={scrolled}
       />
 
@@ -59,7 +59,7 @@ export default function LandingPage() {
         <section id="hero" className="scroll-mt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full pt-16 pb-16 md:py-24">
           <LandingHero
             entered={entered}
-            onRegister={() => setAuthMode('register')}
+            onRegister={() => setAuthMode('login')}
           />
         </section>
 
