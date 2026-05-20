@@ -1,6 +1,8 @@
 import { Archive, Ban, Building2, CheckCircle, ChevronLeft, MessageCircle, Stethoscope, UserRound } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { LoadingView } from "../../ui/LoadingView";
+import { PetStatusModal } from "./PetStatusModal";
+import { ReviewModal } from "../../shared/ReviewModal";
 import type { Conversation, Message } from "../../../services/chatService";
 import { chatService } from "../../../services/chatService";
 import { IconPaw, IconPhone, IconSend } from "../Icons";
@@ -153,6 +155,7 @@ export function ChatView({ token }: ChatViewProps) {
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [showPetStatusModal, setShowPetStatusModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const [petStatusUpdating, setPetStatusUpdating] = useState(false);
   const [successModal, setSuccessModal] = useState<{
     isOpen: boolean;
@@ -858,14 +861,7 @@ export function ChatView({ token }: ChatViewProps) {
                   </div>
                 </div>
                 <button
-                  onClick={() => {
-                    // Navigate to reviews view or open review modal
-                    // For now, we'll suggest using the reviews tab
-                    setSuccessModal({
-                      isOpen: true,
-                      message: "Funcionalidad de valoración desde chat próximamente. Por ahora podés usar la pestaña de Valoraciones.",
-                    });
-                  }}
+                  onClick={() => setShowReviewModal(true)}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-colors shadow-sm"
                 >
                   Valorar

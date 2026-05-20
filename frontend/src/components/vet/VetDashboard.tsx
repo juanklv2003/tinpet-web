@@ -151,10 +151,12 @@ export default function VetDashboard({ initialView }: { initialView?: string } =
       onLogout={handleLogout}
       userName={user?.name}
       userRole={userRole}
+      userAvatarUrl={profileForm.avatarUrl}
       sidebarOpen={sidebarOpen}
       setSidebarOpen={setSidebarOpen}
       unreadMessages={unreadMessagesCount}
       unreadMatches={unreadMatchesCount}
+      showEmployees={true}
     >
       {activeView === 'pets' && (
         <PetsView
@@ -237,6 +239,7 @@ export default function VetDashboard({ initialView }: { initialView?: string } =
             setPets((prev) => prev.map((pet) => (pet.id === updated.id ? updated : pet)));
           }}
           employees={employees}
+          showEmployeeField={true}
         />
       )}
     </DashboardShell>

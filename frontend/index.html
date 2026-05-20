@@ -1,6 +1,17 @@
 <!doctype html>
 <html lang="es">
   <head>
+    <script>
+      (function() {
+        const saved = localStorage.getItem('tinpet-theme');
+        const isDark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (isDark) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/x-icon" href="/tinpetLogo.ico" />
     <link rel="shortcut icon" type="image/x-icon" href="/tinpetLogo.ico" />

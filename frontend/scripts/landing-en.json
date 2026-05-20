@@ -1,0 +1,86 @@
+{
+  "landing": {
+    "nav": {
+      "home": "Home",
+      "pets": "Pets",
+      "app": "Our App",
+      "stories": "Stories"
+    },
+    "header": {
+      "switchTheme": "Switch theme",
+      "lightMode": "Switch to light mode",
+      "darkMode": "Switch to dark mode",
+      "cta": "Adopt Now",
+      "menu": "Navigation menu",
+      "language": "Language",
+      "switchEnglish": "Switch to English",
+      "switchSpanish": "Cambiar a Español"
+    },
+    "hero": {
+      "title1": "Find your new",
+      "title2": "ideal companion",
+      "description": "Adopting not only changes a furry friend's life, it fills yours with unconditional love, laughter, and unforgettable moments at Tinpet.",
+      "ctaPrimary": "Meet the furry friends",
+      "ctaSecondary": "See testimonials",
+      "imageAlt": "Happy dog available for adoption"
+    },
+    "features": {
+      "title": "Everything you need",
+      "subtitle": "Professional tools to facilitate adoptions.",
+      "searchTitle": "Smart Search",
+      "searchDesc": "Find your ideal companion using advanced filters for species, age, and character.",
+      "chatTitle": "Real-Time Chat",
+      "chatDesc": "Communicate directly with shelters to quickly resolve doubts.",
+      "securityTitle": "Safe Adoption",
+      "securityDesc": "Verified platform to guarantee animal welfare and family safety.",
+      "networkTitle": "Shelter Network",
+      "networkDesc": "Connect with hundreds of shelters and clinics in a single centralized app.",
+      "trackingTitle": "Complete Tracking",
+      "trackingDesc": "Manage requests, documents, and the status of each process from a single dashboard.",
+      "rolesTitle": "Multi-role Dashboard",
+      "rolesDesc": "Specific views for shelters, adopters, veterinarians, and administrators."
+    },
+    "slider": {
+      "title": "Who will be your next nap companion?",
+      "description": "Watch our furry friends pass by. Feel a connection? Find them on our App."
+    },
+    "stories": {
+      "tag": "Happy Endings",
+      "title": "Stories that inspire love",
+      "description": "Families who decided to give a second chance and today have homes full of joy thanks to Tinpet.",
+      "prev": "Previous story",
+      "next": "Next story",
+      "adopted": "Adopted"
+    },
+    "stats": {
+      "pets": "Pets waiting",
+      "shelters": "Shelters in network",
+      "adoptions": "Happy adoptions"
+    },
+    "app": {
+      "tag": "Everything in your pocket",
+      "title": "Download the Tinpet App",
+      "description": "Take the search for your ideal companion everywhere. Receive notifications of new furry friends and chat with shelters from your mobile.",
+      "download": "Download now"
+    },
+    "footer": {
+      "description": "The platform that connects hearts with paws. We facilitate responsible adoption and support shelters.",
+      "quickLinks": "Quick Links",
+      "contact": "Contact",
+      "rights": "All rights reserved."
+    },
+    "auth": {
+      "welcome": "Welcome to Tinpet",
+      "subtitle": "Log in or create an account to continue",
+      "loginTab": "Log In",
+      "registerTab": "Register",
+      "email": "Email address",
+      "password": "Password",
+      "forgot": "Forgot your password?",
+      "loginBtn": "Log In",
+      "registerBtn": "Create Account",
+      "name": "Full name",
+      "confirmPassword": "Confirm password"
+    }
+  }
+}

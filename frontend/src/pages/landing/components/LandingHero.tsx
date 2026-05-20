@@ -1,4 +1,5 @@
 import { PawPrint, Heart, ArrowRight } from 'lucide-react';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface LandingHeroProps {
   entered: boolean;
@@ -6,6 +7,7 @@ interface LandingHeroProps {
 }
 
 export function LandingHero({ entered }: LandingHeroProps) {
+  const t = useTranslation();
   const handleScrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -21,14 +23,14 @@ export function LandingHero({ entered }: LandingHeroProps) {
       {/* LEFT: Title, Description, and CTAs */}
       <div className="flex-1 text-center md:text-left">
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-900 dark:text-white leading-tight mb-6 transition-colors duration-300">
-          Encuentra hoy a tu nuevo <br className="hidden lg:inline" />
+          {t('landing.hero.title1')} <br className="hidden lg:inline" />
           <span className="bg-gradient-to-r from-brand to-pink-500 bg-clip-text text-transparent dark:from-brand dark:to-pink-400">
-            compañero ideal
+            {t('landing.hero.title2')}
           </span>
         </h1>
         
         <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-xl mx-auto md:mx-0 leading-relaxed transition-colors duration-300">
-          Adoptar no solo cambia la vida de un peludito, llena la tuya de un amor incondicional, risas y momentos inolvidables en Tinpet.
+          {t('landing.hero.description')}
         </p>
         
         <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-4">
@@ -37,7 +39,7 @@ export function LandingHero({ entered }: LandingHeroProps) {
             onClick={() => handleScrollToSection('buscar')}
             className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-sm shadow-brand/20 transition-[background-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand flex items-center justify-center gap-2"
           >
-            <span>Conoce a los peluditos</span>
+            <span>{t('landing.hero.ctaPrimary')}</span>
             <ArrowRight className="h-4 w-4" />
           </button>
           <button
@@ -45,7 +47,7 @@ export function LandingHero({ entered }: LandingHeroProps) {
             onClick={() => handleScrollToSection('historias')}
             className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-white dark:bg-dark-card/60 border-2 border-stone-200/60 dark:border-slate-700 hover:bg-stone-50 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300 text-sm font-semibold transition-all duration-150 text-center shadow-sm"
           >
-            Ver testimonios
+            {t('landing.hero.ctaSecondary')}
           </button>
         </div>
       </div>
@@ -64,7 +66,7 @@ export function LandingHero({ entered }: LandingHeroProps) {
         <div className="relative z-10 w-[280px] h-[360px] sm:w-[360px] sm:h-[460px] rounded-[40px] overflow-hidden shadow-2xl shadow-slate-200 dark:shadow-black/40 rotate-3 hover:rotate-0 transition-transform duration-500 border-8 border-white dark:border-dark-card">
           <img
             src="https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600"
-            alt="Perro feliz disponible para adopción"
+            alt={t('landing.hero.imageAlt')}
             className="w-full h-full object-cover object-center"
             draggable={false}
           />

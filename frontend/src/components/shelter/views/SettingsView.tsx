@@ -1,15 +1,110 @@
 import { Sun, Moon, Desktop, Translate, Database, WarningOctagon } from '@phosphor-icons/react';
+import { useState } from 'react';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { Locale } from '../../../i18n/I18nContext';
 import { useTheme } from '../hooks/useTheme';
 import { useToast } from '../../dashboard/ToastProvider';
+import { useAuth } from '../../../context/AuthContext';
+import { apiFetch } from '../../../services/api';
 
 export function SettingsView() {
   const t = useTranslation();
   const { locale, setLocale } = useI18n();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportData = async () => {
+    setIsExporting(true);
+    try {
+      const zip = new JSZip();
+      
+      // Fetch user profile data
+      const profileEndpoint = user?.role === 'vet' ? '/api/vet-clinics/profile' : '/api/shelters/profile';
+      const profileData = await apiFetch<any>(profileEndpoint).catch(() => ({}));
+      
+      // Fetch pets data
+      const petsData = await apiFetch<any[]>('/api/pets/mine').catch(() => []);
+      
+      // Generate CSV for Profile
+      const profileCsvRows = [
+        ['Campo', 'Valor'],
+        ...Object.entries(profileData).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v || '')])
+      ];
+      const profileCsv = profileCsvRows.map(row => row.join(',')).join('\n');
+      zip.file('perfil.csv', new Blob([profileCsv], { type: 'text/csv;charset=utf-8;' }));
+
+      // Generate CSV for Pets
+      if (petsData.length > 0) {
+        const petKeys = Object.keys(petsData[0]).filter(k => k !== 'ai_profile' && k !== 'conversations');
+        const petsCsvRows = [
+          petKeys,
+          ...petsData.map(pet => petKeys.map(k => {
+            const val = pet[k];
+            if (typeof val === 'object') return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
+            return `"${String(val || '').replace(/"/g, '""')}"`;
+          }))
+        ];
+        const petsCsv = petsCsvRows.map(row => row.join(',')).join('\n');
+        zip.file('mascotas.csv', new Blob([petsCsv], { type: 'text/csv;charset=utf-8;' }));
+      }
+
+      // Generate PDF for Profile & Pets
+      const doc = new jsPDF();
+      doc.setFontSize(20);
+      doc.text('Reporte de Datos - Tinpet', 14, 22);
+      
+      doc.setFontSize(14);
+      doc.text('Perfil del Usuario', 14, 32);
+      autoTable(doc, {
+        startY: 36,
+        head: [['Campo', 'Valor']],
+        body: Object.entries(profileData).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v || '')])
+      });
+
+      if (petsData.length > 0) {
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.text('Mascotas Registradas', 14, 22);
+        
+        const petHeadings = ['Nombre', 'Especie', 'Raza', 'Estado', 'Alta'];
+        const petBody = petsData.map(pet => [
+          pet.name || 'N/A',
+          pet.species || 'N/A',
+          pet.ai_profile?.breed || 'N/A',
+          pet.status || 'N/A',
+          pet.created_at ? new Date(pet.created_at).toLocaleDateString() : 'N/A'
+        ]);
+
+        autoTable(doc, {
+          startY: 26,
+          head: [petHeadings],
+          body: petBody
+        });
+      }
+      
+      const pdfBlob = doc.output('blob');
+      zip.file('reporte_completo.pdf', pdfBlob);
+      
+      // Generate ZIP and download
+      const content = await zip.generateAsync({ type: 'blob' });
+      saveAs(content, `tinpet-export-${new Date().toISOString().split('T')[0]}.zip`);
+      
+      showToast(t('settings.export.toast') || 'Datos exportados correctamente');
+    } catch (err) {
+      console.error('Error exporting data:', err);
+      showToast('Error al exportar los datos', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleTheme = (mode: 'light' | 'dark' | 'system') => {
     if (mode === 'dark') {
@@ -134,10 +229,11 @@ export function SettingsView() {
             </div>
             <button
               type="button"
-              onClick={() => showToast(t('settings.export.toast'))}
-              className="whitespace-nowrap flex items-center gap-2 bg-white dark:bg-slate-900 border border-ink-light/20 dark:border-slate-600 hover:border-brand-500 dark:hover:border-brand-400 text-ink-dark dark:text-white px-6 py-3 rounded-xl text-sm font-bold transition-all"
+              onClick={handleExportData}
+              className="whitespace-nowrap flex items-center gap-2 bg-white dark:bg-slate-900 border border-ink-light/20 dark:border-slate-600 hover:border-brand-500 dark:hover:border-brand-400 text-ink-dark dark:text-white px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+              disabled={isExporting}
             >
-              {t('settings.export.btn')}
+              {isExporting ? t('common.loading') || 'Exportando...' : t('settings.export.btn')}
             </button>
           </div>
         </div>

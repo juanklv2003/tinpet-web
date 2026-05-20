@@ -8,35 +8,35 @@ datasource db {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model adopters {
-  id              String          @id @default(uuid()) @db.Uuid
-  user_id         String?         @db.Uuid
-  name            String          // Nombre real (no editable)
-  username        String?         // Nombre de usuario (editable)
-  email           String?
-  description     String?
-  birth_date      DateTime?       @db.Date
-  avatar_url      String?
-  photos          String[]        @default([])
-  hobbies         String[]        @default([])
-  phone           String?
-  housing_type    String?         // 'house' | 'apartment'
-  has_other_pets  Boolean?
-  other_pets_desc String[]        @default([])
-  pet_experience  String?         // 'none' | 'some' | 'lots'
-  has_children    Boolean?
-  kids_count      Int?
-  kids_ages       Int[]           @default([])
-  latitude        Float?
-  longitude       Float?
-  hours_at_home   String?         // 'less4' | '4to8' | 'more8' | 'always'
-  work_from_home  Boolean?
-  looking_for_species String[]    @default([])  // 'dog' | 'cat' | 'bird' | 'rabbit' | 'reptile' | 'other' | 'any'
-  preferred_size  String?         // 'small' | 'medium' | 'large' | 'any'
-  created_at      DateTime?       @default(now()) @db.Timestamptz(6)
-  users           users?          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  conversations   conversations[]
-  matches         matches[]
-  pets            pets[]
+  id                  String          @id @default(uuid()) @db.Uuid
+  user_id             String?         @db.Uuid
+  name                String
+  username            String?
+  email               String?
+  description         String?
+  birth_date          DateTime?       @db.Date
+  avatar_url          String?
+  photos              String[]        @default([])
+  hobbies             String[]        @default([])
+  phone               String?
+  housing_type        String?
+  has_other_pets      Boolean?
+  pet_experience      String?
+  has_children        Boolean?
+  hours_at_home       String?
+  work_from_home      Boolean?
+  looking_for_species String[]        @default([])
+  preferred_size      String?
+  created_at          DateTime?       @default(now()) @db.Timestamptz(6)
+  kids_ages           Int[]           @default([])
+  kids_count          Int?
+  other_pets_desc     String[]        @default([])
+  latitude            Float?
+  longitude           Float?
+  users               users?          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  conversations       conversations[]
+  matches             matches[]
+  pets                pets[]
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -58,9 +58,9 @@ model conversations {
   vet_clinic_id   String?      @db.Uuid
   pet_id          String?      @db.Uuid
   match_id        String?      @db.Uuid
-  archived        Boolean      @default(false)
   last_message_at DateTime?    @default(now()) @db.Timestamptz(6)
   created_at      DateTime?    @default(now()) @db.Timestamptz(6)
+  archived        Boolean      @default(false)
   adopter         adopters     @relation(fields: [adopter_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   pet             pets?        @relation(fields: [pet_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   shelter         shelters?    @relation(fields: [shelter_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -104,6 +104,7 @@ model pets {
   description           String?
   image_url             String?
   status                String?            @default("disponible")
+  ai_profile            Json?              @default("{}")
   shelter_id            String?            @db.Uuid
   in_charge_employee_id String?            @db.Uuid
   adopter_id            String?            @db.Uuid
@@ -137,13 +138,13 @@ model shelters {
   name              String
   email             String?
   location          String?
+  phone             String?
+  created_at        DateTime?           @default(now()) @db.Timestamptz(6)
   latitude          Float?
   longitude         Float?
-    phone             String?
-    avatar_url        String?
-    description       String?
-    website           String?
-    created_at        DateTime?           @default(now()) @db.Timestamptz(6)
+  avatar_url        String?
+  description       String?
+  website           String?
   conversations     conversations[]
   pets              pets[]
   shelter_employees shelter_employees[]
@@ -166,30 +167,30 @@ model users {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model vet_clinics {
-  id              String          @id @default(uuid()) @db.Uuid
-  user_id         String?         @db.Uuid
-  name            String
-  email           String?
-  location        String?
-  address         String?
-  phone           String?
-  description     String?
-  website         String?
-  instagram       String?
-  facebook        String?
-  avatar_url      String?
-  hours           String?         // JSON: VetClinicHours[]
-  services        String?         // JSON: VetClinicService[]
-  certifications  String?         // JSON: VetClinicCertification[]
-  photos          String[]        @default([])
-  social_links    String?         // JSON: Record<string, string>
-  latitude        Float?
-  longitude       Float?
-  created_at      DateTime?       @default(now()) @db.Timestamptz(6)
-  updated_at      DateTime?       @updatedAt @db.Timestamptz(6)
-  conversations   conversations[]
-  users           users?          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  vet_employees   vet_employees[]
+  id             String          @id @default(uuid()) @db.Uuid
+  user_id        String?         @db.Uuid
+  name           String
+  email          String?
+  location       String?
+  phone          String?
+  created_at     DateTime?       @default(now()) @db.Timestamptz(6)
+  avatar_url     String?
+  description    String?
+  facebook       String?
+  instagram      String?
+  updated_at     DateTime?       @updatedAt @db.Timestamptz(6)
+  website        String?
+  address        String?
+  certifications String?
+  hours          String?
+  latitude       Float?
+  longitude      Float?
+  photos         String[]        @default([])
+  services       String?
+  social_links   String?
+  conversations  conversations[]
+  users          users?          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  vet_employees  vet_employees[]
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -209,12 +210,12 @@ model vet_employees {
 /// Reviews / ratings between adopters and shelters/vets (Wallapop-style)
 model reviews {
   id            String    @id @default(uuid()) @db.Uuid
-  reviewer_id   String    @db.Uuid   // adopters.id or shelters.id
-  reviewer_role String               // 'adopter' | 'shelter' | 'vet'
-  target_id     String    @db.Uuid   // shelters.id or adopters.id
-  target_role   String               // 'shelter' | 'vet' | 'adopter'
-  match_id      String?   @db.Uuid   // matches.id for deduplication
-  rating        Int                  // 1-5
+  reviewer_id   String    @db.Uuid
+  reviewer_role String
+  target_id     String    @db.Uuid
+  target_role   String
+  match_id      String?   @db.Uuid
+  rating        Int
   comment       String?
   created_at    DateTime? @default(now()) @db.Timestamptz(6)
 
@@ -225,15 +226,15 @@ model reviews {
 
 /// Knowledge base for assistant: FAQs, rules, features
 model assistant_knowledge {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   title       String
-  content     String    @db.Text
-  category    String?   // 'faq', 'rules', 'features', etc.
-  shelter_id  String?   @db.Uuid
-  isPublished Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
+  content     String
+  category    String?
+  shelter_id  String?  @db.Uuid
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   @@unique([shelter_id, title])
   @@index([shelter_id])
   @@index([isPublished])

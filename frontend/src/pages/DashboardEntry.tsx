@@ -1,10 +1,11 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { LoadingView } from '../components/ui/LoadingView';
 
 export default function DashboardEntry() {
   const { user, loading } = useAuth();
 
-  if (loading) return <div className="p-6">Cargando...</div>;
+  if (loading) return <LoadingView />;
   if (!user) return <Navigate to="/" replace />;
 
   // Redirect to role-scoped dashboard paths so the URL reflects the role

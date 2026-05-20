@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { ChevronLeft, ChevronRight, Heart, Cat, Dog } from 'lucide-react';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 const stories = [
   {
@@ -66,6 +67,7 @@ const stories = [
 
 export function LandingStories() {
   const carouselRef = useRef<HTMLDivElement>(null);
+  const t = useTranslation();
 
   const scroll = (direction: 'left' | 'right') => {
     const container = carouselRef.current;
@@ -115,26 +117,26 @@ export function LandingStories() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
           <div className="text-left max-w-2xl">
-            <span className="text-brand font-bold uppercase tracking-widest text-sm block mb-2">Finales Felices</span>
+            <span className="text-brand font-bold uppercase tracking-widest text-sm block mb-2">{t('landing.stories.tag')}</span>
             <h2 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white transition-colors duration-300">
-              Historias que inspiran amor
+              {t('landing.stories.title')}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mt-2 transition-colors duration-300">
-              Familias que decidieron dar una segunda oportunidad y hoy tienen hogares llenos de alegría gracias a Tinpet.
+              {t('landing.stories.description')}
             </p>
           </div>
           <div className="flex space-x-3 mt-6 md:mt-0">
             <button
               onClick={() => scroll('left')}
               className="w-12 h-12 rounded-full bg-white dark:bg-dark-card border border-stone-200 dark:border-slate-700 hover:bg-brand hover:border-brand dark:hover:bg-brand text-gray-700 dark:text-gray-300 hover:text-white shadow-sm flex items-center justify-center active:scale-95 transition-all duration-200"
-              aria-label="Anterior historia"
+              aria-label={t('landing.stories.prev')}
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button
               onClick={() => scroll('right')}
               className="w-12 h-12 rounded-full bg-white dark:bg-dark-card border border-stone-200 dark:border-slate-700 hover:bg-brand hover:border-brand dark:hover:bg-brand text-gray-700 dark:text-gray-300 hover:text-white shadow-sm flex items-center justify-center active:scale-95 transition-all duration-200"
-              aria-label="Siguiente historia"
+              aria-label={t('landing.stories.next')}
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -159,7 +161,7 @@ export function LandingStories() {
                   <div className="text-left">
                     <h4 className="font-bold text-gray-900 dark:text-white">{story.family}</h4>
                     <span className="text-xs text-brand font-bold flex items-center gap-1">
-                      <span>Adoptó a {story.petName}</span>
+                      <span>{t('landing.stories.adopted')} {story.petName}</span>
                       {story.petType === 'cat' ? <Cat className="h-3 w-3" /> : <Dog className="h-3 w-3" />}
                     </span>
                   </div>

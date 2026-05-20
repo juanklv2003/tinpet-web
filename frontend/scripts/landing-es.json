@@ -1,0 +1,86 @@
+{
+  "landing": {
+    "nav": {
+      "home": "Inicio",
+      "pets": "Mascotas",
+      "app": "Nuestra App",
+      "stories": "Historias"
+    },
+    "header": {
+      "switchTheme": "Cambiar tema",
+      "lightMode": "Cambiar a modo claro",
+      "darkMode": "Cambiar a modo oscuro",
+      "cta": "Adoptar Ahora",
+      "menu": "Menú de navegación",
+      "language": "Idioma",
+      "switchEnglish": "Switch to English",
+      "switchSpanish": "Cambiar a Español"
+    },
+    "hero": {
+      "title1": "Encuentra hoy a tu nuevo",
+      "title2": "compañero ideal",
+      "description": "Adoptar no solo cambia la vida de un peludito, llena la tuya de un amor incondicional, risas y momentos inolvidables en Tinpet.",
+      "ctaPrimary": "Conoce a los peluditos",
+      "ctaSecondary": "Ver testimonios",
+      "imageAlt": "Perro feliz disponible para adopción"
+    },
+    "features": {
+      "title": "Todo lo que necesitas",
+      "subtitle": "Herramientas profesionales para facilitar las adopciones.",
+      "searchTitle": "Búsqueda Inteligente",
+      "searchDesc": "Encuentra a tu compañero ideal mediante filtros avanzados de especie, edad y carácter.",
+      "chatTitle": "Chat en Tiempo Real",
+      "chatDesc": "Comunícate directamente con los refugios para resolver dudas de forma rápida.",
+      "securityTitle": "Adopción Segura",
+      "securityDesc": "Plataforma verificada para garantizar el bienestar animal y la seguridad de las familias.",
+      "networkTitle": "Red de Refugios",
+      "networkDesc": "Conecta con cientos de protectoras y veterinarias en una sola aplicación centralizada.",
+      "trackingTitle": "Seguimiento Completo",
+      "trackingDesc": "Gestiona solicitudes, documentos y el estado de cada proceso desde un único panel.",
+      "rolesTitle": "Panel Multi-rol",
+      "rolesDesc": "Vistas específicas para refugios, adoptantes, veterinarios y administradores."
+    },
+    "slider": {
+      "title": "¿Quién será tu próximo compañero de siestas?",
+      "description": "Observa a nuestros peluditos pasar. ¿Sientes que hubo conexión? Búscalo en nuestra App."
+    },
+    "stories": {
+      "tag": "Finales Felices",
+      "title": "Historias que inspiran amor",
+      "description": "Familias que decidieron dar una segunda oportunidad y hoy tienen hogares llenos de alegría gracias a Tinpet.",
+      "prev": "Anterior historia",
+      "next": "Siguiente historia",
+      "adopted": "Adoptó a"
+    },
+    "stats": {
+      "pets": "Mascotas esperando",
+      "shelters": "Refugios en la red",
+      "adoptions": "Adopciones felices"
+    },
+    "app": {
+      "tag": "Todo en tu bolsillo",
+      "title": "Descarga la App de Tinpet",
+      "description": "Lleva la búsqueda de tu compañero ideal a todas partes. Recibe notificaciones de nuevos peluditos y chatea con los refugios desde tu móvil.",
+      "download": "Descargar ahora"
+    },
+    "footer": {
+      "description": "La plataforma que conecta corazones con patas. Facilitamos la adopción responsable y apoyamos a los refugios.",
+      "quickLinks": "Enlaces Rápidos",
+      "contact": "Contacto",
+      "rights": "Todos los derechos reservados."
+    },
+    "auth": {
+      "welcome": "Bienvenido a Tinpet",
+      "subtitle": "Inicia sesión o crea una cuenta para continuar",
+      "loginTab": "Iniciar Sesión",
+      "registerTab": "Registrarse",
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "forgot": "¿Olvidaste tu contraseña?",
+      "loginBtn": "Ingresar",
+      "registerBtn": "Crear Cuenta",
+      "name": "Nombre completo",
+      "confirmPassword": "Confirmar contraseña"
+    }
+  }
+}

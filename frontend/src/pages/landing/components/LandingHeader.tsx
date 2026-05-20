@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Sun, Moon, Menu, X } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { useTheme } from '../../../components/shelter/hooks/useTheme';
+import { useI18n } from '../../../i18n/I18nContext';
+import { useTranslation } from '../../../i18n/useTranslation';
 import tinpetLogo from '../../../assets/tinpetLogo (2).ico';
 
 interface LandingHeaderProps {
@@ -11,6 +13,8 @@ interface LandingHeaderProps {
 
 export function LandingHeader({ onRegister, scrolled = false }: LandingHeaderProps) {
   const { isDarkMode, toggleDarkMode } = useTheme();
+  const { locale, setLocale } = useI18n();
+  const t = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const toggleMobileMenu = () => {
@@ -79,39 +83,49 @@ export function LandingHeader({ onRegister, scrolled = false }: LandingHeaderPro
             onClick={(e) => handleNavClick(e, 'hero')}
             className="hover:text-brand dark:hover:text-brand transition-colors duration-200"
           >
-            Inicio
+            {t('landing.nav.home')}
           </a>
           <a
             href="#buscar"
             onClick={(e) => handleNavClick(e, 'buscar')}
             className="hover:text-brand dark:hover:text-brand transition-colors duration-200"
           >
-            Mascotas
+            {t('landing.nav.pets')}
           </a>
           <a
             href="#app"
             onClick={(e) => handleNavClick(e, 'app')}
             className="hover:text-brand dark:hover:text-brand transition-colors duration-200"
           >
-            Nuestra App
+            {t('landing.nav.app')}
           </a>
           <a
             href="#historias"
             onClick={(e) => handleNavClick(e, 'historias')}
             className="hover:text-brand dark:hover:text-brand transition-colors duration-200"
           >
-            Historias
+            {t('landing.nav.stories')}
           </a>
         </nav>
 
         {/* CTA y Controles Header */}
         <div className="flex items-center space-x-3">
+          {/* Selector de Idioma (Desktop) */}
+          <button
+            onClick={() => setLocale(locale === 'es' ? 'en' : 'es')}
+            className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs border border-slate-200/60 dark:border-slate-800 text-slate-500 hover:text-brand dark:text-slate-400 dark:hover:text-brand hover:bg-slate-100 dark:hover:bg-slate-800 transition-all focus:outline-none"
+            aria-label={locale === 'es' ? t('landing.header.switchEnglish') : t('landing.header.switchSpanish')}
+            title={locale === 'es' ? t('landing.header.switchEnglish') : t('landing.header.switchSpanish')}
+          >
+            {locale === 'es' ? 'EN' : 'ES'}
+          </button>
+
           {/* Toggle Tema Oscuro/Claro */}
           <button
             onClick={toggleDarkMode}
             className="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 hover:text-brand dark:text-slate-400 dark:hover:text-brand hover:bg-slate-100 dark:hover:bg-slate-800 transition-all focus:outline-none"
-            aria-label="Cambiar tema"
-            title={isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            aria-label={t('landing.header.switchTheme')}
+            title={isDarkMode ? t('landing.header.lightMode') : t('landing.header.darkMode')}
           >
             {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </button>
@@ -122,14 +136,14 @@ export function LandingHeader({ onRegister, scrolled = false }: LandingHeaderPro
             onClick={onRegister}
             className="hidden sm:inline-flex px-5 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-sm shadow-brand/20 transition-[background-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >
-            Adoptar Ahora
+            {t('landing.header.cta')}
           </Button>
           
           {/* Botón Menú Móvil */}
           <button
             onClick={toggleMobileMenu}
             className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-brand hover:text-white transition-all duration-200 focus:outline-none"
-            aria-label="Menú de navegación"
+            aria-label={t('landing.header.menu')}
           >
             {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -146,29 +160,64 @@ export function LandingHeader({ onRegister, scrolled = false }: LandingHeaderPro
           onClick={(e) => handleNavClick(e, 'hero')}
           className="block text-lg font-semibold text-slate-700 dark:text-slate-300 hover:text-brand text-left"
         >
-          Inicio
+          {t('landing.nav.home')}
         </a>
         <a
           href="#buscar"
           onClick={(e) => handleNavClick(e, 'buscar')}
           className="block text-lg font-semibold text-slate-700 dark:text-slate-300 hover:text-brand text-left"
         >
-          Mascotas
+          {t('landing.nav.pets')}
         </a>
         <a
           href="#app"
           onClick={(e) => handleNavClick(e, 'app')}
           className="block text-lg font-semibold text-slate-700 dark:text-slate-300 hover:text-brand text-left"
         >
-          Nuestra App
+          {t('landing.nav.app')}
         </a>
         <a
           href="#historias"
           onClick={(e) => handleNavClick(e, 'historias')}
           className="block text-lg font-semibold text-slate-700 dark:text-slate-300 hover:text-brand text-left"
         >
-          Historias
+          {t('landing.nav.stories')}
         </a>
+        {/* Selector de Idioma (Mobile) */}
+        <div className="flex items-center justify-between py-2">
+          <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+            {t('landing.header.language')}
+          </span>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => {
+                setLocale('es');
+                setIsMobileMenuOpen(false);
+              }}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 border
+                ${locale === 'es'
+                  ? 'bg-brand/10 border-brand/35 text-brand dark:bg-brand/20 dark:text-brand-light'
+                  : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
+            >
+              <span>🇪🇸</span> Español
+            </button>
+            <button
+              onClick={() => {
+                setLocale('en');
+                setIsMobileMenuOpen(false);
+              }}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 border
+                ${locale === 'en'
+                  ? 'bg-brand/10 border-brand/35 text-brand dark:bg-brand/20 dark:text-brand-light'
+                  : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
+            >
+              <span>🇬🇧</span> English
+            </button>
+          </div>
+        </div>
+
         <hr className="border-slate-100 dark:border-slate-800" />
         <Button
           variant="solid"
@@ -178,7 +227,7 @@ export function LandingHeader({ onRegister, scrolled = false }: LandingHeaderPro
           }}
           className="w-full px-5 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-sm shadow-brand/20 transition-[background-color] duration-150 flex justify-center"
         >
-          Adoptar Ahora
+          {t('landing.header.cta')}
         </Button>
       </div>
     </header>

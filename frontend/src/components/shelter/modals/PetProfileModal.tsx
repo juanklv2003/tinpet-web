@@ -17,6 +17,7 @@ interface PetProfileModalProps {
   onDelete: (id: string) => void;
   onUpdate: (updated: Pet) => void;
   employees: ShelterEmployee[];
+  showEmployeeField?: boolean;
 }
 
 const MAX_PHOTOS = 10;
@@ -40,6 +41,7 @@ export function PetProfileModal({
   onDelete,
   onUpdate,
   employees,
+  showEmployeeField = false,
 }: PetProfileModalProps) {
   const t = useTranslation();
   const ANIMATION_MS = 280;
@@ -494,24 +496,26 @@ export function PetProfileModal({
                   }
                 />
               </div>
-              <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  {t('pets.modal.detail.employeeInCharge')}
-                </label>
-                <StyledSelect
-                  value={form.inChargeEmployeeId}
-                  onChange={(value) =>
-                    setForm(prev => ({ ...prev, inChargeEmployeeId: value as string }))
-                  }
-                  options={[
-                    { value: '', label: t('pets.modal.detail.none') },
-                    ...employees.map(emp => ({
-                      value: emp.id,
-                      label: emp.name + (emp.role ? ` (${emp.role})` : ''),
-                    })),
-                  ]}
-                />
-              </div>
+              {showEmployeeField && (
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                    {t('pets.modal.detail.employeeInCharge')}
+                  </label>
+                  <StyledSelect
+                    value={form.inChargeEmployeeId}
+                    onChange={(value) =>
+                      setForm(prev => ({ ...prev, inChargeEmployeeId: value as string }))
+                    }
+                    options={[
+                      { value: '', label: t('pets.modal.detail.none') },
+                      ...employees.map(emp => ({
+                        value: emp.id,
+                        label: emp.name + (emp.role ? ` (${emp.role})` : ''),
+                      })),
+                    ]}
+                  />
+                </div>
+              )}
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                   {t('pets.modal.add.description')}
@@ -533,10 +537,12 @@ export function PetProfileModal({
               <Row label={t('pets.modal.add.species')} value={form.species ?? null} />
               <Row label={t('pets.modal.add.breed')} value={form.breed || null} />
               <Row label={t('pets.modal.add.birthDateLabel')} value={fmtDate(form.birthDate)} />
-              <Row
-                label={t('pets.modal.detail.employeeInCharge')}
-                value={employees.find(e => e.id === form.inChargeEmployeeId)?.name || t('pets.modal.detail.none')}
-              />
+              {showEmployeeField && (
+                <Row
+                  label={t('pets.modal.detail.employeeInCharge')}
+                  value={employees.find(e => e.id === form.inChargeEmployeeId)?.name || t('pets.modal.detail.none')}
+                />
+              )}
               {form.description && (
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
                   <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
@@ -734,10 +740,12 @@ export function PetProfileModal({
               }
               placeholder={form.status !== 'adopted' ? '---' : undefined}
             />
-            <Row
-              label={t('pets.modal.detail.employeeInCharge')}
-              value={employees.find(e => e.id === ai.inChargeEmployeeId)?.name || t('pets.modal.detail.none')}
-            />
+            {showEmployeeField && (
+              <Row
+                label={t('pets.modal.detail.employeeInCharge')}
+                value={employees.find(e => e.id === ai.inChargeEmployeeId)?.name || t('pets.modal.detail.none')}
+              />
+            )}
           </div>
 
           <button

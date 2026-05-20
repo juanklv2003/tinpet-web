@@ -53,6 +53,9 @@ export interface ShelterProfileForm {
   tiktok: string;
   facebook: string;
   youtube: string;
+  rescuedPets?: string;
+  adoptedPets?: string;
+  activeVolunteers?: string;
 }
 
 export type ActiveView = 'pets' | 'monitoring' | 'matches' | 'employees' | 'chat' | 'profile' | 'reviews' | 'settings';

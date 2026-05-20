@@ -6,6 +6,8 @@ import { API_BASE_URL, apiFetch } from '../../../services/api';
 import type { AuthUser, Pet } from '../../../types';
 import type { AddPetForm } from '../../shelter/types';
 import type { VetActiveView, VetProfileForm } from '../types';
+import { useToast } from '../../dashboard/ToastProvider';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface UseVetDashboardLogicResult {
   activeView: VetActiveView;
@@ -62,6 +64,8 @@ interface UseVetDashboardLogicResult {
 
 export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogicResult {
   const [activeView, setActiveView] = useState<VetActiveView>('pets');
+  const { showToast, updateToast } = useToast();
+  const t = useTranslation();
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -264,12 +268,16 @@ export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogi
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setProfileError('El archivo debe ser una imagen.');
+      const errMsg = 'El archivo debe ser una imagen.';
+      setProfileError(errMsg);
+      showToast(errMsg, 'error');
       return;
     }
 
     if (file.size > 4 * 1024 * 1024) {
-      setProfileError('La imagen es demasiado grande. Usa una de menos de 4MB.');
+      const errMsg = 'La imagen es demasiado grande. Usa una de menos de 4MB.';
+      setProfileError(errMsg);
+      showToast(errMsg, 'error');
       return;
     }
 
@@ -286,12 +294,15 @@ export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogi
   };
 
   const handleCropConfirm = async (croppedBlob: Blob) => {
+    let toastId = 0;
     try {
+      toastId = showToast(t('profile.toast.updatingPhoto'), 'loading');
       setProfileSaveMsg('Subiendo foto...');
       const cloudinaryUrl = await uploadImageBlob(croppedBlob);
       updateProfileField('avatarUrl', cloudinaryUrl);
       setCropImageSrc(null);
       setProfileSaveMsg('Foto subida. Pulsa "Guardar cambios" para confirmar.');
+      updateToast(toastId, t('profile.common.successToast'), 'success');
     } catch (error) {
       const message =
         error instanceof Error && error.message
@@ -300,6 +311,11 @@ export function useVetDashboardLogic(user: AuthUser | null): UseVetDashboardLogi
       setProfileError(message);
       setProfileSaveMsg(null);
       setCropImageSrc(null);
+      if (toastId) {
+        updateToast(toastId, message, 'error');
+      } else {
+        showToast(message, 'error');
+      }
     }
   };
 

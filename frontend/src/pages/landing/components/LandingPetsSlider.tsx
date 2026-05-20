@@ -1,3 +1,5 @@
+import { useTranslation } from '../../../i18n/useTranslation';
+
 const petsData = [
   { id: 1, name: "Coco", age: "1 año", gender: "Macho", size: "Mediano", img: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=500", badge: "Juguetón" },
   { id: 2, name: "Luna", age: "2 años", gender: "Hembra", size: "Pequeño", img: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=500", badge: "Tranquila" },
@@ -11,15 +13,16 @@ const petsData = [
 const repeatedPets = [...petsData, ...petsData, ...petsData, ...petsData, ...petsData];
 
 export function LandingPetsSlider() {
+  const t = useTranslation();
   return (
     <section id="buscar" className="scroll-mt-24 py-16 overflow-hidden w-full relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
         <div className="text-center max-w-2xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white mb-4 transition-colors duration-300">
-            ¿Quién será tu próximo compañero de siestas?
+            {t('landing.slider.title')}
           </h2>
           <p className="text-gray-600 dark:text-gray-400 transition-colors duration-300">
-            Observa a nuestros peluditos pasar. ¿Sientes que hubo conexión? Búscalo en nuestra App.
+            {t('landing.slider.description')}
           </p>
         </div>
       </div>

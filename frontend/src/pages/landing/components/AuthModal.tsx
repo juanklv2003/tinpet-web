@@ -6,6 +6,7 @@ import { useRegister } from '../../../hooks/useRegister';
 import { StyledSelect } from '../../../components/styled-select';
 import type { UserRole } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 type AuthMode = 'login' | 'register';
 
@@ -17,6 +18,7 @@ interface AuthModalProps {
 export function AuthModal({ initialMode, onClose }: AuthModalProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const t = useTranslation();
   const [mode, setMode] = useState<AuthMode>(initialMode);
 
   // Login state
@@ -119,10 +121,10 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
             <PawPrint className="h-6 w-6 fill-current" />
           </div>
           <h3 className="text-2.5xl font-black text-slate-900 dark:text-white leading-tight">
-            {mode === 'login' ? 'Bienvenido de nuevo' : 'Crea tu cuenta'}
+            {mode === 'login' ? t('landing.auth.welcome') : t('landing.auth.registerTab')}
           </h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5">
-            {mode === 'login' ? 'Ingresa para continuar con tu adopción' : 'Únete a la familia Tinpet'}
+            {t('landing.auth.subtitle')}
           </p>
         </div>
 
@@ -140,7 +142,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
                   : 'text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300'
               }`}
             >
-              {m === 'login' ? 'Iniciar sesión' : 'Registrarse'}
+              {m === 'login' ? t('landing.auth.loginTab') : t('landing.auth.registerTab')}
             </button>
           ))}
         </div>
@@ -150,7 +152,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
           <form id="login-form" onSubmit={handleLoginSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 text-left">
-                Email
+                {t('landing.auth.email')}
               </label>
               <input
                 type="email"
@@ -164,7 +166,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 text-left">
-                Contraseña
+                {t('landing.auth.password')}
               </label>
               <div className="relative">
                 <input
@@ -199,7 +201,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
               disabled={loginLoading}
               className="w-full mt-4 px-5 py-3 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-bold shadow-sm shadow-brand/20 transition-[background-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
             >
-              {loginLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+              {loginLoading ? '...' : t('landing.auth.loginBtn')}
             </button>
           </form>
         )}
@@ -209,7 +211,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
           <form id="register-form" onSubmit={handleRegisterSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 text-left">
-                Nombre
+                {t('landing.auth.name')}
               </label>
               <input
                 type="text"
@@ -223,7 +225,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 text-left">
-                Email
+                {t('landing.auth.email')}
               </label>
               <input
                 type="email"
@@ -237,7 +239,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 text-left">
-                Contraseña
+                {t('landing.auth.password')}
               </label>
               <div className="relative">
                 <input
@@ -286,7 +288,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
               disabled={regLoading}
               className="w-full mt-4 px-5 py-3 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-bold shadow-sm shadow-brand/20 transition-[background-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
             >
-              {regLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
+              {regLoading ? '...' : t('landing.auth.registerBtn')}
             </button>
           </form>
         )}
@@ -298,7 +300,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
             onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
             className="font-bold text-brand hover:text-brand-dark focus:outline-none transition-colors"
           >
-            {mode === 'login' ? 'Regístrate' : 'Inicia Sesión'}
+            {mode === 'login' ? t('landing.auth.registerTab') : t('landing.auth.loginTab')}
           </button>
         </div>
       </div>

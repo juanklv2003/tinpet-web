@@ -1,6 +1,8 @@
 import { PawPrint, Facebook, Instagram, Twitter, MapPin, Phone, Mail } from 'lucide-react';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 export function LandingFooter() {
+  const t = useTranslation();
   const handleScrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
     e.preventDefault();
     const element = document.getElementById(sectionId);
@@ -51,7 +53,7 @@ export function LandingFooter() {
               </span>
             </a>
             <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-sm leading-relaxed">
-              Conectando corazones con patitas mediante tecnología. Rescatamos, sanamos y reubicamos animales en toda la región.
+              {t('landing.footer.description')}
             </p>
             <div className="flex space-x-4">
               <a
@@ -80,7 +82,7 @@ export function LandingFooter() {
 
           {/* Columna Explora */}
           <div className="text-left">
-            <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Explora</h4>
+            <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-6">{t('landing.footer.quickLinks')}</h4>
             <ul className="space-y-4 text-slate-600 dark:text-slate-400 font-medium">
               <li>
                 <a
@@ -88,7 +90,7 @@ export function LandingFooter() {
                   onClick={(e) => handleScrollToSection(e, 'hero')}
                   className="hover:text-brand transition-colors duration-200"
                 >
-                  Inicio
+                  {t('landing.nav.home')}
                 </a>
               </li>
               <li>
@@ -97,7 +99,7 @@ export function LandingFooter() {
                   onClick={(e) => handleScrollToSection(e, 'buscar')}
                   className="hover:text-brand transition-colors duration-200"
                 >
-                  Mascotas
+                  {t('landing.nav.pets')}
                 </a>
               </li>
               <li>
@@ -106,7 +108,7 @@ export function LandingFooter() {
                   onClick={(e) => handleScrollToSection(e, 'app')}
                   className="hover:text-brand transition-colors duration-200"
                 >
-                  App Móvil
+                  {t('landing.nav.app')}
                 </a>
               </li>
               <li>
@@ -115,7 +117,7 @@ export function LandingFooter() {
                   onClick={(e) => handleScrollToSection(e, 'historias')}
                   className="hover:text-brand transition-colors duration-200"
                 >
-                  Historias
+                  {t('landing.nav.stories')}
                 </a>
               </li>
             </ul>
@@ -123,7 +125,7 @@ export function LandingFooter() {
 
           {/* Columna Contacto Directo */}
           <div className="text-left">
-            <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Contacto Directo</h4>
+            <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-6">{t('landing.footer.contact')}</h4>
             <p className="text-slate-600 dark:text-slate-400 leading-relaxed mb-4 flex items-center">
               <MapPin className="text-brand w-5 h-5 mr-2 shrink-0" />
               <span>Calle de los Peluditos, 123.</span>
@@ -143,7 +145,7 @@ export function LandingFooter() {
 
         {/* Barra inferior */}
         <div className="pt-8 flex flex-col sm:flex-row justify-between items-center text-sm text-slate-500 dark:text-slate-500 gap-4">
-          <p>&copy; {new Date().getFullYear()} Tinpet. Encontrando hogares felices.</p>
+          <p>&copy; {new Date().getFullYear()} Tinpet. {t('landing.footer.rights')}</p>
           <div className="flex space-x-6">
             <a href="#" className="hover:text-brand transition-colors duration-200">
               Privacidad

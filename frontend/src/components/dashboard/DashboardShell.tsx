@@ -9,10 +9,12 @@ interface DashboardShellProps {
   onLogout: () => void;
   userName?: string;
   userRole?: string;
+  userAvatarUrl?: string;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   unreadMessages?: number;
   unreadMatches?: number;
+  showEmployees?: boolean;
   children: React.ReactNode;
 }
 
@@ -27,10 +29,12 @@ export function DashboardShell({
   onLogout,
   userName,
   userRole,
+  userAvatarUrl,
   sidebarOpen,
   setSidebarOpen,
   unreadMessages,
   unreadMatches,
+  showEmployees,
   children,
 }: DashboardShellProps) {
   return (
@@ -46,10 +50,12 @@ export function DashboardShell({
           onLogout={onLogout}
           userName={userName}
           userRole={userRole}
+          userAvatarUrl={userAvatarUrl}
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           unreadMessages={unreadMessages}
           unreadMatches={unreadMatches}
+          showEmployees={showEmployees}
         />
 
         {/* Main content area */}

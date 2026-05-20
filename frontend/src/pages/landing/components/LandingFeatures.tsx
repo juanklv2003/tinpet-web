@@ -1,39 +1,42 @@
 import { MessageSquare, Search, ShieldCheck, Users, ClipboardList, BarChart2 } from 'lucide-react';
-
-const features = [
-  {
-    icon: Search,
-    title: 'Búsqueda Inteligente',
-    description: 'Encuentra a tu compañero ideal mediante filtros avanzados de especie, edad y carácter.',
-  },
-  {
-    icon: MessageSquare,
-    title: 'Chat en Tiempo Real',
-    description: 'Comunícate directamente con los refugios para resolver dudas de forma rápida.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Adopción Segura',
-    description: 'Plataforma verificada para garantizar el bienestar animal y la seguridad de las familias.',
-  },
-  {
-    icon: Users,
-    title: 'Red de Refugios',
-    description: 'Conecta con cientos de protectoras y veterinarias en una sola aplicación centralizada.',
-  },
-  {
-    icon: ClipboardList,
-    title: 'Seguimiento Completo',
-    description: 'Gestiona solicitudes, documentos y el estado de cada proceso desde un único panel.',
-  },
-  {
-    icon: BarChart2,
-    title: 'Panel Multi-rol',
-    description: 'Vistas específicas para refugios, adoptantes, veterinarios y administradores.',
-  },
-];
+import { useTranslation } from '../../../i18n/useTranslation';
 
 export function LandingFeatures() {
+  const t = useTranslation();
+
+  const features = [
+    {
+      icon: Search,
+      title: t('landing.features.searchTitle'),
+      description: t('landing.features.searchDesc'),
+    },
+    {
+      icon: MessageSquare,
+      title: t('landing.features.chatTitle'),
+      description: t('landing.features.chatDesc'),
+    },
+    {
+      icon: ShieldCheck,
+      title: t('landing.features.securityTitle'),
+      description: t('landing.features.securityDesc'),
+    },
+    {
+      icon: Users,
+      title: t('landing.features.networkTitle'),
+      description: t('landing.features.networkDesc'),
+    },
+    {
+      icon: ClipboardList,
+      title: t('landing.features.trackingTitle'),
+      description: t('landing.features.trackingDesc'),
+    },
+    {
+      icon: BarChart2,
+      title: t('landing.features.rolesTitle'),
+      description: t('landing.features.rolesDesc'),
+    },
+  ];
+
   return (
     <div className="mx-auto max-w-7xl">
       <div className="mb-12 text-center">
@@ -41,10 +44,10 @@ export function LandingFeatures() {
           className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white"
           style={{ textWrap: 'balance' } as React.CSSProperties}
         >
-          Todo lo que necesitas
+          {t('landing.features.title')}
         </h2>
         <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
-          Herramientas profesionales para facilitar las adopciones.
+          {t('landing.features.subtitle')}
         </p>
       </div>
 

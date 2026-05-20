@@ -9,6 +9,7 @@ import {
   Building,
   X,
   List,
+  Users,
 } from '@phosphor-icons/react';
 import { useTranslation } from '../../i18n/useTranslation';
 import tinpetLogo from '../../assets/tinpetLogo (2).ico';
@@ -36,10 +37,12 @@ interface SidebarProps {
   onLogout: () => void;
   userName?: string;
   userRole?: string;
+  userAvatarUrl?: string;
   isOpen: boolean;
   onClose: () => void;
   unreadMessages?: number;
   unreadMatches?: number;
+  showEmployees?: boolean;
 }
 
 export function Sidebar({
@@ -48,10 +51,12 @@ export function Sidebar({
   onLogout,
   userName,
   userRole,
+  userAvatarUrl,
   isOpen,
   onClose,
   unreadMessages = 0,
   unreadMatches = 0,
+  showEmployees = false,
 }: SidebarProps) {
   const t = useTranslation();
 
@@ -59,6 +64,7 @@ export function Sidebar({
     { view: 'pets', icon: <SquaresFour size={20} />, labelKey: 'nav.pets' },
     { view: 'monitoring', icon: <ChartLineUp size={20} />, labelKey: 'nav.monitoring' },
     { view: 'matches', icon: <Heart size={20} />, labelKey: 'nav.requests', badge: unreadMatches },
+    ...(showEmployees ? [{ view: 'employees' as DashboardView, icon: <Users size={20} />, labelKey: 'nav.employees' }] : []),
     { view: 'chat', icon: <ChatCircle size={20} />, labelKey: 'nav.chat', badge: unreadMessages },
   ];
 
@@ -162,8 +168,12 @@ export function Sidebar({
         <div className="px-8 py-6 border-t border-ink-light/10 dark:border-slate-800">
           {userName && (
             <div className="mb-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-brand-100 dark:bg-brand-500/20 flex items-center justify-center text-brand-500 font-bold text-sm">
-                {userName.charAt(0).toUpperCase()}
+              <div className="w-9 h-9 rounded-full bg-brand-100 dark:bg-brand-500/20 flex items-center justify-center text-brand-500 font-bold text-sm shrink-0 overflow-hidden border border-brand-200/60 dark:border-brand-500/20">
+                {userAvatarUrl ? (
+                  <img src={userAvatarUrl} alt={userName} className="w-full h-full object-cover" />
+                ) : (
+                  userName.charAt(0).toUpperCase()
+                )}
               </div>
               <div>
                 <p className="text-sm font-bold text-ink-dark dark:text-white truncate max-w-[160px]">{userName}</p>

@@ -76,6 +76,9 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
     saveProfile,
     handleAddPet,
     handleDeletePet,
+    cropImageSrc,
+    handleCropCancel,
+    handleCropConfirm,
     stats,
     statsLoading,
     statsError,
@@ -148,6 +151,7 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
       onLogout={handleLogout}
       userName={user?.name}
       userRole={userRole}
+      userAvatarUrl={profileForm.avatarUrl}
       sidebarOpen={sidebarOpen}
       setSidebarOpen={setSidebarOpen}
       unreadMessages={unreadMessagesCount}
@@ -203,6 +207,9 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
           onUpdateField={updateProfileField}
           onPhotoSelect={handleProfilePhotoSelect}
           onSave={saveProfile}
+          cropImageSrc={cropImageSrc}
+          onCropCancel={handleCropCancel}
+          onCropConfirm={handleCropConfirm}
         />
       )}
       {activeView === 'reviews' && <ReviewsView />}
@@ -227,6 +234,7 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
             setPets(prev => prev.map(p => (p.id === updated.id ? updated : p)));
           }}
           employees={employees}
+          showEmployeeField={false}
         />
       )}
     </DashboardShell>

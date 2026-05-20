@@ -5,6 +5,8 @@ import { useShelterStats } from '../../../hooks/useShelterStats';
 import { API_BASE_URL, apiFetch } from '../../../services/api';
 import type { AuthUser, Pet } from '../../../types';
 import type { ActiveView, AddPetForm, ShelterProfileForm } from '../types';
+import { useToast } from '../../dashboard/ToastProvider';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface UseShelterDashboardLogicResult {
   activeView: ActiveView;
@@ -25,7 +27,10 @@ interface UseShelterDashboardLogicResult {
   profileError: string | null;
   fetchMyPets: () => Promise<void>;
   updateProfileField: (field: keyof ShelterProfileForm, value: string) => void;
-  handleProfilePhotoSelect: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  handleProfilePhotoSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleCropCancel: () => void;
+  handleCropConfirm: (croppedBlob: Blob) => Promise<void>;
+  cropImageSrc: string | null;
   saveProfile: () => Promise<void>;
   handleAddPet: (form: AddPetForm) => Promise<void>;
   handleDeletePet: (petId: string) => Promise<void>;
@@ -64,6 +69,9 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
   const activeView = (externalActiveView as ActiveView) || internalActiveView;
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const { showToast, updateToast } = useToast();
+  const t = useTranslation();
+
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,19 +93,23 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
     tiktok: '',
     facebook: '',
     youtube: '',
+    rescuedPets: '',
+    adoptedPets: '',
+    activeVolunteers: '',
   });
   const [profileDirty, setProfileDirty] = useState(false);
   const [profileSaveMsg, setProfileSaveMsg] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
 
-  const uploadProfileImage = async (file: File): Promise<string> => {
+  const uploadProfileImage = async (file: Blob): Promise<string> => {
     const token = localStorage.getItem('token');
     if (!token) {
       throw new Error('No hay sesión activa para subir la imagen.');
     }
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', file, 'profile.jpg');
 
     const response = await fetch(`${API_BASE_URL}/api/upload`, {
       method: 'POST',
@@ -196,6 +208,9 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
       tiktok: '',
       facebook: '',
       youtube: '',
+      rescuedPets: '',
+      adoptedPets: '',
+      activeVolunteers: '',
     };
 
     const loadProfile = async () => {
@@ -217,6 +232,9 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
             tiktok: parsed.tiktok ?? '',
             facebook: parsed.facebook ?? '',
             youtube: parsed.youtube ?? '',
+            rescuedPets: parsed.rescuedPets ?? '',
+            adoptedPets: parsed.adoptedPets ?? '',
+            activeVolunteers: parsed.activeVolunteers ?? '',
           });
         } else {
           setProfileForm(fallback);
@@ -237,14 +255,17 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
             website: data.website ?? '',
             description: data.description ?? '',
             avatarUrl: data.avatar_url ?? '',
-            // Keep social links from local cache since backend doesn't store them
+            // Keep social links and stats from local cache since backend doesn't store them
             googleMaps: fallback.googleMaps,
             instagram: fallback.instagram,
             tiktok: fallback.tiktok,
             facebook: fallback.facebook,
             youtube: fallback.youtube,
+            rescuedPets: fallback.rescuedPets,
+            adoptedPets: fallback.adoptedPets,
+            activeVolunteers: fallback.activeVolunteers,
           };
-          // Merge local cache social links if they exist
+          // Merge local cache social links and stats if they exist
           try {
             const raw = localStorage.getItem(profileStorageKey);
             if (raw) {
@@ -254,6 +275,9 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
               backendProfile.tiktok = parsed.tiktok ?? '';
               backendProfile.facebook = parsed.facebook ?? '';
               backendProfile.youtube = parsed.youtube ?? '';
+              backendProfile.rescuedPets = parsed.rescuedPets ?? '';
+              backendProfile.adoptedPets = parsed.adoptedPets ?? '';
+              backendProfile.activeVolunteers = parsed.activeVolunteers ?? '';
             }
           } catch {}
 
@@ -279,25 +303,46 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
     setProfileError(null);
   };
 
-  const handleProfilePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setProfileError('El archivo debe ser una imagen.');
+      const errMsg = 'El archivo debe ser una imagen.';
+      setProfileError(errMsg);
+      showToast(errMsg, 'error');
       return;
     }
 
     if (file.size > 4 * 1024 * 1024) {
-      setProfileError('La imagen es demasiado grande. Usa una de menos de 4MB.');
+      const errMsg = 'La imagen es demasiado grande. Usa una de menos de 4MB.';
+      setProfileError(errMsg);
+      showToast(errMsg, 'error');
       return;
     }
 
+    // Open crop modal instead of uploading directly
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropImageSrc(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCropCancel = () => {
+    setCropImageSrc(null);
+  };
+
+  const handleCropConfirm = async (croppedBlob: Blob) => {
+    let toastId = 0;
     try {
+      toastId = showToast(t('profile.toast.updatingPhoto'), 'loading');
       setProfileSaveMsg('Subiendo foto...');
-      const cloudinaryUrl = await uploadProfileImage(file);
+      const cloudinaryUrl = await uploadProfileImage(croppedBlob);
       updateProfileField('avatarUrl', cloudinaryUrl);
+      setCropImageSrc(null);
       setProfileSaveMsg('Foto subida. Pulsa "Guardar cambios" para confirmar.');
+      updateToast(toastId, t('profile.common.successToast'), 'success');
     } catch (error) {
       const message =
         error instanceof Error && error.message
@@ -305,6 +350,12 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
           : 'No se pudo subir la foto de perfil.';
       setProfileError(message);
       setProfileSaveMsg(null);
+      setCropImageSrc(null);
+      if (toastId) {
+        updateToast(toastId, message, 'error');
+      } else {
+        showToast(message, 'error');
+      }
     }
   };
 
@@ -324,7 +375,10 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
           phone: profileForm.phone,
           description: profileForm.description,
           website: profileForm.website,
-          avatar_url: profileForm.avatarUrl
+          avatar_url: profileForm.avatarUrl,
+          rescued_pets: profileForm.rescuedPets,
+          adopted_pets: profileForm.adoptedPets,
+          active_volunteers: profileForm.activeVolunteers
         }),
       });
 
@@ -393,6 +447,9 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
     fetchMyPets,
     updateProfileField,
     handleProfilePhotoSelect,
+    handleCropCancel,
+    handleCropConfirm,
+    cropImageSrc,
     saveProfile,
     handleAddPet,
     handleDeletePet,

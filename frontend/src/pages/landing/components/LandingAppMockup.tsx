@@ -1,17 +1,19 @@
 import { Heart, MessageSquare, User, Star, X, PawPrint, Download } from 'lucide-react';
 import tinpetLogo from '../../../assets/tinpetLogo (2).ico';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 export function LandingAppMockup() {
+  const t = useTranslation();
   return (
     <section id="app" className="scroll-mt-24 py-20 w-full relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center gap-16">
         
         {/* Texto Explicativo */}
         <div className="flex-1 text-center md:text-left order-2 md:order-1">
-          <span className="text-brand font-bold uppercase tracking-widest text-sm block mb-2">Nueva Experiencia</span>
-          <h2 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white mb-6">La adopción literal en la palma de tu mano</h2>
+          <span className="text-brand font-bold uppercase tracking-widest text-sm block mb-2">{t('landing.app.tag')}</span>
+          <h2 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white mb-6">{t('landing.app.title')}</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-8 leading-relaxed text-lg">
-            Descarga nuestra app oficial. Explora perfiles deslizando a la derecha si sientes una conexión, o chatea en tiempo real directamente con los refugios y veterinarias locales.
+            {t('landing.app.description')}
           </p>
           
           <ul className="space-y-6 mb-10 text-left max-w-md mx-auto md:mx-0">
@@ -41,7 +43,7 @@ export function LandingAppMockup() {
               className="px-5 py-3 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-semibold shadow-md shadow-gray-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
             >
               <Download className="h-5 w-5" />
-              <span>Descargar APK</span>
+              <span>{t('landing.app.download')}</span>
             </button>
           </div>
         </div>

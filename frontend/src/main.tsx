@@ -10,14 +10,16 @@ import AdopterDashboard from './components/adopter/AdopterDashboard'
 import AdminDashboard from './components/admin/AdminDashboard'
 import { AuthProvider } from './context/AuthContext.tsx'
 import { I18nProvider } from './i18n/I18nContext.tsx'
+import { ThemeProvider } from './context/ThemeContext.tsx'
 import { FloatingAssistant } from './components/assistant/FloatingAssistant'
 import { RequireAuth } from './components/RequireAuth'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <I18nProvider>
-      <AuthProvider>
-        <BrowserRouter>
+    <ThemeProvider>
+      <I18nProvider>
+        <AuthProvider>
+          <BrowserRouter>
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route
@@ -176,8 +178,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/auth" element={<Navigate to="/" replace />} />
           </Routes>
           <FloatingAssistant />
-        </BrowserRouter>
-      </AuthProvider>
-    </I18nProvider>
+          </BrowserRouter>
+        </AuthProvider>
+      </I18nProvider>
+    </ThemeProvider>
   </React.StrictMode>,
 )

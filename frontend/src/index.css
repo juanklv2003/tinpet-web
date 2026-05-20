@@ -94,6 +94,15 @@ html {
   100% { opacity: 1; transform: scale(1); }
 }
 
+@keyframes slide-in-right {
+  0%   { opacity: 0; transform: translateX(24px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 .dog-float { animation: float-dog 3.5s ease-in-out infinite; }
 .dog-shadow { animation: shadow-pulse 3.5s ease-in-out infinite; }
 

@@ -20,14 +20,14 @@ const locales = {
  * Resolves a dot-notation path in a nested object.
  * e.g. get("monitoring.title", messages) → "Monitorización"
  */
-function get(path: string, obj: Record<string, unknown>): string {
+function get(path: string, obj: Record<string, unknown>): string | undefined {
   const keys = path.split('.');
   let current: unknown = obj;
   for (const key of keys) {
-    if (current === null || typeof current !== 'object') return path;
+    if (current === null || typeof current !== 'object') return undefined;
     current = (current as Record<string, unknown>)[key];
   }
-  return typeof current === 'string' ? current : path;
+  return typeof current === 'string' ? current : undefined;
 }
 
 /**
@@ -53,8 +53,11 @@ export function useTranslation() {
   const { locale } = useI18n();
   const messages = locales[locale] as unknown as Record<string, unknown>;
 
-  function t(key: TranslationKey, params?: Record<string, string | number>): string {
+  function t(key: TranslationKey, params?: Record<string, string | number>): string;
+  function t(key: string, params?: Record<string, string | number>): string | undefined;
+  function t(key: string, params?: Record<string, string | number>): string | undefined {
     const raw = get(key, messages);
+    if (raw === undefined) return undefined;
     return interpolate(raw, params);
   }
 

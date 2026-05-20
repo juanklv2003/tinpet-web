@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UsersThree, X } from '@phosphor-icons/react';
+import { UsersThree, X, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { LoadingView } from '../../ui/LoadingView';
 import type { ShelterEmployee } from '../../../hooks/useShelterEmployees';
 import type { Pet } from '../../../types';
@@ -27,6 +27,8 @@ export function EmployeesView({
   const [submitting, setSubmitting] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<ShelterEmployee | null>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
   const ANIMATION_MS = 280;
 
   useEffect(() => {
@@ -66,6 +68,13 @@ export function EmployeesView({
     : [];
 
   const inputClass = "w-full bg-white dark:bg-slate-900 border border-ink-light/20 dark:border-slate-600 rounded-xl px-4 py-3 text-sm font-medium text-ink-dark dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all";
+
+  const totalPages = Math.max(1, Math.ceil(employees.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedEmployees = employees.slice(
+    (safeCurrentPage - 1) * ITEMS_PER_PAGE,
+    safeCurrentPage * ITEMS_PER_PAGE
+  );
 
   return (
     <section className="animate-bento-in relative">
@@ -171,7 +180,7 @@ export function EmployeesView({
                   </tr>
                 </thead>
                 <tbody>
-                  {employees.map(emp => (
+                  {paginatedEmployees.map(emp => (
                     <tr
                       key={emp.id}
                       onClick={() => setSelectedEmployee(emp)}
@@ -197,6 +206,31 @@ export function EmployeesView({
                   ))}
                 </tbody>
               </table>
+              {totalPages > 1 && (
+                <div className="px-8 py-5 border-t border-ink-light/10 dark:border-slate-700 flex items-center justify-between bg-surface dark:bg-slate-800">
+                  <span className="text-sm font-medium text-ink-medium dark:text-slate-400">
+                    Página {safeCurrentPage} de {totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={safeCurrentPage === 1}
+                      className="w-10 h-10 rounded-full flex items-center justify-center border border-ink-light/20 dark:border-slate-600 text-ink-medium dark:text-slate-300 hover:bg-brand-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <CaretLeft weight="bold" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={safeCurrentPage === totalPages}
+                      className="w-10 h-10 rounded-full flex items-center justify-center border border-ink-light/20 dark:border-slate-600 text-ink-medium dark:text-slate-300 hover:bg-brand-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <CaretRight weight="bold" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

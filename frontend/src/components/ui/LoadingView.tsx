@@ -3,10 +3,10 @@ interface LoadingViewProps {
   minHeight?: string;
 }
 
-export function LoadingView({ message = 'Cargando...', minHeight = '400px' }: LoadingViewProps) {
+export function LoadingView({ message = 'Cargando...', minHeight = '60vh' }: LoadingViewProps) {
   return (
     <div 
-      className="flex flex-col items-center justify-center w-full py-20"
+      className="flex flex-col items-center justify-center w-full flex-1"
       style={{ minHeight }}
     >
       <div className="relative">
