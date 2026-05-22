@@ -3,6 +3,7 @@ import { useShelterEmployees } from '../../../hooks/useShelterEmployees';
 import { useShelterMatches } from '../../../hooks/useShelterMatches';
 import { useShelterStats } from '../../../hooks/useShelterStats';
 import { API_BASE_URL, apiFetch } from '../../../services/api';
+import { chatService } from '../../../services/chatService';
 import type { AuthUser, Pet } from '../../../types';
 import type { ActiveView, AddPetForm, ShelterProfileForm } from '../types';
 import { useToast } from '../../dashboard/ToastProvider';
@@ -190,6 +191,28 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
       void fetchEmployees();
     }
   }, [user?.id, activeView, isAddModalOpen, fetchStats, fetchMatches, fetchEmployees]);
+
+  // Escuchar pet_status_updated para refrescar el pet con su ai_profile actualizado
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const handlePetStatusUpdated = async (data: { petId: string; status: string }) => {
+      try {
+        const updatedPet = await apiFetch<Pet>(`/api/pets/${data.petId}`);
+        setPets(prev => prev.map(p => p.id === data.petId ? updatedPet : p));
+        setSelectedPet(prev => prev?.id === data.petId ? updatedPet : prev);
+      } catch {
+        // Si el pet ya no existe (fue borrado), quitarlo del estado
+        setPets(prev => prev.filter(p => p.id !== data.petId));
+        setSelectedPet(prev => prev?.id === data.petId ? null : prev);
+      }
+    };
+
+    chatService.on('pet_status_updated', handlePetStatusUpdated);
+    return () => {
+      chatService.off('pet_status_updated', handlePetStatusUpdated);
+    };
+  }, [user?.id]);
 
   // Restore from localStorage and sync from backend on mount
   useEffect(() => {

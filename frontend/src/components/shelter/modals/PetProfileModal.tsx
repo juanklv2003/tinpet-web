@@ -131,7 +131,7 @@ export function PetProfileModal({
     });
     setEditMode(false);
     setErr(null);
-  }, [pet.id]);
+  }, [pet.id, pet.status]);
 
   const persistAi = async (updatedAi: Record<string, unknown>) => {
     const updated = await apiFetch<Pet>(`/api/pets/${pet.id}`, {

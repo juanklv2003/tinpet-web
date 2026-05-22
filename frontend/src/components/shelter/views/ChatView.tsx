@@ -366,6 +366,14 @@ export function ChatView({ token }: ChatViewProps) {
     if (!selectedConversation?.pet_id) return;
     setPetStatusUpdating(true);
     try {
+      const patchBody: Record<string, unknown> = { status: newStatus };
+
+      // Al marcar como adoptado, guardar fecha y nombre del adoptante
+      if (newStatus === "adopted") {
+        patchBody.adoptionDate = new Date().toISOString().split("T")[0];
+        patchBody.adopterName = selectedConversation.other_party.name ?? null;
+      }
+
       const res = await fetch(
         `${import.meta.env.VITE_API_URL || "http://192.168.5.103:3000"}/api/pets/${selectedConversation.pet_id}`,
         {
@@ -374,7 +382,7 @@ export function ChatView({ token }: ChatViewProps) {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ status: newStatus }),
+          body: JSON.stringify(patchBody),
         },
       );
       if (!res.ok) throw new Error("Error al actualizar estado");
@@ -1615,6 +1623,24 @@ export function ChatView({ token }: ChatViewProps) {
               </button>
             </div>
           </div>
+        )}
+
+        {/* Modal de Valoración */}
+        {showReviewModal && selectedConversation && (
+          <ReviewModal
+            matchId={selectedConversation.match_id ?? undefined}
+            targetId={selectedConversation.other_party.id}
+            targetRole={selectedConversation.other_party.type as "adopter" | "shelter" | "vet"}
+            targetName={selectedConversation.other_party.name}
+            onClose={() => setShowReviewModal(false)}
+            onSuccess={() => {
+              setShowReviewModal(false);
+              setSuccessModal({
+                isOpen: true,
+                message: `Valoración para ${selectedConversation.other_party.name} enviada exitosamente.`,
+              });
+            }}
+          />
         )}
       </div>
     </div>

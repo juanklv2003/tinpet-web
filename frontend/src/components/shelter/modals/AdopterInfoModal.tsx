@@ -1,8 +1,37 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Star } from '@phosphor-icons/react';
 import { IconX } from '../Icons';
 import type { MatchRequest } from '../../../hooks/useShelterMatches';
-import { API_BASE_URL } from '../../../services/api';
+import { apiFetch, API_BASE_URL } from '../../../services/api';
 import { useTranslation } from '../../../i18n/useTranslation';
+
+interface Review {
+  id: string;
+  reviewer_name: string;
+  reviewer_avatar: string | null;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+}
+
+interface ReviewsResponse {
+  reviews: Review[];
+  averageRating: number | null;
+  totalCount: number;
+}
+
+const Stars = ({ rating, size = 18 }: { rating: number; size?: number }) => (
+  <div className="flex gap-1">
+    {[1, 2, 3, 4, 5].map((s) => (
+      <Star
+        key={s}
+        size={size}
+        weight={s <= rating ? 'fill' : 'regular'}
+        className={s <= rating ? 'text-amber-400' : 'text-gray-300 dark:text-gray-600'}
+      />
+    ))}
+  </div>
+);
 
 interface AdopterInfoModalProps {
   match: MatchRequest;
@@ -85,10 +114,25 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
   const ANIMATION_MS = 280;
   const [isVisible, setIsVisible] = useState(false);
 
+  const [reviewsData, setReviewsData] = useState<ReviewsResponse | null>(null);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+
   useEffect(() => {
     const rafId = window.requestAnimationFrame(() => setIsVisible(true));
     return () => window.cancelAnimationFrame(rafId);
   }, []);
+
+  useEffect(() => {
+    if (adopter.id) {
+      setLoadingReviews(true);
+      apiFetch<ReviewsResponse>(`/api/reviews/${adopter.id}`)
+        .then(setReviewsData)
+        .catch(err => console.error("Error fetching reviews", err))
+        .finally(() => setLoadingReviews(false));
+    } else {
+      setLoadingReviews(false);
+    }
+  }, [adopter.id]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -102,6 +146,15 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
+
+  const calcDist = (reviews: Review[]) => {
+    const dist: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    reviews.forEach(r => { if (r.rating >= 1 && r.rating <= 5) dist[r.rating]++; });
+    return dist;
+  };
+
+  const { reviews = [], averageRating, totalCount } = reviewsData ?? {};
+  const distribution = calcDist(reviews);
 
   const handleClose = () => {
     setIsVisible(false);
@@ -328,7 +381,7 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
 
           {/* Hobbies */}
           {adopter.hobbies && adopter.hobbies.length > 0 && (
-            <div>
+            <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
                 {t('adopter.modal.interests')}
               </p>
@@ -344,6 +397,91 @@ export function AdopterInfoModal({ match, onClose }: AdopterInfoModalProps) {
               </div>
             </div>
           )}
+
+          {/* Wallapop style Reviews */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+              Valoraciones
+            </p>
+            {loadingReviews ? (
+              <div className="flex justify-center p-4">
+                <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : totalCount === 0 ? (
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-6 text-center">
+                <Star size={32} className="mx-auto text-gray-300 dark:text-gray-600 mb-2" />
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Este usuario aún no tiene valoraciones
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Resumen */}
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 flex flex-col md:flex-row gap-6 items-center">
+                  <div className="flex flex-col items-center shrink-0">
+                    <span className="font-bold text-4xl text-gray-900 dark:text-white">
+                      {averageRating?.toFixed(1) ?? '0.0'}
+                    </span>
+                    <div className="my-1.5">
+                      <Stars rating={Math.round(averageRating ?? 0)} size={18} />
+                    </div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                      {totalCount} {totalCount === 1 ? 'valoración' : 'valoraciones'}
+                    </span>
+                  </div>
+                  <div className="flex-1 w-full space-y-2">
+                    {[5, 4, 3, 2, 1].map(rating => {
+                      const count = distribution[rating] ?? 0;
+                      const pct = totalCount! > 0 ? (count / totalCount!) * 100 : 0;
+                      return (
+                        <div key={rating} className="flex items-center gap-2.5 text-xs font-medium">
+                          <span className="w-2.5 text-gray-500 dark:text-gray-400 text-right">{rating}</span>
+                          <Star size={12} weight="fill" className="text-amber-400 shrink-0" />
+                          <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="w-5 text-gray-400 dark:text-gray-500">{count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Lista */}
+                <div className="space-y-3">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-700/50">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 shrink-0">
+                            {review.reviewer_avatar ? (
+                              <img src={normalizeImageUrl(review.reviewer_avatar)!} alt={review.reviewer_name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold text-xs">
+                                {review.reviewer_name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-sm text-gray-900 dark:text-white">{review.reviewer_name}</h4>
+                            <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                              {new Date(review.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                        <Stars rating={review.rating} size={14} />
+                      </div>
+                      {review.comment && (
+                        <p className="text-gray-600 dark:text-gray-300 text-sm mt-2 ml-11">
+                          {review.comment}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

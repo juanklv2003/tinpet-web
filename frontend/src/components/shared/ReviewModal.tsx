@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Star, X } from '@phosphor-icons/react';
-import { apiFetch } from '../../../services/api';
+import { apiFetch } from '../../services/api';
 
 interface ReviewModalProps {
   matchId: string;
