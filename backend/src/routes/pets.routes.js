@@ -33,6 +33,19 @@ router.get('/mine', authenticate, async (req, res) => {
   }
 });
 
+// GET /api/pets/:id - obtener mascota por ID
+router.get('/:id', async (req, res) => {
+  try {
+    const pet = await prisma.pets.findUnique({ where: { id: req.params.id } });
+    if (!pet) return res.status(404).json({ error: 'Mascota no encontrada.' });
+    res.json(pet);
+  } catch (err) {
+    if (err.code === 'P2023') return res.status(400).json({ error: 'ID inválido.' });
+    console.error('[pets GET :id]', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+});
+
 // POST /api/pets  – añadir mascota (solo refugios)
 router.post('/', authenticate, async (req, res) => {
   if (req.user.role !== 'shelter') {
@@ -44,6 +57,8 @@ router.post('/', authenticate, async (req, res) => {
   try {
     const shelter = await prisma.shelters.findUnique({ where: { user_id: req.user.sub } });
     if (!shelter) return res.status(404).json({ error: 'Refugio no encontrado.' });
+
+    require('fs').appendFileSync('post_log.txt', new Date().toISOString() + ' req.body: ' + JSON.stringify(req.body) + '\n');
 
     const pet = await prisma.pets.create({
       data: { shelter_id: shelter.id, name, species, status, ai_profile },
@@ -68,6 +83,9 @@ router.patch('/:id', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Mascota no encontrada o sin permisos.' });
     }
 
+    console.log('[PATCH /pets/:id] req.body:', JSON.stringify(req.body, null, 2));
+    require('fs').appendFileSync('patch_log.txt', new Date().toISOString() + ' req.body: ' + JSON.stringify(req.body) + '\n');
+
     const updated = await prisma.pets.update({
       where: { id: req.params.id },
       data: req.body,
@@ -76,7 +94,8 @@ router.patch('/:id', authenticate, async (req, res) => {
     if (req.body.status && global.io) {
       global.io.emit('pet_status_updated', {
         petId: updated.id,
-        status: updated.status
+        status: updated.status,
+        pet: updated,
       });
 
       // If adopted, notify the adopter if they exist

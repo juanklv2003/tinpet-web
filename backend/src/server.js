@@ -600,6 +600,7 @@ app.post("/api/pets", authenticateToken, async (req, res) => {
       birth_date: ai_profile?.birthDate ? new Date(ai_profile.birthDate) : null,
       registration_date: new Date(),
       in_charge_employee_id: ai_profile?.inChargeEmployeeId || null,
+      ai_profile: ai_profile || {},
     };
 
     const newPet = await prisma.pets.create({ data: petData });
@@ -667,6 +668,8 @@ app.patch("/api/pets/:id", authenticateToken, async (req, res) => {
     // Se actualiza vía raw SQL después del update principal
 
     if (ai_profile) {
+      updateData.ai_profile = ai_profile;
+
       if (typeof ai_profile.breed === "string")
         updateData.breed = ai_profile.breed || null;
 
