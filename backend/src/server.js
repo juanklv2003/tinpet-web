@@ -251,6 +251,11 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 const app = express();
 
+// Root endpoint para verificar que el servidor está vivo
+app.get("/", (req, res) => {
+  res.send("TinPet API está funcionando correctamente 🚀");
+});
+
 // Middlewares básicos
 app.use(cors());
 app.use(express.json({ limit: MAX_JSON_PAYLOAD }));
@@ -647,6 +652,8 @@ app.patch("/api/pets/:id", authenticateToken, async (req, res) => {
       updateData.description = description.trim() || null;
     }
 
+    const existingPet = await prisma.pets.findUnique({ where: { id: req.params.id } });
+
     if (status) {
       updateData.status =
         status === "available"
@@ -655,6 +662,9 @@ app.patch("/api/pets/:id", authenticateToken, async (req, res) => {
             ? "adoptado"
             : "pendiente";
     }
+
+    // Marcar como adoptado: NO tocamos ai_profile aquí (Prisma client no lo conoce)
+    // Se actualiza vía raw SQL después del update principal
 
     if (ai_profile) {
       if (typeof ai_profile.breed === "string")
@@ -692,17 +702,41 @@ app.patch("/api/pets/:id", authenticateToken, async (req, res) => {
       data: updateData,
     });
 
-    // ── Emitir por Socket ──────────────────────────────────────────
+    // Si se marca como adoptado, persistir adoptionDate y adopterName en ai_profile
+    // usando raw SQL porque el cliente Prisma generado no incluye ese campo en sus tipos
+    let petToReturn = updatedPet;
+    if (updateData.status === "adoptado") {
+      const adoptionDate = req.body.adoptionDate || new Date().toISOString().split("T")[0];
+      const adopterName = req.body.adopterName || null;
+      const adoptionPatch = JSON.stringify({ adoptionDate, adopterName });
+      await prisma.$executeRaw`
+        UPDATE pets
+        SET ai_profile = COALESCE(ai_profile, '{}')::jsonb || ${adoptionPatch}::jsonb
+        WHERE id = ${req.params.id}::uuid
+      `;
+      // Refrescar el pet para que la respuesta incluya los datos actualizados
+      const refreshed = await prisma.pets.findUnique({
+        where: { id: req.params.id },
+        include: {
+          shelters: { include: { users: true } },
+          shelter_employees: true,
+          medical_records: { orderBy: { created_at: "desc" } },
+        },
+      });
+      if (refreshed) petToReturn = refreshed;
+    }
+
+    // Emitir evento de socket siempre que cambie el status
     if (global.io) {
       global.io.emit("pet_status_updated", {
-        petId: updatedPet.id,
-        status: updatedPet.status,
+        petId: petToReturn.id,
+        status: petToReturn.status,
       });
 
-      // Si se marca como adoptado y tiene un adoptante asignado, notificar
-      if (updatedPet.status === "adoptado" && updatedPet.adopter_id) {
+      // Si se marca como adoptado y tiene adoptante asignado, notificar por push
+      if (petToReturn.status === "adoptado" && petToReturn.adopter_id) {
         const adopter = await prisma.adopters.findUnique({
-          where: { id: updatedPet.adopter_id },
+          where: { id: petToReturn.adopter_id },
           include: { users: true },
         });
 
@@ -710,18 +744,18 @@ app.patch("/api/pets/:id", authenticateToken, async (req, res) => {
           void sendPushNotification(
             adopter.users.id,
             "¡Adopción completada! 🐾",
-            `La adopción de ${updatedPet.name} ha sido confirmada. ¡Valorá tu experiencia!`,
+            `La adopción de ${petToReturn.name} ha sido confirmada. ¡Valorá tu experiencia!`,
             {
               type: "adoption_completed",
-              petId: updatedPet.id,
-              petName: updatedPet.name,
+              petId: petToReturn.id,
+              petName: petToReturn.name,
             }
           );
         }
       }
     }
 
-    res.json(mapPetToFrontend(updatedPet));
+    res.json(mapPetToFrontend(petToReturn));
   } catch (error) {
     console.error("Error al actualizar mascota:", error);
     res.status(500).json({ error: "Error al actualizar mascota" });
@@ -3984,6 +4018,52 @@ app.post("/api/reviews", authenticateToken, async (req, res) => {
     res.status(201).json(review);
   } catch (err) { console.error("[POST /api/reviews]", err); res.status(500).json({ error: "Error al crear la valoración." }); }
 });
+
+// ── Job: borrar mascotas adoptadas hace más de 7 días ────────────────────────
+const ADOPTION_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // cada 24 horas
+const ADOPTION_EXPIRY_DAYS = 7;
+
+async function cleanupAdoptedPets() {
+  try {
+    console.log("[cleanup] Buscando mascotas adoptadas para borrar...");
+    // Usar raw SQL para acceder a ai_profile (el cliente Prisma generado no lo incluye en tipos)
+    const adoptedPets = await prisma.$queryRaw`
+      SELECT id, name, ai_profile
+      FROM pets
+      WHERE status = 'adoptado'
+    `;
+
+    const now = Date.now();
+    const expiryMs = ADOPTION_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+
+    const idsToDelete = adoptedPets
+      .filter((pet) => {
+        const profile =
+          typeof pet.ai_profile === "object" && pet.ai_profile !== null
+            ? pet.ai_profile
+            : {};
+        const adoptionDate = profile.adoptionDate;
+        if (!adoptionDate || typeof adoptionDate !== "string") return false;
+        const adoptedAt = new Date(adoptionDate).getTime();
+        return !isNaN(adoptedAt) && now - adoptedAt >= expiryMs;
+      })
+      .map((pet) => pet.id);
+
+    if (idsToDelete.length === 0) {
+      console.log("[cleanup] No hay mascotas para borrar.");
+      return;
+    }
+
+    await prisma.pets.deleteMany({ where: { id: { in: idsToDelete } } });
+    console.log(`[cleanup] Borradas ${idsToDelete.length} mascota(s) adoptadas con más de ${ADOPTION_EXPIRY_DAYS} días.`);
+  } catch (err) {
+    console.error("[cleanup] Error en el job de limpieza:", err);
+  }
+}
+
+// Ejecutar al arrancar el servidor (por si el server estuvo caído) y luego cada 24h
+cleanupAdoptedPets();
+setInterval(cleanupAdoptedPets, ADOPTION_CLEANUP_INTERVAL_MS);
 
 server.listen(PORT, () => {
   console.log(

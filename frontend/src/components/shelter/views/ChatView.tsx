@@ -1,7 +1,6 @@
 import { Archive, Ban, Building2, CheckCircle, ChevronLeft, MessageCircle, Stethoscope, UserRound } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { LoadingView } from "../../ui/LoadingView";
-import { PetStatusModal } from "./PetStatusModal";
 import { ReviewModal } from "../../shared/ReviewModal";
 import type { Conversation, Message } from "../../../services/chatService";
 import { chatService } from "../../../services/chatService";
@@ -1628,7 +1627,7 @@ export function ChatView({ token }: ChatViewProps) {
         {/* Modal de Valoración */}
         {showReviewModal && selectedConversation && (
           <ReviewModal
-            matchId={selectedConversation.match_id ?? undefined}
+            matchId={selectedConversation.match_id ?? ''}
             targetId={selectedConversation.other_party.id}
             targetRole={selectedConversation.other_party.type as "adopter" | "shelter" | "vet"}
             targetName={selectedConversation.other_party.name}

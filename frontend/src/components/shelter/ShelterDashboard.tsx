@@ -32,6 +32,7 @@ const VIEW_TO_PATH: Record<ShelterView, string> = {
   profile:     '/profile',
   reviews:     '/reviews',
   settings:    '/settings',
+  employees:   '/employees',
 };
 
 const PATH_TO_VIEW: Array<{ prefix: string; view: ShelterView }> = [
@@ -42,6 +43,7 @@ const PATH_TO_VIEW: Array<{ prefix: string; view: ShelterView }> = [
   { prefix: '/profile',    view: 'profile' },
   { prefix: '/reviews',    view: 'reviews' },
   { prefix: '/settings',   view: 'settings' },
+  { prefix: '/employees',  view: 'employees' },
 ];
 
 // ─── COMPONENTE PRINCIPAL ────────────────────────────────────────────────────
