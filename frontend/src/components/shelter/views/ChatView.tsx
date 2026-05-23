@@ -142,6 +142,7 @@ export function ChatView({ token }: ChatViewProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
+  const [hasReviewed, setHasReviewed] = useState<boolean>(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -304,11 +305,30 @@ export function ChatView({ token }: ChatViewProps) {
       chatService.joinConversation(selectedConversation.id);
       fetchMessages(selectedConversation.id);
 
+      // Check if already reviewed
+      if (selectedConversation.pet_status === 'adoptado' && selectedConversation.match_id) {
+        fetch(`${import.meta.env.VITE_API_URL || "http://192.168.5.103:3000"}/api/reviews/check/${selectedConversation.match_id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(res => res.json())
+          .then(data => {
+            setHasReviewed(data.hasReviewed || false);
+          })
+          .catch(err => {
+            console.error('Error checking review status:', err);
+            setHasReviewed(false);
+          });
+      } else {
+        setHasReviewed(false);
+      }
+
       return () => {
         chatService.leaveConversation(selectedConversation.id);
       };
+    } else {
+      setHasReviewed(false);
     }
-  }, [selectedConversation, fetchMessages]);
+  }, [selectedConversation, fetchMessages, token]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -869,9 +889,14 @@ export function ChatView({ token }: ChatViewProps) {
                 </div>
                 <button
                   onClick={() => setShowReviewModal(true)}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-colors shadow-sm"
+                  disabled={hasReviewed}
+                  className={`px-4 py-2 rounded-xl font-medium transition-colors shadow-sm ${
+                    hasReviewed 
+                      ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed' 
+                      : 'bg-green-600 hover:bg-green-700 text-white'
+                  }`}
                 >
-                  Valorar
+                  {hasReviewed ? 'Valorado' : 'Valorar'}
                 </button>
               </div>
             )}
@@ -1634,6 +1659,7 @@ export function ChatView({ token }: ChatViewProps) {
             onClose={() => setShowReviewModal(false)}
             onSuccess={() => {
               setShowReviewModal(false);
+              setHasReviewed(true);
               setSuccessModal({
                 isOpen: true,
                 message: `Valoración para ${selectedConversation.other_party.name} enviada exitosamente.`,

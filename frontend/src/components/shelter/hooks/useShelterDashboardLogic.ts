@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useShelterEmployees } from '../../../hooks/useShelterEmployees';
 import { useShelterMatches } from '../../../hooks/useShelterMatches';
 import { useShelterStats } from '../../../hooks/useShelterStats';
@@ -74,6 +74,11 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
   const t = useTranslation();
 
   const [pets, setPets] = useState<Pet[]>([]);
+  const petsRef = useRef(pets);
+  useEffect(() => {
+    petsRef.current = pets;
+  }, [pets]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -196,13 +201,19 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
   useEffect(() => {
     if (!user?.id) return;
 
-    const handlePetStatusUpdated = async (data: { petId: string; status: string }) => {
+    const handlePetStatusUpdated = async (data: { petId: string; status: string; pet?: Pet }) => {
       try {
-        const updatedPet = await apiFetch<Pet>(`/api/pets/${data.petId}`);
+        // ALWAYS ignore if status hasn't changed. This prevents any possible backend or socket bugs 
+        // from overwriting our local state when we just edited ai_profile (which doesn't change status).
+        const p = petsRef.current.find(x => x.id === data.petId);
+        if (p && p.status === data.status) {
+          return;
+        }
+
+        const updatedPet = data.pet ? data.pet : await apiFetch<Pet>(`/api/pets/${data.petId}`);
         setPets(prev => prev.map(p => p.id === data.petId ? updatedPet : p));
         setSelectedPet(prev => prev?.id === data.petId ? updatedPet : prev);
       } catch {
-        // Si el pet ya no existe (fue borrado), quitarlo del estado
         setPets(prev => prev.filter(p => p.id !== data.petId));
         setSelectedPet(prev => prev?.id === data.petId ? null : prev);
       }
@@ -419,6 +430,7 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
 
     const ai_profile: Record<string, unknown> = {};
     if (form.breed) ai_profile.breed = form.breed;
+    if (form.size) ai_profile.size = form.size;
     if (form.photoUrls.length > 0) {
       ai_profile.photoUrls = form.photoUrls;
       ai_profile.photoUrl = form.photoUrls[0];

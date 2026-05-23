@@ -81,6 +81,11 @@
       "adopted": "Adoptado",
       "pending": "Pendiente"
     },
+    "sizes": {
+      "large": "Grande",
+      "medium": "Mediano",
+      "small": "Pequeño"
+    },
     "empty": "No hay mascotas registradas aún.",
     "modal": {
       "add": {
@@ -93,6 +98,7 @@
         "status": "Estado",
         "species": "Especie",
         "breed": "Raza",
+        "size": "Tamaño",
         "dates": "Fechas Importantes",
         "birthDate": "Nacimiento",
         "intakeDate": "Alta",
@@ -164,7 +170,8 @@
     "new": "Nueva",
     "likedPet": "Le gustó {{petName}}",
     "acceptToast": "¡Match aceptado! Se ha abierto un chat.",
-    "rejectToast": "Solicitud rechazada."
+    "rejectToast": "Solicitud rechazada.",
+    "searchPlaceholder": "Buscar por nombre de usuario o mascota..."
   },
   "employees": {
     "title": "Empleados",
@@ -412,7 +419,13 @@
     "stats": {
       "pets": "Mascotas esperando",
       "shelters": "Refugios en la red",
-      "adoptions": "Adopciones felices"
+      "adoptions": "Adopciones felices",
+      "success": "Índice de éxito",
+      "successDesc": "Match perfecto",
+      "assistant": "Asistente inteligente",
+      "assistantDesc": "Soporte siempre disponible",
+      "adoptionsDesc": "Mascotas que han encontrado un hogar",
+      "sheltersDesc": "Organizaciones colaborando"
     },
     "app": {
       "tag": "Todo en tu bolsillo",

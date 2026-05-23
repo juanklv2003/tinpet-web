@@ -7,6 +7,7 @@ export interface AddPetForm {
   name: string;
   species: string;
   breed: string;
+  size: string;
   photoUrls: string[];
   photoFiles: File[];
   birthDate: string;
@@ -20,6 +21,7 @@ export const emptyAddForm: AddPetForm = {
   name: '',
   species: '',
   breed: '',
+  size: '',
   photoUrls: [],
   photoFiles: [],
   birthDate: '',
@@ -34,6 +36,7 @@ export interface EditPetForm {
   species: string;
   status: PetStatus;
   breed: string;
+  size: string;
   birthDate: string;
   photoUrls: string[];
   inChargeEmployeeId: string;

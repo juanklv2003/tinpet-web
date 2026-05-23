@@ -51,6 +51,7 @@ export function PetProfileModal({
     species: pet.species,
     status: pet.status,
     breed: pet.ai_profile?.breed ?? '',
+    size: pet.ai_profile?.size ?? '',
     birthDate: pet.ai_profile?.birthDate ?? '',
     photoUrls: readPhotoUrls(pet.ai_profile),
     inChargeEmployeeId: pet.ai_profile?.inChargeEmployeeId ?? '',
@@ -83,19 +84,26 @@ export function PetProfileModal({
   const mergeAiProfile = (
     baseProfile: Record<string, unknown> | undefined,
     fallbackProfile: Record<string, unknown>
-  ) => ({
-    ...(baseProfile ?? {}),
-    vaccines: (() => {
-      const fromBackend = normalizeStringList(baseProfile?.vaccines);
-      if (fromBackend.length > 0) return fromBackend;
-      return normalizeStringList(fallbackProfile.vaccines);
-    })(),
-    medicalHistory: (() => {
-      const fromBackend = normalizeStringList(baseProfile?.medicalHistory);
-      if (fromBackend.length > 0) return fromBackend;
-      return normalizeStringList(fallbackProfile.medicalHistory);
-    })(),
-  });
+  ) => {
+    const cleanBase = { ...(baseProfile ?? {}) };
+    Object.keys(cleanBase).forEach(k => {
+      if (cleanBase[k] === null || cleanBase[k] === undefined) delete cleanBase[k];
+    });
+    return {
+      ...fallbackProfile,
+      ...cleanBase,
+      vaccines: (() => {
+        const fromBackend = normalizeStringList(baseProfile?.vaccines);
+        if (fromBackend.length > 0) return fromBackend;
+        return normalizeStringList(fallbackProfile.vaccines);
+      })(),
+      medicalHistory: (() => {
+        const fromBackend = normalizeStringList(baseProfile?.medicalHistory);
+        if (fromBackend.length > 0) return fromBackend;
+        return normalizeStringList(fallbackProfile.medicalHistory);
+      })(),
+    };
+  };
 
   useEffect(() => {
     const rafId = window.requestAnimationFrame(() => setIsVisible(true));
@@ -124,6 +132,7 @@ export function PetProfileModal({
       species: pet.species,
       status: pet.status,
       breed: pet.ai_profile?.breed ?? '',
+      size: pet.ai_profile?.size ?? '',
       birthDate: pet.ai_profile?.birthDate ?? '',
       photoUrls: readPhotoUrls(pet.ai_profile),
       inChargeEmployeeId: pet.ai_profile?.inChargeEmployeeId ?? '',
@@ -202,6 +211,7 @@ export function PetProfileModal({
     const nextAi = {
       ...ai,
       breed: form.breed.trim(),
+      size: form.size,
       photoUrls: form.photoUrls,
       photoUrl: form.photoUrls[0] ?? '',
       birthDate: form.birthDate,
@@ -236,6 +246,7 @@ export function PetProfileModal({
         species: mergedPet.species,
         status: mergedPet.status,
         breed: mergedPet.ai_profile?.breed ?? '',
+        size: mergedPet.ai_profile?.size ?? '',
         birthDate: mergedPet.ai_profile?.birthDate ?? '',
         photoUrls: readPhotoUrls(mergedPet.ai_profile),
         inChargeEmployeeId: mergedPet.ai_profile?.inChargeEmployeeId ?? '',
@@ -401,6 +412,7 @@ export function PetProfileModal({
                       species: pet.species,
                       status: pet.status,
                       breed: pet.ai_profile?.breed ?? '',
+                      size: pet.ai_profile?.size ?? '',
                       birthDate: pet.ai_profile?.birthDate ?? '',
                       photoUrls: readPhotoUrls(pet.ai_profile),
                       inChargeEmployeeId: pet.ai_profile?.inChargeEmployeeId ?? '',
@@ -464,6 +476,21 @@ export function PetProfileModal({
                     setForm(prev => ({ ...prev, breed: e.target.value }))
                   }
                   className="w-full rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-gray-400"
+                />
+              </div>
+              <div className="col-span-2 sm:col-span-1">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  {t('pets.modal.add.size')}
+                </label>
+                <StyledSelect
+                  value={form.size}
+                  onChange={(value) => setForm(prev => ({ ...prev, size: value as string }))}
+                  options={[
+                    { value: '', label: '---' },
+                    { value: 'large', label: t('pets.sizes.large') },
+                    { value: 'medium', label: t('pets.sizes.medium') },
+                    { value: 'small', label: t('pets.sizes.small') },
+                  ]}
                 />
               </div>
               <div className="col-span-2 sm:col-span-1">
@@ -536,6 +563,7 @@ export function PetProfileModal({
               <Row label={t('pets.modal.add.name')} value={form.name} />
               <Row label={t('pets.modal.add.species')} value={form.species ?? null} />
               <Row label={t('pets.modal.add.breed')} value={form.breed || null} />
+              <Row label={t('pets.modal.add.size')} value={form.size ? t(`pets.sizes.${form.size}`) : null} />
               <Row label={t('pets.modal.add.birthDateLabel')} value={fmtDate(form.birthDate)} />
               {showEmployeeField && (
                 <Row

@@ -81,6 +81,11 @@
       "adopted": "Adopted",
       "pending": "Pending"
     },
+    "sizes": {
+      "large": "Large",
+      "medium": "Medium",
+      "small": "Small"
+    },
     "empty": "No pets registered yet.",
     "modal": {
       "add": {
@@ -93,6 +98,7 @@
         "status": "Status",
         "species": "Species",
         "breed": "Breed",
+        "size": "Size",
         "dates": "Important Dates",
         "birthDate": "Birth Date",
         "intakeDate": "Intake Date",
@@ -164,7 +170,8 @@
     "new": "New",
     "likedPet": "Liked {{petName}}",
     "acceptToast": "Match accepted! A chat has been opened.",
-    "rejectToast": "Request rejected."
+    "rejectToast": "Request rejected.",
+    "searchPlaceholder": "Search by username or pet name..."
   },
   "employees": {
     "title": "Employees",
@@ -412,7 +419,13 @@
     "stats": {
       "pets": "Pets waiting",
       "shelters": "Shelters in network",
-      "adoptions": "Happy adoptions"
+      "adoptions": "Happy adoptions",
+      "success": "Success rate",
+      "successDesc": "Perfect matches",
+      "assistant": "Smart Assistant",
+      "assistantDesc": "Always available support",
+      "adoptionsDesc": "Pets that found a home",
+      "sheltersDesc": "Collaborating organizations"
     },
     "app": {
       "tag": "Everything in your pocket",

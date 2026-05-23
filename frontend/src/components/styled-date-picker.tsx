@@ -71,6 +71,11 @@ export function StyledDatePicker({
   const selectedDate = useMemo(() => parseIsoDate(value), [value]);
   const [cursorDate, setCursorDate] = useState<Date>(selectedDate ?? new Date());
   const [inputValue, setInputValue] = useState(value ? formatDisplayDate(value) : '');
+  const [viewMode, setViewMode] = useState<'days' | 'months' | 'years'>('days');
+
+  useEffect(() => {
+    if (!open) setViewMode('days');
+  }, [open]);
 
   useEffect(() => {
     setInputValue(value ? formatDisplayDate(value) : '');
@@ -179,9 +184,25 @@ export function StyledDatePicker({
               </svg>
             </button>
 
-            <p className="text-[0.92rem] font-semibold text-gray-900 dark:text-white capitalize">
-              {MONTHS_ES[cursorDate.getMonth()]} de {cursorDate.getFullYear()}
-            </p>
+            <div className="flex items-center gap-1 text-[0.92rem] font-semibold text-gray-900 dark:text-white capitalize">
+              <button
+                type="button"
+                onClick={() => setViewMode(viewMode === 'months' ? 'days' : 'months')}
+                className="hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-1.5 py-0.5 transition-colors"
+                title="Seleccionar mes"
+              >
+                {MONTHS_ES[cursorDate.getMonth()]}
+              </button>
+              <span className="text-gray-400 dark:text-gray-600">/</span>
+              <button
+                type="button"
+                onClick={() => setViewMode(viewMode === 'years' ? 'days' : 'years')}
+                className="hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-1.5 py-0.5 transition-colors"
+                title="Seleccionar año"
+              >
+                {cursorDate.getFullYear()}
+              </button>
+            </div>
 
             <button
               type="button"
@@ -195,42 +216,90 @@ export function StyledDatePicker({
             </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-0.5 text-center text-[0.72rem] font-semibold text-gray-500 dark:text-gray-400">
-            {WEEK_DAYS.map((day) => (
-              <div key={day} className="py-0.5">
-                {day}
+          {viewMode === 'days' && (
+            <>
+              <div className="grid grid-cols-7 gap-0.5 text-center text-[0.72rem] font-semibold text-gray-500 dark:text-gray-400">
+                {WEEK_DAYS.map((day) => (
+                  <div key={day} className="py-0.5">
+                    {day}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <div className="mt-1 grid grid-cols-7 gap-0.5">
-            {daysGrid.map((day) => {
-              const iso = toIsoDate(day);
-              const isCurrentMonth = day.getMonth() === cursorDate.getMonth();
-              const isSelected = value === iso;
-              const isToday = todayIso === iso;
+              <div className="mt-1 grid grid-cols-7 gap-0.5">
+                {daysGrid.map((day) => {
+                  const iso = toIsoDate(day);
+                  const isCurrentMonth = day.getMonth() === cursorDate.getMonth();
+                  const isSelected = value === iso;
+                  const isToday = todayIso === iso;
 
-              return (
+                  return (
+                    <button
+                      key={iso}
+                      type="button"
+                      onClick={() => {
+                        onChange(iso);
+                        setOpen(false);
+                      }}
+                      className={`h-7 rounded-md text-[0.9rem] transition-colors ${
+                        isSelected
+                          ? 'bg-brand text-white'
+                          : isCurrentMonth
+                          ? 'text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800'
+                          : 'text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-800'
+                      } ${isToday && !isSelected ? 'ring-1 ring-brand/50 dark:ring-brand/50' : ''}`}
+                    >
+                      {day.getDate()}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {viewMode === 'months' && (
+            <div className="grid grid-cols-3 gap-2 mt-2 h-[12.5rem] items-center">
+              {MONTHS_ES.map((month, i) => (
                 <button
-                  key={iso}
+                  key={month}
                   type="button"
                   onClick={() => {
-                    onChange(iso);
-                    setOpen(false);
+                    setCursorDate(new Date(cursorDate.getFullYear(), i, 1));
+                    setViewMode('days');
                   }}
-                  className={`h-7 rounded-md text-[0.9rem] transition-colors ${
-                    isSelected
+                  className={`py-2.5 rounded-lg text-sm capitalize transition-colors ${
+                    i === cursorDate.getMonth()
                       ? 'bg-brand text-white'
-                      : isCurrentMonth
-                      ? 'text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800'
-                      : 'text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-800'
-                  } ${isToday && !isSelected ? 'ring-1 ring-brand/50 dark:ring-brand/50' : ''}`}
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
                 >
-                  {day.getDate()}
+                  {month.slice(0, 3)}
                 </button>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
+
+          {viewMode === 'years' && (
+            <div className="grid grid-cols-4 gap-1 mt-2 h-[12.5rem] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
+              {Array.from({ length: 110 }, (_, i) => new Date().getFullYear() + 5 - i).map((year) => (
+                <button
+                  key={year}
+                  type="button"
+                  onClick={() => {
+                    setCursorDate(new Date(year, cursorDate.getMonth(), 1));
+                    setViewMode('days');
+                  }}
+                  className={`py-2 rounded-lg text-[0.9rem] transition-colors ${
+                    year === cursorDate.getFullYear()
+                      ? 'bg-brand text-white'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  {year}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="mt-3 flex items-center justify-between text-sm">
             <button

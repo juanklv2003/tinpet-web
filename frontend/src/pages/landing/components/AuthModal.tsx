@@ -1,4 +1,4 @@
-import { Eye, EyeOff, X, PawPrint } from 'lucide-react';
+import { Eye, EyeOff, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLogin } from '../../../hooks/useLogin';
@@ -7,6 +7,7 @@ import { StyledSelect } from '../../../components/styled-select';
 import type { UserRole } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
 import { useTranslation } from '../../../i18n/useTranslation';
+import tinpetLogo from '../../../assets/tinpetLogo (2).ico';
 
 type AuthMode = 'login' | 'register';
 
@@ -115,10 +116,10 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
           <X className="h-5 w-5" />
         </button>
         
-        {/* Header with Paw logo */}
+        {/* Header with Tinpet logo */}
         <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-xl bg-brand flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-brand/30">
-            <PawPrint className="h-6 w-6 fill-current" />
+          <div className="w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+            <img src={tinpetLogo} alt="Tinpet Logo" className="w-full h-full object-contain drop-shadow-sm" />
           </div>
           <h3 className="text-2.5xl font-black text-slate-900 dark:text-white leading-tight">
             {mode === 'login' ? t('landing.auth.welcome') : t('landing.auth.registerTab')}

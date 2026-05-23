@@ -164,7 +164,7 @@ export function MatchesView({ matches, loading, error, onAccept, onReject }: Mat
           <input
             value={query}
             onChange={e => { setQuery(e.target.value); setPage(1); }}
-            placeholder={t('pets.searchPlaceholder')}
+            placeholder={t('requests.searchPlaceholder')}
             className="w-full bg-white dark:bg-slate-900 border border-ink-light/20 dark:border-slate-600 rounded-xl pl-12 pr-4 py-3 text-sm font-medium text-ink-dark dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all"
           />
         </div>

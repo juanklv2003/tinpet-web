@@ -4,10 +4,10 @@ export function LandingStats() {
   const t = useTranslation();
 
   const stats = [
-    { value: '+1.200', label: t('landing.stats.adoptions', { defaultValue: 'Animales ayudados' }) },
-    { value: '98%', label: t('landing.stats.success', { defaultValue: 'Índice de éxito' }) },
-    { value: '24/7', label: t('landing.stats.assistant', { defaultValue: 'Asistente inteligente' }) },
-    { value: '150+', label: t('landing.stats.shelters', { defaultValue: 'Refugios registrados' }) },
+    { value: '+1.200', label: t('landing.stats.adoptions', { defaultValue: 'Adopciones felices' }), description: t('landing.stats.adoptionsDesc', { defaultValue: 'Mascotas que han encontrado un hogar' }) },
+    { value: '98%', label: t('landing.stats.success', { defaultValue: 'Índice de éxito' }), description: t('landing.stats.successDesc', { defaultValue: 'Match perfecto' }) },
+    { value: '24/7', label: t('landing.stats.assistant', { defaultValue: 'Asistente inteligente' }), description: t('landing.stats.assistantDesc', { defaultValue: 'Soporte siempre disponible' }) },
+    { value: '150+', label: t('landing.stats.shelters', { defaultValue: 'Refugios en la red' }), description: t('landing.stats.sheltersDesc', { defaultValue: 'Organizaciones colaborando' }) },
   ];
 
   return (
@@ -23,6 +23,9 @@ export function LandingStats() {
             </p>
             <p className="text-[11px] sm:text-xs font-semibold tracking-widest text-gray-500 dark:text-gray-400 uppercase">
               {stat.label}
+            </p>
+            <p className="mt-2 text-xs text-gray-400 dark:text-gray-500 max-w-[150px] mx-auto leading-relaxed">
+              {stat.description}
             </p>
           </div>
         ))}

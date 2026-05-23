@@ -117,7 +117,7 @@ export function LandingHeader({ onRegister, scrolled = false }: LandingHeaderPro
             aria-label={locale === 'es' ? t('landing.header.switchEnglish') : t('landing.header.switchSpanish')}
             title={locale === 'es' ? t('landing.header.switchEnglish') : t('landing.header.switchSpanish')}
           >
-            {locale === 'es' ? 'EN' : 'ES'}
+            {locale === 'es' ? 'ES' : 'EN'}
           </button>
 
           {/* Toggle Tema Oscuro/Claro */}
@@ -127,7 +127,7 @@ export function LandingHeader({ onRegister, scrolled = false }: LandingHeaderPro
             aria-label={t('landing.header.switchTheme')}
             title={isDarkMode ? t('landing.header.lightMode') : t('landing.header.darkMode')}
           >
-            {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            {isDarkMode ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </button>
 
           {/* Botón Principal */}

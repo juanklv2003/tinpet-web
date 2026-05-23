@@ -98,9 +98,28 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.species.trim()) {
+    if (!form.name.trim() || !form.species.trim() || !form.breed.trim()) {
       setErr(t('pets.modal.add.validationRequired'));
       return;
+    }
+
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    if (form.birthDate) {
+      const bDate = new Date(form.birthDate);
+      if (bDate > today) {
+        setErr('La fecha de nacimiento no puede ser posterior a hoy.');
+        return;
+      }
+    }
+
+    if (form.intakeDate) {
+      const iDate = new Date(form.intakeDate);
+      if (iDate > today) {
+        setErr('La fecha de recogida no puede ser posterior a hoy.');
+        return;
+      }
     }
     setSubmitting(true);
     setErr(null);
@@ -170,7 +189,7 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
             </div>
             <div className="col-span-2 sm:col-span-1">
               <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                {t('pets.modal.add.breed')}
+                {t('pets.modal.add.breed')} *
               </label>
               <input
                 type="text"
@@ -178,6 +197,21 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
                 onChange={e => set('breed', e.target.value)}
                 placeholder={t('pets.modal.add.breedPlaceholder')}
                 className="w-full rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-gray-400 transition"
+              />
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                {t('pets.modal.add.size')}
+              </label>
+              <StyledSelect
+                value={form.size}
+                onChange={(value) => set('size', value as string)}
+                options={[
+                  { value: '', label: '---' },
+                  { value: 'large', label: t('pets.sizes.large') },
+                  { value: 'medium', label: t('pets.sizes.medium') },
+                  { value: 'small', label: t('pets.sizes.small') },
+                ]}
               />
             </div>
             <div className="col-span-2 sm:col-span-1">
