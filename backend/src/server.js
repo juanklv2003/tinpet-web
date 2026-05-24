@@ -10,7 +10,7 @@ const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { Pool } = require("pg");
 const { Server } = require("socket.io");
-const { Expo } = require("expo-server-sdk");
+const { sendPushNotification } = require("./services/pushService");
 const { OAuth2Client } = require("google-auth-library");
 const { haversineDistance } = require("./lib/haversine");
 
@@ -87,46 +87,20 @@ function normalizeStringList(value) {
   return [];
 }
 
-// ── Push Notification Helper ─────────────────────────────────────
-const expo = new Expo();
-
-async function sendPushNotification(userId, title, body, data = {}) {
+async function sendPushNotificationToUser(userId, title, body, data = {}) {
   try {
     const user = await prisma.users.findUnique({ where: { id: userId } });
-    if (!user?.push_token) {
+    if (user?.push_token) {
+      await sendPushNotification(user.push_token, title, body, data);
+    } else {
       console.log(`[Push] No push token for user ${userId}`);
-      return;
     }
-
-    if (!Expo.isExpoPushToken(user.push_token)) {
-      console.error(`[Push] Invalid Expo push token for user ${userId}: ${user.push_token}`);
-      return;
-    }
-
-    const message = {
-      to: user.push_token,
-      sound: { volume: 1 },
-      title,
-      body,
-      data: {
-        type: data.type || 'chat',
-        conversationId: data.conversationId || null,
-        matchId: data.matchId || null,
-        petId: data.petId || null,
-        petName: data.petName || null,
-      },
-      priority: 'high',
-      channelId: data.channelId || 'messages',
-    };
-
-    const ticket = await expo.sendPushNotificationsAsync([message]);
-    console.log(`[Push] Sent to user ${userId}:`, JSON.stringify(ticket));
-    return ticket;
   } catch (error) {
-    console.error(`[Push] Error sending to user ${userId}:`, error);
+    console.error(`[Push] Error fetching user ${userId}:`, error);
   }
 }
-global.sendPushNotification = sendPushNotification;
+
+// ── Push Notification Helper moved to src/services/pushService.js ──
 
 function normalizeIncomingPhotoUrls(aiProfile) {
   const fromArray = Array.isArray(aiProfile?.photoUrls)
@@ -762,9 +736,9 @@ app.patch("/api/pets/:id", authenticateToken, async (req, res) => {
           include: { users: true },
         });
 
-        if (adopter?.users?.id) {
+        if (adopter?.users?.push_token) {
           void sendPushNotification(
-            adopter.users.id,
+            adopter.users.push_token,
             "¡Adopción completada! 🐾",
             `La adopción de ${petToReturn.name} ha sido confirmada. ¡Valorá tu experiencia!`,
             {
@@ -939,7 +913,7 @@ app.post("/api/swipe", authenticateToken, async (req, res) => {
             petName: pet.name,
             adopterName: adopter.name,
           });
-          void sendPushNotification(
+          void sendPushNotificationToUser(
             shelter.user_id,
             "¡Nueva solicitud de adopción!",
             `${adopter.name || "Un adoptante"} está interesado en ${pet.name || "tu mascota"}`,
@@ -1912,7 +1886,7 @@ app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
             matchId: currentMatch.id,
             petName: currentMatch.pets?.name || null,
           });
-          void sendPushNotification(
+          void sendPushNotificationToUser(
             adopterUserId,
             "¡Nuevo Match! 🎉",
             `${currentMatch.pets?.name || "Una mascota"} aceptó tu solicitud de adopción`,
@@ -1923,7 +1897,7 @@ app.patch("/api/matches/:id", authenticateToken, async (req, res) => {
             petId: currentMatch.pet_id,
             petName: currentMatch.pets?.name || null,
           });
-          void sendPushNotification(
+          void sendPushNotificationToUser(
             adopterUserId,
             "Solicitud no aceptada",
             `Tu solicitud para ${currentMatch.pets?.name || "una mascota"} no fue aceptada`,
@@ -2491,7 +2465,7 @@ app.post(
         }
 
         if (otherUserId) {
-          void sendPushNotification(
+          void sendPushNotificationToUser(
             otherUserId,
             senderName,
             content.trim(),
@@ -3660,7 +3634,7 @@ io.on("connection", async (socket) => {
         }
 
         if (otherUserId) {
-          void sendPushNotification(
+          void sendPushNotificationToUser(
             otherUserId,
             senderName,
             content.trim(),

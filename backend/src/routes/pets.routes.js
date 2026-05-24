@@ -1,6 +1,7 @@
 const router       = require('express').Router();
 const prisma       = require('../lib/prisma');
 const authenticate = require('../middleware/authenticate');
+const { sendPushNotification } = require('../services/pushService');
 
 // GET /api/pets  – todas las mascotas disponibles (público)
 router.get('/', async (_req, res) => {
@@ -105,9 +106,9 @@ router.patch('/:id', authenticate, async (req, res) => {
           include: { users: true }
         });
         
-        if (adopter?.users?.id && global.sendPushNotification) {
-          global.sendPushNotification(
-            adopter.users.id,
+        if (adopter?.users?.push_token) {
+          sendPushNotification(
+            adopter.users.push_token,
             '¡Adopción completada! 🐾',
             `La adopción de ${updated.name} ha sido confirmada. ¡Valorá tu experiencia!`,
             { 
