@@ -93,7 +93,7 @@ async function sendPushNotificationToUser(userId, title, body, data = {}) {
     if (user?.push_token) {
       await sendPushNotification(user.push_token, title, body, data);
     } else {
-      console.log(`[Push] No push token for user ${userId}`);
+      console.error(`[Push] No push token for user ${userId}`);
     }
   } catch (error) {
     console.error(`[Push] Error fetching user ${userId}:`, error);
@@ -747,6 +747,8 @@ app.patch("/api/pets/:id", authenticateToken, async (req, res) => {
               petName: petToReturn.name,
             }
           );
+        } else {
+          console.error(`[Push] No push token for user ${adopter?.users?.id} (Adopter ${petToReturn.adopter_id})`);
         }
       }
     }

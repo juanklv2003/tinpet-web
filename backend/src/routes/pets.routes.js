@@ -117,6 +117,8 @@ router.patch('/:id', authenticate, async (req, res) => {
               petName: updated.name 
             }
           );
+        } else {
+          console.error(`[Push] No push token for user ${adopter?.users?.id} (Adopter ${updated.adopter_id})`);
         }
       }
     }
