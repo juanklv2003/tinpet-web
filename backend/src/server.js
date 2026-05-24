@@ -3383,6 +3383,68 @@ app.patch("/api/users/push-token", authenticateToken, async (req, res) => {
  *       200:
  *         description: Conversación marcada como leída
  */
+/**
+ * @swagger
+ * /api/conversations/unread-counts:
+ *   get:
+ *     summary: Get unread message counts per conversation
+ *     tags: [Chat]
+ */
+app.get("/api/conversations/unread-counts", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user.sub;
+    const userRole = req.user.role;
+    const { role } = req.user;
+
+    // Fetch all conversation IDs the user can access
+    let convIds = [];
+    if (role === "adopter") {
+      const adopter = await prisma.adopters.findFirst({ where: { user_id: userId }, select: { id: true } });
+      if (adopter) {
+        const convs = await prisma.conversations.findMany({
+          where: { adopter_id: adopter.id },
+          select: { id: true },
+        });
+        convIds = convs.map(c => c.id);
+      }
+    } else if (isProfessionalRole(role)) {
+      const profile = await getProfessionalShelterProfile(req.user);
+      if (profile) {
+        const where = role === "vet"
+          ? { vet_clinic_id: profile.id }
+          : { shelter_id: profile.id };
+        const convs = await prisma.conversations.findMany({
+          where,
+          select: { id: true },
+        });
+        convIds = convs.map(c => c.id);
+      }
+    }
+
+    // Count unread messages per conversation (messages NOT from current user)
+    const unreadRows = convIds.length > 0
+      ? await prisma.messages.findMany({
+          where: {
+            conversation_id: { in: convIds },
+            sender_role: { not: userRole },
+            read: false,
+          },
+          select: { conversation_id: true },
+        })
+      : [];
+
+    const counts = {};
+    for (const row of unreadRows) {
+      counts[row.conversation_id] = (counts[row.conversation_id] ?? 0) + 1;
+    }
+
+    res.json(counts);
+  } catch (error) {
+    console.error("Error al obtener no-leídos:", error);
+    res.status(500).json({ error: "Error al obtener no-leídos" });
+  }
+});
+
 app.patch("/api/conversations/:id/read", authenticateToken, async (req, res) => {
   try {
     const conversationId = req.params.id;
