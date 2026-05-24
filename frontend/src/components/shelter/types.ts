@@ -9,6 +9,7 @@ export interface AddPetForm {
   breed: string;
   size: string;
   photoUrls: string[];
+  photoFocusPoints: string[];
   photoFiles: File[];
   birthDate: string;
   intakeDate: string;
@@ -23,6 +24,7 @@ export const emptyAddForm: AddPetForm = {
   breed: '',
   size: '',
   photoUrls: [],
+  photoFocusPoints: [],
   photoFiles: [],
   birthDate: '',
   intakeDate: '',
@@ -39,6 +41,7 @@ export interface EditPetForm {
   size: string;
   birthDate: string;
   photoUrls: string[];
+  photoFocusPoints: string[];
   inChargeEmployeeId: string;
   description: string;
 }

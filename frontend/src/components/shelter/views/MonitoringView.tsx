@@ -10,7 +10,7 @@ import {
 import { LoadingView } from '../../ui/LoadingView';
 import type { ShelterStats } from '../../../hooks/useShelterStats';
 import type { Pet } from '../../../types';
-import { daysSince, fmtDate } from '../helpers';
+import { daysSince, fmtDate, getPrimaryPetPhoto } from '../helpers';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -41,9 +41,7 @@ export function MonitoringView({
   const { user } = useAuth();
 
   const hasAnyPhoto = (pet: Pet) => {
-    const photoUrls = pet.ai_profile?.photoUrls;
-    if (Array.isArray(photoUrls) && photoUrls.length > 0) return true;
-    return Boolean(pet.ai_profile?.photoUrl);
+    return Boolean(getPrimaryPetPhoto(pet).src);
   };
 
   const todayKey = new Date().toISOString().split('T')[0];
@@ -347,15 +345,18 @@ export function MonitoringView({
               <p className="text-sm text-ink-light dark:text-slate-400">Sin actividad registrada.</p>
             ) : (
               <ul className="space-y-4">
-                {recentActivity.map(pet => (
+                {recentActivity.map(pet => {
+                  const photo = getPrimaryPetPhoto(pet);
+                  return (
                   <li key={pet.id} className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-background dark:bg-slate-900 overflow-hidden shrink-0 border border-ink-light/10 dark:border-slate-700">
-                        {hasAnyPhoto(pet) ? (
+                        {photo.src ? (
                           <img
-                            src={pet.ai_profile?.photoUrls?.[0] ?? pet.ai_profile?.photoUrl ?? ''}
+                            src={photo.src}
                             alt={pet.name}
                             className="w-full h-full object-cover"
+                            style={{ objectPosition: photo.focus }}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-ink-light dark:text-slate-500">
@@ -369,7 +370,8 @@ export function MonitoringView({
                       {fmtDate(pet.created_at) ?? '—'}
                     </span>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </div>

@@ -1,6 +1,76 @@
-import type { PetStatus } from '../../types';
+import type { Pet, PetStatus } from '../../types';
 
 // Helpers para el dashboard (sin JSX)
+
+export const DEFAULT_PHOTO_FOCUS = 'center';
+
+export const PHOTO_FOCUS_OPTIONS = [
+  { value: 'top left', label: 'Arriba izquierda' },
+  { value: 'top', label: 'Arriba' },
+  { value: 'top right', label: 'Arriba derecha' },
+  { value: 'left', label: 'Izquierda' },
+  { value: 'center', label: 'Centro' },
+  { value: 'right', label: 'Derecha' },
+  { value: 'bottom left', label: 'Abajo izquierda' },
+  { value: 'bottom', label: 'Abajo' },
+  { value: 'bottom right', label: 'Abajo derecha' },
+] as const;
+
+const PHOTO_FOCUS_VALUES = new Set(PHOTO_FOCUS_OPTIONS.map((option) => option.value));
+
+export function normalizePhotoFocus(value: unknown): string {
+  if (typeof value !== 'string') return DEFAULT_PHOTO_FOCUS;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return DEFAULT_PHOTO_FOCUS;
+  return PHOTO_FOCUS_VALUES.has(normalized) ? normalized : DEFAULT_PHOTO_FOCUS;
+}
+
+export function readPetPhotoUrls(aiProfile: Record<string, unknown> | undefined): string[] {
+  const fromArray = aiProfile?.photoUrls;
+  if (Array.isArray(fromArray)) {
+    return fromArray.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  }
+
+  if (typeof aiProfile?.photoUrl === 'string' && aiProfile.photoUrl.trim()) {
+    return [aiProfile.photoUrl.trim()];
+  }
+
+  return [];
+}
+
+export function readPetPhotoFocusPoints(
+  aiProfile: Record<string, unknown> | undefined,
+  photoCount = readPetPhotoUrls(aiProfile).length,
+): string[] {
+  const raw = aiProfile?.photoFocusPoints ?? aiProfile?.photoPositions ?? aiProfile?.photoFocus ?? aiProfile?.photoPosition;
+
+  let values: string[] = [];
+  if (Array.isArray(raw)) {
+    values = raw.map((item) => normalizePhotoFocus(item));
+  } else if (typeof raw === 'string') {
+    values = [normalizePhotoFocus(raw)];
+  }
+
+  if (photoCount <= 0) {
+    return values.length > 0 ? values : [];
+  }
+
+  const next = values.slice(0, photoCount);
+  while (next.length < photoCount) {
+    next.push(DEFAULT_PHOTO_FOCUS);
+  }
+  return next;
+}
+
+export function getPrimaryPetPhoto(pet: Pet): { src: string | null; focus: string } {
+  const photoUrls = readPetPhotoUrls(pet.ai_profile);
+  const photoFocusPoints = readPetPhotoFocusPoints(pet.ai_profile, photoUrls.length);
+
+  return {
+    src: photoUrls[0] ?? null,
+    focus: photoFocusPoints[0] ?? DEFAULT_PHOTO_FOCUS,
+  };
+}
 
 export const statusLabel: Record<PetStatus, string> = {
   available: 'Disponible',

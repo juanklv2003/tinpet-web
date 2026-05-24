@@ -3,7 +3,7 @@ import { LoadingView } from '../../ui/LoadingView';
 import { useState } from 'react';
 import type { Pet, PetStatus } from '../../../types';
 import { StyledSelect } from '../../styled-select';
-import { fmtDate, statusBadgeColor, statusDotColor, statusLabel } from '../helpers';
+import { fmtDate, getPrimaryPetPhoto, statusBadgeColor, statusDotColor, statusLabel } from '../helpers';
 import type { PetsSort } from '../types';
 import { useTranslation } from '../../../i18n/useTranslation';
 
@@ -34,13 +34,6 @@ const getSpeciesIcon = (species: string) => {
     return <Horse size={18} weight="fill" className="text-amber-500 dark:text-amber-400 shrink-0" />;
   }
   return <PawPrint size={16} weight="fill" className="text-ink-light dark:text-slate-500 shrink-0" />;
-};
-
-
-const getPrimaryPhoto = (pet: Pet): string | null => {
-  const fromArray = Array.isArray(pet.ai_profile?.photoUrls) ? pet.ai_profile.photoUrls[0] : null;
-  const fromSingle = typeof pet.ai_profile?.photoUrl === 'string' ? pet.ai_profile.photoUrl : null;
-  return fromArray || fromSingle || null;
 };
 
 
@@ -233,7 +226,7 @@ export function PetsView({
                 </thead>
                 <tbody>
                   {paginatedPets.map(pet => {
-                    const photo = getPrimaryPhoto(pet);
+                    const photo = getPrimaryPetPhoto(pet);
                     return (
                       <tr
                         key={pet.id}
@@ -243,8 +236,8 @@ export function PetsView({
                         <td className="px-8 py-5 border-b border-ink-light/5 dark:border-slate-700/50">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-background dark:bg-slate-900 overflow-hidden shrink-0 border border-ink-light/10 dark:border-slate-700">
-                              {photo
-                                ? <img src={photo} alt={pet.name} className="w-full h-full object-cover" />
+                              {photo.src
+                                ? <img src={photo.src} alt={pet.name} className="w-full h-full object-cover" style={{ objectPosition: photo.focus }} />
                                 : <div className="w-full h-full flex items-center justify-center text-ink-light dark:text-slate-500"><PawPrint size={18} weight="fill" /></div>
                               }
                             </div>
@@ -353,7 +346,7 @@ export function PetsView({
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {paginatedPets.map(pet => {
-                  const photo = getPrimaryPhoto(pet);
+                  const photo = getPrimaryPetPhoto(pet);
                   return (
                     <div
                       key={pet.id}
@@ -362,8 +355,8 @@ export function PetsView({
                     >
                       <div className="flex items-center gap-3 mb-4">
                         <div className="w-12 h-12 rounded-xl overflow-hidden bg-background dark:bg-slate-900 shrink-0 border border-ink-light/10">
-                          {photo
-                            ? <img src={photo} alt={pet.name} className="w-full h-full object-cover" />
+                          {photo.src
+                            ? <img src={photo.src} alt={pet.name} className="w-full h-full object-cover" style={{ objectPosition: photo.focus }} />
                             : <div className="w-full h-full flex items-center justify-center text-ink-light"><PawPrint size={22} weight="fill" /></div>
                           }
                         </div>

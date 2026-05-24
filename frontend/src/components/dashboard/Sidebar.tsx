@@ -29,6 +29,7 @@ interface NavItem {
   icon: React.ReactNode;
   labelKey: string;
   badge?: number;
+  badgeVariant?: 'count' | 'dot';
 }
 
 interface SidebarProps {
@@ -63,7 +64,7 @@ export function Sidebar({
   const generalNav: NavItem[] = [
     { view: 'pets', icon: <SquaresFour size={20} />, labelKey: 'nav.pets' },
     { view: 'monitoring', icon: <ChartLineUp size={20} />, labelKey: 'nav.monitoring' },
-    { view: 'matches', icon: <Heart size={20} />, labelKey: 'nav.requests', badge: unreadMatches },
+    { view: 'matches', icon: <Heart size={20} />, labelKey: 'nav.requests', badge: unreadMatches, badgeVariant: 'dot' },
     ...(showEmployees ? [{ view: 'employees' as DashboardView, icon: <Users size={20} />, labelKey: 'nav.employees' }] : []),
     { view: 'chat', icon: <ChatCircle size={20} />, labelKey: 'nav.chat', badge: unreadMessages },
   ];
@@ -91,9 +92,16 @@ export function Sidebar({
         <span className={isActive ? 'text-brand-500' : 'transition-colors'}>{item.icon}</span>
         <span className="flex-1 text-left">{t(item.labelKey as any)}</span>
         {item.badge != null && item.badge > 0 && !isActive && (
-          <span className="bg-accent-100 text-accent-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
-            {item.badge}
-          </span>
+          item.badgeVariant === 'dot' ? (
+            <span
+              className="h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_0_3px_rgba(239,68,68,0.18)]"
+              aria-label={t('nav.requests')}
+            />
+          ) : (
+            <span className="bg-accent-100 text-accent-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
+              {item.badge}
+            </span>
+          )
         )}
       </button>
     );

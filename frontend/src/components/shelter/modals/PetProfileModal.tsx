@@ -7,9 +7,16 @@ import { StyledSelect } from '../../styled-select';
 import { IconTrash, IconX } from '../Icons';
 import { NA } from '../components/NA';
 import { Row } from '../components/Row';
-import { fileToDataUrl, fmtDate } from '../helpers';
+import {
+  DEFAULT_PHOTO_FOCUS,
+  fileToDataUrl,
+  fmtDate,
+  readPetPhotoFocusPoints,
+  readPetPhotoUrls,
+} from '../helpers';
 import type { EditPetForm, PetStatus } from '../types';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { PetPhotoCropModal } from './PetPhotoCropModal';
 
 interface PetProfileModalProps {
   pet: Pet;
@@ -22,19 +29,6 @@ interface PetProfileModalProps {
 
 const MAX_PHOTOS = 10;
 
-const readPhotoUrls = (aiProfile: Record<string, unknown> | undefined): string[] => {
-  const fromList = aiProfile?.photoUrls;
-  if (Array.isArray(fromList)) {
-    return fromList.filter((item): item is string => typeof item === 'string' && item.trim().length > 0).slice(0, MAX_PHOTOS);
-  }
-
-  if (typeof aiProfile?.photoUrl === 'string' && aiProfile.photoUrl.trim()) {
-    return [aiProfile.photoUrl];
-  }
-
-  return [];
-};
-
 export function PetProfileModal({
   pet,
   onClose,
@@ -46,6 +40,8 @@ export function PetProfileModal({
   const t = useTranslation();
   const ANIMATION_MS = 280;
   const [ai, setAi] = useState<Record<string, unknown>>(pet.ai_profile ?? {});
+  const initialPhotoUrls = readPetPhotoUrls(pet.ai_profile).slice(0, MAX_PHOTOS);
+  const initialPhotoFocusPoints = readPetPhotoFocusPoints(pet.ai_profile, initialPhotoUrls.length);
   const [form, setForm] = useState<EditPetForm>({
     name: pet.name,
     species: pet.species,
@@ -53,7 +49,8 @@ export function PetProfileModal({
     breed: pet.ai_profile?.breed ?? '',
     size: pet.ai_profile?.size ?? '',
     birthDate: pet.ai_profile?.birthDate ?? '',
-    photoUrls: readPhotoUrls(pet.ai_profile),
+    photoUrls: initialPhotoUrls,
+    photoFocusPoints: initialPhotoFocusPoints,
     inChargeEmployeeId: pet.ai_profile?.inChargeEmployeeId ?? '',
     description: pet.description ?? '',
   });
@@ -68,6 +65,9 @@ export function PetProfileModal({
   const [medicalHistory, setMedicalHistory] = useState<string[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [cropQueue, setCropQueue] = useState<File[]>([]);
+  const [activeCropFile, setActiveCropFile] = useState<File | null>(null);
 
   const normalizeStringList = (value: unknown): string[] => {
     if (Array.isArray(value)) {
@@ -134,7 +134,8 @@ export function PetProfileModal({
       breed: pet.ai_profile?.breed ?? '',
       size: pet.ai_profile?.size ?? '',
       birthDate: pet.ai_profile?.birthDate ?? '',
-      photoUrls: readPhotoUrls(pet.ai_profile),
+      photoUrls: initialPhotoUrls,
+      photoFocusPoints: initialPhotoFocusPoints,
       inChargeEmployeeId: pet.ai_profile?.inChargeEmployeeId ?? '',
       description: pet.description ?? '',
     });
@@ -182,8 +183,11 @@ export function PetProfileModal({
     }
 
     try {
-      const urls = await Promise.all(selectedFiles.map((file) => fileToDataUrl(file)));
-      setForm(prev => ({ ...prev, photoUrls: [...prev.photoUrls, ...urls] }));
+      const [currentFile, ...rest] = selectedFiles;
+      const currentSrc = await fileToDataUrl(currentFile);
+      setActiveCropFile(currentFile);
+      setCropQueue(rest);
+      setCropImageSrc(currentSrc);
       setErr(null);
     } catch {
       setErr(t('pets.modal.detail.validationImageLoadError'));
@@ -192,10 +196,53 @@ export function PetProfileModal({
     }
   };
 
+  const handleCropCancel = () => {
+    setCropImageSrc(null);
+    setActiveCropFile(null);
+    setCropQueue([]);
+  };
+
+  const handleCropConfirm = (croppedBlob: Blob) => {
+    const sourceFile = activeCropFile ?? new File([croppedBlob], `pet-photo-${Date.now()}.jpg`, { type: croppedBlob.type || 'image/jpeg' });
+    const croppedFile = new File([croppedBlob], sourceFile.name || `pet-photo-${Date.now()}.jpg`, {
+      type: croppedBlob.type || 'image/jpeg',
+    });
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((prev) => ({
+        ...prev,
+        photoUrls: [...prev.photoUrls, String(reader.result ?? '')],
+        photoFocusPoints: [...prev.photoFocusPoints, DEFAULT_PHOTO_FOCUS],
+      }));
+
+      const nextQueue = cropQueue;
+      if (nextQueue.length > 0) {
+        const [nextFile, ...rest] = nextQueue;
+        fileToDataUrl(nextFile)
+          .then((src) => {
+            setActiveCropFile(nextFile);
+            setCropQueue(rest);
+            setCropImageSrc(src);
+          })
+          .catch(() => {
+            setCropImageSrc(null);
+            setActiveCropFile(null);
+            setCropQueue([]);
+          });
+      } else {
+        setCropImageSrc(null);
+        setActiveCropFile(null);
+      }
+    };
+    reader.readAsDataURL(croppedFile);
+  };
+
   const removePhotoAt = (index: number) => {
     setForm((prev) => ({
       ...prev,
       photoUrls: prev.photoUrls.filter((_, i) => i !== index),
+      photoFocusPoints: prev.photoFocusPoints.filter((_, i) => i !== index),
     }));
   };
 
@@ -214,6 +261,9 @@ export function PetProfileModal({
       size: form.size,
       photoUrls: form.photoUrls,
       photoUrl: form.photoUrls[0] ?? '',
+      photoFocusPoints: form.photoFocusPoints.length > 0
+        ? form.photoFocusPoints
+        : Array(form.photoUrls.length).fill(DEFAULT_PHOTO_FOCUS),
       birthDate: form.birthDate,
       inChargeEmployeeId: form.inChargeEmployeeId || undefined,
     };
@@ -248,7 +298,11 @@ export function PetProfileModal({
         breed: mergedPet.ai_profile?.breed ?? '',
         size: mergedPet.ai_profile?.size ?? '',
         birthDate: mergedPet.ai_profile?.birthDate ?? '',
-        photoUrls: readPhotoUrls(mergedPet.ai_profile),
+        photoUrls: readPetPhotoUrls(mergedPet.ai_profile).slice(0, MAX_PHOTOS),
+        photoFocusPoints: readPetPhotoFocusPoints(
+          mergedPet.ai_profile,
+          readPetPhotoUrls(mergedPet.ai_profile).slice(0, MAX_PHOTOS).length,
+        ),
         inChargeEmployeeId: mergedPet.ai_profile?.inChargeEmployeeId ?? '',
         description: mergedPet.description ?? '',
       });
@@ -283,7 +337,6 @@ export function PetProfileModal({
     try {
       await persistAi(next);
       setNewVaccine('');
-      setAddingVaccine(false);
     } catch (error: unknown) {
       setErr((error as Error).message ?? t('pets.modal.detail.vaccineSaveError'));
     }
@@ -299,7 +352,6 @@ export function PetProfileModal({
     try {
       await persistAi(next);
       setNewDisease('');
-      setAddingDisease(false);
     } catch (error: unknown) {
       setErr((error as Error).message ?? t('pets.modal.detail.diseaseSaveError'));
     }
@@ -329,7 +381,8 @@ export function PetProfileModal({
             <img
               src={form.photoUrls[0]}
               alt={form.name}
-              className="w-full h-full object-contain bg-gray-100 dark:bg-gray-800 p-2"
+              className="w-full h-full object-cover bg-gray-100 dark:bg-gray-800"
+              style={{ objectPosition: form.photoFocusPoints[0] ?? DEFAULT_PHOTO_FOCUS }}
             />
           ) : (
             <>
@@ -414,7 +467,8 @@ export function PetProfileModal({
                       breed: pet.ai_profile?.breed ?? '',
                       size: pet.ai_profile?.size ?? '',
                       birthDate: pet.ai_profile?.birthDate ?? '',
-                      photoUrls: readPhotoUrls(pet.ai_profile),
+                      photoUrls: initialPhotoUrls,
+                      photoFocusPoints: initialPhotoFocusPoints,
                       inChargeEmployeeId: pet.ai_profile?.inChargeEmployeeId ?? '',
                       description: pet.description ?? '',
                     });
@@ -597,7 +651,12 @@ export function PetProfileModal({
                 <div className="grid grid-cols-5 gap-2">
                   {form.photoUrls.map((url, index) => (
                     <div key={`${url}-${index}`} className="relative group">
-                      <img src={url} alt={`Foto ${index + 1}`} className="h-14 w-full rounded-md object-cover border border-gray-300 dark:border-gray-700" />
+                      <img
+                        src={url}
+                        alt={`Foto ${index + 1}`}
+                        className="h-14 w-full rounded-md object-cover border border-gray-300 dark:border-gray-700"
+                        style={{ objectPosition: form.photoFocusPoints[index] ?? DEFAULT_PHOTO_FOCUS }}
+                      />
                       <button
                         type="button"
                         onClick={() => removePhotoAt(index)}
@@ -786,6 +845,13 @@ export function PetProfileModal({
           </button>
         </div>
       </div>
+      {cropImageSrc && (
+        <PetPhotoCropModal
+          imageSrc={cropImageSrc}
+          onCancel={handleCropCancel}
+          onConfirm={handleCropConfirm}
+        />
+      )}
     </div>
   );
 }

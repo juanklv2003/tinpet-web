@@ -3,11 +3,12 @@ import { Image } from '@phosphor-icons/react';
 import { StyledDatePicker } from '../../styled-date-picker';
 import { StyledSelect } from '../../styled-select';
 import { IconPlus, IconX } from '../Icons';
-import { fileToDataUrl } from '../helpers';
+import { DEFAULT_PHOTO_FOCUS, fileToDataUrl } from '../helpers';
 import type { AddPetForm, PetStatus } from '../types';
 import { emptyAddForm } from '../types';
 import type { ShelterEmployee } from '../../../hooks/useShelterEmployees';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { PetPhotoCropModal } from './PetPhotoCropModal';
 
 interface AddPetModalProps {
   onClose: () => void;
@@ -25,6 +26,9 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
   const [err, setErr] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [cropQueue, setCropQueue] = useState<File[]>([]);
+  const [activeCropFile, setActiveCropFile] = useState<File | null>(null);
 
   useEffect(() => {
     const rafId = window.requestAnimationFrame(() => setIsVisible(true));
@@ -52,6 +56,15 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
   const set = (field: keyof AddPetForm, val: string) =>
     setForm((p: AddPetForm) => ({ ...p, [field]: val }));
 
+  const openNextCrop = async (files: File[]) => {
+    if (files.length === 0) return;
+    const [currentFile, ...rest] = files;
+    const currentSrc = await fileToDataUrl(currentFile);
+    setActiveCropFile(currentFile);
+    setCropQueue(rest);
+    setCropImageSrc(currentSrc);
+  };
+
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files ?? []);
     if (selectedFiles.length === 0) return;
@@ -74,13 +87,8 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
     }
 
     try {
-      const urls = await Promise.all(selectedFiles.map((file) => fileToDataUrl(file)));
-      setForm((prev: AddPetForm) => ({
-        ...prev,
-        photoFiles: [...prev.photoFiles, ...selectedFiles],
-        photoUrls: [...prev.photoUrls, ...urls],
-      }));
       setErr(null);
+      await openNextCrop(selectedFiles);
     } catch (error: unknown) {
       setErr((error as Error).message ?? t('pets.modal.add.validationImageLoadError'));
     } finally {
@@ -93,7 +101,44 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
       ...prev,
       photoFiles: prev.photoFiles.filter((_, i) => i !== index),
       photoUrls: prev.photoUrls.filter((_, i) => i !== index),
+      photoFocusPoints: prev.photoFocusPoints.filter((_, i) => i !== index),
     }));
+  };
+
+  const handleCropCancel = () => {
+    setCropImageSrc(null);
+    setActiveCropFile(null);
+    setCropQueue([]);
+  };
+
+  const handleCropConfirm = async (croppedBlob: Blob) => {
+    const sourceFile = activeCropFile ?? new File([croppedBlob], `pet-photo-${Date.now()}.jpg`, { type: croppedBlob.type || 'image/jpeg' });
+    const croppedFile = new File([croppedBlob], sourceFile.name || `pet-photo-${Date.now()}.jpg`, {
+      type: croppedBlob.type || 'image/jpeg',
+    });
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((prev) => ({
+        ...prev,
+        photoFiles: [...prev.photoFiles, croppedFile],
+        photoUrls: [...prev.photoUrls, String(reader.result ?? '')],
+        photoFocusPoints: [...prev.photoFocusPoints, DEFAULT_PHOTO_FOCUS],
+      }));
+
+      const nextQueue = cropQueue;
+      if (nextQueue.length > 0) {
+        openNextCrop(nextQueue).catch(() => {
+          setCropImageSrc(null);
+          setActiveCropFile(null);
+          setCropQueue([]);
+        });
+      } else {
+        setCropImageSrc(null);
+        setActiveCropFile(null);
+      }
+    };
+    reader.readAsDataURL(croppedBlob);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -145,7 +190,7 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
       />
 
       <div
-        className={`absolute right-3 top-3 max-h-[calc(100vh-1.5rem)] flex flex-col w-[calc(100%-1.5rem)] sm:w-[26rem] xl:w-[28rem] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out ${
+        className={`absolute right-3 top-3 max-h-[calc(100vh-1.5rem)] flex flex-col w-[calc(100%-1.5rem)] sm:w-[29.5rem] xl:w-[32.5rem] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden transition-transform duration-300 ease-out ${
           isVisible ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -281,6 +326,7 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
                       src={form.photoUrls[0]}
                       alt="Vista previa"
                       className="w-full h-full object-cover"
+                      style={{ objectPosition: form.photoFocusPoints[0] ?? DEFAULT_PHOTO_FOCUS }}
                     />
                   </div>
                 </button>
@@ -325,7 +371,12 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
                   <div className="mt-2 grid grid-cols-5 gap-2">
                     {form.photoUrls.map((url, index) => (
                       <div key={`${url}-${index}`} className="relative group">
-                        <img src={url} alt={`Foto ${index + 1}`} className="h-14 w-full rounded-md object-cover border border-gray-200 dark:border-gray-700" />
+                        <img
+                          src={url}
+                          alt={`Foto ${index + 1}`}
+                          className="h-14 w-full rounded-md object-cover border border-gray-200 dark:border-gray-700"
+                          style={{ objectPosition: form.photoFocusPoints[index] ?? DEFAULT_PHOTO_FOCUS }}
+                        />
                         <button
                           type="button"
                           onClick={() => removePhotoAt(index)}
@@ -341,6 +392,14 @@ export function AddPetModal({ onClose, onAdd, employees, showEmployeeField = fal
               )}
             </div>
           </div>
+
+      {cropImageSrc && (
+        <PetPhotoCropModal
+          imageSrc={cropImageSrc}
+          onCancel={handleCropCancel}
+          onConfirm={handleCropConfirm}
+        />
+      )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 sm:col-span-1">

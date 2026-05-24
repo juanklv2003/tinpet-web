@@ -434,6 +434,9 @@ export function useShelterDashboardLogic(user: AuthUser | null, externalActiveVi
     if (form.photoUrls.length > 0) {
       ai_profile.photoUrls = form.photoUrls;
       ai_profile.photoUrl = form.photoUrls[0];
+      ai_profile.photoFocusPoints = form.photoFocusPoints.length > 0
+        ? form.photoFocusPoints
+        : Array(form.photoUrls.length).fill('center');
     }
     if (form.birthDate) ai_profile.birthDate = form.birthDate;
     if (form.intakeDate) ai_profile.intakeDate = form.intakeDate;

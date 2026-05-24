@@ -3,6 +3,7 @@ import { UsersThree, X, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { LoadingView } from '../../ui/LoadingView';
 import type { ShelterEmployee } from '../../../hooks/useShelterEmployees';
 import type { Pet } from '../../../types';
+import { getPrimaryPetPhoto } from '../helpers';
 import { useTranslation } from '../../../i18n/useTranslation';
 
 interface EmployeesViewProps {
@@ -55,12 +56,6 @@ export function EmployeesView({
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const getPrimaryPhoto = (pet: Pet): string | null => {
-    const fromArray = Array.isArray(pet.ai_profile?.photoUrls) ? pet.ai_profile.photoUrls[0] : null;
-    const fromSingle = typeof pet.ai_profile?.photoUrl === 'string' ? pet.ai_profile.photoUrl : null;
-    return fromArray || fromSingle || null;
   };
 
   const assignedPets = selectedEmployee
@@ -283,12 +278,12 @@ export function EmployeesView({
                 ) : (
                   <div className="space-y-3">
                     {assignedPets.map(pet => {
-                      const photo = getPrimaryPhoto(pet);
+                      const photo = getPrimaryPetPhoto(pet);
                       return (
                         <div key={pet.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl border border-ink-light/10 dark:border-slate-700">
                           <div className="w-10 h-10 rounded-xl overflow-hidden bg-background dark:bg-slate-800 shrink-0">
-                            {photo
-                              ? <img src={photo} alt={pet.name} className="w-full h-full object-cover" />
+                            {photo.src
+                              ? <img src={photo.src} alt={pet.name} className="w-full h-full object-cover" style={{ objectPosition: photo.focus }} />
                               : <div className="w-full h-full flex items-center justify-center text-ink-light text-lg">🐾</div>
                             }
                           </div>

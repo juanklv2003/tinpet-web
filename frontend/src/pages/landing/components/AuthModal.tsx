@@ -159,7 +159,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
                 type="email"
                 required
                 autoComplete="email"
-                placeholder="tu@correo.com"
+                placeholder={t('landing.auth.emailPlaceholder')}
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
                 className={inputClass}
@@ -218,7 +218,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
                 type="text"
                 required
                 autoComplete="name"
-                placeholder="Tu nombre o refugio"
+                placeholder={t('landing.auth.namePlaceholder')}
                 value={regName}
                 onChange={(e) => setRegName(e.target.value)}
                 className={inputClass}
@@ -232,7 +232,7 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
                 type="email"
                 required
                 autoComplete="email"
-                placeholder="tu@correo.com"
+                placeholder={t('landing.auth.emailPlaceholder')}
                 value={regEmail}
                 onChange={(e) => setRegEmail(e.target.value)}
                 className={inputClass}
@@ -264,14 +264,14 @@ export function AuthModal({ initialMode, onClose }: AuthModalProps) {
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 text-left">
-                Rol
+                {t('landing.auth.role')}
               </label>
               <StyledSelect
                 value={regRole}
                 onChange={(value) => setRegRole(value as UserRole)}
                 options={[
-                  { value: 'shelter', label: 'Refugio' },
-                  { value: 'vet', label: 'Veterinaria' },
+                  { value: 'shelter', label: t('auth.role.shelter') },
+                  { value: 'vet', label: t('auth.role.vet') },
                 ]}
                 className={inputClass}
               />

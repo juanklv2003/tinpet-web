@@ -68,6 +68,25 @@ function toStoredImageField(photoUrls) {
   return JSON.stringify(photoUrls);
 }
 
+function normalizeStringList(value) {
+  if (Array.isArray(value)) {
+    return value.filter((item) => typeof item === "string" && item.trim().length > 0);
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item) => typeof item === "string" && item.trim().length > 0);
+      }
+    } catch {
+      return value.split(",").map((item) => item.trim()).filter(Boolean);
+    }
+  }
+
+  return [];
+}
+
 // ── Push Notification Helper ─────────────────────────────────────
 const expo = new Expo();
 
@@ -414,8 +433,8 @@ const mapPetToFrontend = (pet) => ({
     intakeDate: pet.registration_date
       ? pet.registration_date.toISOString().split("T")[0]
       : null,
-    vaccines: [],
-    medicalHistory: [],
+    vaccines: normalizeStringList(pet.ai_profile?.vaccines),
+    medicalHistory: normalizeStringList(pet.ai_profile?.medicalHistory),
     inChargeEmployeeId: pet.in_charge_employee_id || null,
   },
 });
