@@ -2462,10 +2462,17 @@ app.post(
         data: { last_message_at: new Date() },
       });
 
-      // Emitir por WebSocket (lo hago después de configurar socket.io)
+      // Emitir por WebSocket a todos los participantes, incluso fuera de la vista de chat
       if (global.io) {
-        global.io.to(`conversation:${id}`).emit("new_message", message);
-        global.io.to(`conversation:${id}`).emit("receive_message", message);
+        const participantUserIds = [
+          conversation.adopter?.users?.id,
+          conversation.shelter?.user_id,
+          conversation.vet_clinic?.user_id,
+        ].filter(Boolean);
+
+        participantUserIds.forEach((userId) => {
+          global.io.to(`user:${userId}`).emit("new_message", message);
+        });
       }
 
       // Enviar push al otro participante si no está conectado
@@ -3626,9 +3633,16 @@ io.on("connection", async (socket) => {
         data: { last_message_at: new Date() },
       });
 
-      // Emitir a todos en la sala
-      io.to(`conversation:${conversation_id}`).emit("new_message", message);
-      io.to(`conversation:${conversation_id}`).emit("receive_message", message);
+      // Emitir a todos los participantes por user room para notificaciones globales
+      const participantUserIds = [
+        conversation.adopter?.users?.id,
+        conversation.shelter?.user_id,
+        conversation.vet_clinic?.user_id,
+      ].filter(Boolean);
+
+      participantUserIds.forEach((userId) => {
+        io.to(`user:${userId}`).emit("new_message", message);
+      });
 
       // Enviar push al otro participante
       try {

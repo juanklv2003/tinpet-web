@@ -10,6 +10,12 @@ interface ChatViewProps {
   token: string;
 }
 
+interface PendingOutgoingMessage {
+  id: string;
+  content: string;
+  created_at: string;
+}
+
 type RawMessage = Partial<Message> & {
   text?: string;
   body?: string;
@@ -39,6 +45,14 @@ const appendUniqueMessage = (prev: Message[], incoming: Message): Message[] => {
     return prev;
   }
   return [...prev, incoming];
+};
+
+const sortConversationsByLastMessage = (items: Conversation[]): Conversation[] => {
+  return [...items].sort((a, b) => {
+    const aTs = new Date(a.last_message_at ?? 0).getTime();
+    const bTs = new Date(b.last_message_at ?? 0).getTime();
+    return bTs - aTs;
+  });
 };
 
 const otherPartyBadge = (type: Conversation["other_party"]["type"]) => {
@@ -148,6 +162,8 @@ export function ChatView({ token }: ChatViewProps) {
   const [loading, setLoading] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
+  const [unreadByConversation, setUnreadByConversation] = useState<Record<string, number>>({});
+  const [pendingOutgoing, setPendingOutgoing] = useState<PendingOutgoingMessage | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showSubMenu, setShowSubMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -198,7 +214,7 @@ export function ChatView({ token }: ChatViewProps) {
       const data = await response.json();
       // Ensure data is an array
       if (Array.isArray(data)) {
-        setConversations(data);
+        setConversations(sortConversationsByLastMessage(data));
       } else {
         console.error("API returned non-array for conversations:", data);
         setConversations([]);
@@ -258,6 +274,38 @@ export function ChatView({ token }: ChatViewProps) {
       const normalized = normalizeMessage(rawMessage);
       if (!normalized) return;
 
+      setConversations((prev) => {
+        const existingIndex = prev.findIndex((conv) => conv.id === normalized.conversation_id);
+        if (existingIndex < 0) {
+          return prev;
+        }
+
+        const existing = prev[existingIndex];
+        const updated: Conversation = {
+          ...existing,
+          last_message: {
+            content: normalized.content,
+            created_at: normalized.created_at,
+            sender_role: normalized.sender_role,
+          },
+          last_message_at: normalized.created_at,
+        };
+
+        const next = [...prev];
+        next.splice(existingIndex, 1);
+        return [updated, ...next];
+      });
+
+      const isIncomingFromAdopter = normalized.sender_role === "adopter";
+      const isCurrentConversation = normalized.conversation_id === selectedConversationIdRef.current;
+
+      if (isIncomingFromAdopter && !isCurrentConversation) {
+        setUnreadByConversation((prev) => ({
+          ...prev,
+          [normalized.conversation_id]: (prev[normalized.conversation_id] ?? 0) + 1,
+        }));
+      }
+
       if (normalized.conversation_id !== selectedConversationIdRef.current) {
         return;
       }
@@ -301,6 +349,17 @@ export function ChatView({ token }: ChatViewProps) {
   useEffect(() => {
     selectedConversationIdRef.current = selectedConversation?.id ?? null;
 
+    setPendingOutgoing(null);
+
+    if (selectedConversation?.id) {
+      setUnreadByConversation((prev) => {
+        if (!prev[selectedConversation.id]) return prev;
+        const next = { ...prev };
+        delete next[selectedConversation.id];
+        return next;
+      });
+    }
+
     if (selectedConversation) {
       chatService.joinConversation(selectedConversation.id);
       fetchMessages(selectedConversation.id);
@@ -333,7 +392,7 @@ export function ChatView({ token }: ChatViewProps) {
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, pendingOutgoing]);
 
   // Send message
   const handleSend = async () => {
@@ -341,6 +400,13 @@ export function ChatView({ token }: ChatViewProps) {
 
     setSending(true);
     const content = newMessage.trim();
+    const pendingId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const pendingCreatedAt = new Date().toISOString();
+    setPendingOutgoing({
+      id: pendingId,
+      content,
+      created_at: pendingCreatedAt,
+    });
     setNewMessage("");
 
     try {
@@ -363,10 +429,12 @@ export function ChatView({ token }: ChatViewProps) {
       if (savedMessage) {
         setMessages((prev) => appendUniqueMessage(prev, savedMessage));
       }
+      setPendingOutgoing(null);
     } catch (error) {
       console.error("Error sending message:", error);
       // Fallback to socket
       chatService.sendMessage(selectedConversation.id, content);
+      setPendingOutgoing(null);
     } finally {
       setSending(false);
     }
@@ -539,7 +607,15 @@ export function ChatView({ token }: ChatViewProps) {
               {filteredConversations.map((conv) => (
                 <button
                   key={conv.id}
-                  onClick={() => setSelectedConversation(conv)}
+                  onClick={() => {
+                    setSelectedConversation(conv);
+                    setUnreadByConversation((prev) => {
+                      if (!prev[conv.id]) return prev;
+                      const next = { ...prev };
+                      delete next[conv.id];
+                      return next;
+                    });
+                  }}
                   className={`w-full p-4 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left ${
                     selectedConversation?.id === conv.id
                       ? "bg-brand/5 dark:bg-brand/10"
@@ -568,11 +644,16 @@ export function ChatView({ token }: ChatViewProps) {
                       <span className="font-medium text-gray-900 dark:text-white truncate">
                         {conv.pet_name || "Mascota"}
                       </span>
-                      {conv.last_message_at && (
-                        <span className="text-xs text-gray-400">
-                          {new Date(conv.last_message_at).toLocaleDateString()}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {conv.last_message_at && (
+                          <span className="text-xs text-gray-400">
+                            {new Date(conv.last_message_at).toLocaleDateString()}
+                          </span>
+                        )}
+                        {(unreadByConversation[conv.id] ?? 0) > 0 && (
+                          <span className="inline-flex h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_0_3px_rgba(239,68,68,0.18)]" />
+                        )}
+                      </div>
                     </div>
                     <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
                       <span className="inline-flex items-center gap-1.5">
@@ -1002,6 +1083,32 @@ export function ChatView({ token }: ChatViewProps) {
                   );
                 })
               )}
+              {pendingOutgoing && (
+                <div className="flex justify-end">
+                  <div className="flex flex-col items-end">
+                    <div className="max-w-xs lg:max-w-md px-4 py-2 rounded-2xl bg-brand text-white rounded-br-sm opacity-85">
+                      {pendingOutgoing.content.startsWith("data:image/") ? (
+                        <img
+                          src={pendingOutgoing.content}
+                          alt="Enviando adjunto"
+                          className="max-w-xs max-h-48 rounded-lg object-contain"
+                        />
+                      ) : (
+                        <p className="text-sm break-words">{pendingOutgoing.content}</p>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 px-1 flex items-center gap-1">
+                      <span>
+                        {new Date(pendingOutgoing.created_at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      <span>• Enviando...</span>
+                    </p>
+                  </div>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
 
@@ -1148,6 +1255,13 @@ export function ChatView({ token }: ChatViewProps) {
                         try {
                           setSending(true);
                           const compressedBase64 = await compressImage(file);
+                          const pendingId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                          const pendingCreatedAt = new Date().toISOString();
+                          setPendingOutgoing({
+                            id: pendingId,
+                            content: compressedBase64,
+                            created_at: pendingCreatedAt,
+                          });
                           const response = await fetch(
                             `${import.meta.env.VITE_API_URL || "http://192.168.5.103:3000"}/api/conversations/${selectedConversation.id}/messages`,
                             {
@@ -1171,8 +1285,10 @@ export function ChatView({ token }: ChatViewProps) {
                               appendUniqueMessage(prev, savedMessage),
                             );
                           }
+                          setPendingOutgoing(null);
                         } catch (err) {
                           console.error("Error sending image:", err);
+                          setPendingOutgoing(null);
                         } finally {
                           setSending(false);
                           e.target.value = ""; // clear input

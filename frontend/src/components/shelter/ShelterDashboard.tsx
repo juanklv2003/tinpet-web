@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { chatService } from '../../services/chatService';
@@ -56,6 +56,7 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [unreadMatchesCount, setUnreadMatchesCount] = useState(0);
+  const seenMessageIdsRef = useRef<Set<string>>(new Set());
   const [activeView, setActiveViewState] = useState<ShelterView>(
     (initialView as ShelterView) ?? 'monitoring'
   );
@@ -129,8 +130,18 @@ export default function ShelterDashboard({ initialView }: { initialView?: string
     chatService.connect(token).catch((err: unknown) => {
       console.error('Error connecting dashboard socket:', err);
     });
-    const handleMsg = (message: { sender_role?: string }) => {
-      if (message?.sender_role !== 'adopter') return;
+    const handleMsg = (message: { id?: string; sender_role?: string; senderRole?: string }) => {
+      const role = String(message?.sender_role ?? message?.senderRole ?? '').toLowerCase();
+      if (role && role !== 'adopter') return;
+
+      if (message?.id) {
+        if (seenMessageIdsRef.current.has(message.id)) return;
+        seenMessageIdsRef.current.add(message.id);
+        if (seenMessageIdsRef.current.size > 400) {
+          seenMessageIdsRef.current.clear();
+        }
+      }
+
       if (activeView !== 'chat') setUnreadMessagesCount(prev => prev + 1);
     };
     const handleMatch = (_payload: NewMatchRequestPayload) => {

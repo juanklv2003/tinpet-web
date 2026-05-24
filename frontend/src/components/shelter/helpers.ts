@@ -16,7 +16,9 @@ export const PHOTO_FOCUS_OPTIONS = [
   { value: 'bottom right', label: 'Abajo derecha' },
 ] as const;
 
-const PHOTO_FOCUS_VALUES = new Set(PHOTO_FOCUS_OPTIONS.map((option) => option.value));
+const PHOTO_FOCUS_VALUES: ReadonlySet<string> = new Set(
+  PHOTO_FOCUS_OPTIONS.map((option) => option.value),
+);
 
 export function normalizePhotoFocus(value: unknown): string {
   if (typeof value !== 'string') return DEFAULT_PHOTO_FOCUS;

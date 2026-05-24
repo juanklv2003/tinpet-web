@@ -384,7 +384,7 @@ export default function AuthPage() {
                     type="text"
                     required
                     autoComplete="name"
-                    placeholder={t('auth.namePlaceholder')}
+                    placeholder="Tu nombre"
                     value={regName}
                     onChange={(e) => setRegName(e.target.value)}
                     className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-base font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand focus:bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-brand"
