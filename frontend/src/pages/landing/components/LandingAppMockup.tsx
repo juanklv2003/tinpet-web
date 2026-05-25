@@ -38,13 +38,14 @@ export function LandingAppMockup() {
           </ul>
 
           <div className="flex items-center justify-center md:justify-start space-x-4">
-            <button
-              type="button"
+            <a
+              href="/apk/Tinpet.apk"
+              download
               className="px-5 py-3 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-semibold shadow-md shadow-gray-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
             >
               <Download className="h-5 w-5" />
               <span>{t('landing.app.download')}</span>
-            </button>
+            </a>
           </div>
         </div>
 
