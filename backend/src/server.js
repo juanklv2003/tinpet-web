@@ -4080,7 +4080,7 @@ app.post("/api/reviews", authenticateToken, async (req, res) => {
       return res.status(403).json({ error: "Rol no autorizado." });
     }
     const match = await prisma.matches.findUnique({ where: { id: match_id } });
-    if (!match || match.interaction_type !== "accepted") return res.status(400).json({ error: "Solo se puede valorar un match aceptado." });
+    if (!match || !['accepted', 'match', 'approved'].includes(match.interaction_type)) return res.status(400).json({ error: "Solo se puede valorar un match aceptado." });
     if (role === "adopter" && match.adopter_id !== reviewer_id) return res.status(403).json({ error: "No perteneces a este match." });
     let review;
     try {

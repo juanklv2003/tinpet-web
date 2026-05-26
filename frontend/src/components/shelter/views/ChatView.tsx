@@ -970,9 +970,9 @@ export function ChatView({ token }: ChatViewProps) {
                 </div>
                 <button
                   onClick={() => setShowReviewModal(true)}
-                  disabled={hasReviewed}
+                  disabled={hasReviewed || !selectedConversation?.match_id}
                   className={`px-4 py-2 rounded-xl font-medium transition-colors shadow-sm ${
-                    hasReviewed 
+                    hasReviewed || !selectedConversation?.match_id
                       ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed' 
                       : 'bg-green-600 hover:bg-green-700 text-white'
                   }`}
@@ -1766,9 +1766,9 @@ export function ChatView({ token }: ChatViewProps) {
         )}
 
         {/* Modal de Valoración */}
-        {showReviewModal && selectedConversation && (
+        {showReviewModal && selectedConversation && selectedConversation.match_id && (
           <ReviewModal
-            matchId={selectedConversation.match_id ?? ''}
+            matchId={selectedConversation.match_id}
             targetId={selectedConversation.other_party.id}
             targetRole={selectedConversation.other_party.type as "adopter" | "shelter" | "vet"}
             targetName={selectedConversation.other_party.name}
