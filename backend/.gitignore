@@ -3,3 +3,8 @@ node_modules
 
 /generated/prisma
 /scripts
+
+# Ignorar scripts sueltos de base de datos
+seed*.js
+seed*.ts
+update*.js
